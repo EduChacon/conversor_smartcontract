@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-translate-key="pageTitle">Conversor Contratual para Esqueleto Solidity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos Base (Comum a ambos os temas) */
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container {
+            max-width: 900px;
+            margin: 1rem auto; 
+            padding: 2rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .top-controls-bar {
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.375rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .api-key-section {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-grow: 1;
+            min-width: 300px; /* Para evitar quebra excessiva */
+        }
+        .api-key-section input[type="text"] {
+            flex-grow: 1;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            border-radius: 0.375rem;
+            min-width: 200px; /* Para o input não ficar muito pequeno */
+        }
+        .theme-lang-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-semibold;
+            padding: 0.5rem 1rem; 
+            border-radius: 0.375rem; 
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
+            font-size: 0.875rem; 
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+            border-width: 1px;
+            cursor: pointer;
+        }
+        .btn-icon {
+            margin-right: 0.5rem; 
+            width: 1.25rem; 
+            height: 1.25rem; 
+        }
+        textarea, pre {
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            width: 100%;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        pre {
+            white-space: pre-wrap;   
+            overflow-wrap: break-word; 
+            overflow-x: auto;       
+            min-height: 100px;
+        }
+        .loader {
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            transition: border-color 0.3s;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .output-section, .interaction-section, .next-steps-container {
+            margin-top: 1rem; 
+            padding: 1rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .output-section h4, .interaction-section h4, .next-steps-container h3, .output-section h5 {
+            font-weight: 600; 
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            transition: color 0.3s;
+        }
+        .next-steps-container {
+             margin-top: 1.5rem; 
+        }
+        .next-steps-container ol {
+            list-style-type: decimal;
+            list-style-position: inside;
+            padding-left: 0.5rem;
+        }
+        .next-steps-container li {
+            margin-bottom: 1rem;
+        }
+        .next-steps-container code {
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        label {
+            transition: color 0.3s;
+        }
+        .modal-overlay {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); 
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content-base {
+            margin: auto;
+            padding: 25px;
+            border-radius: 0.5rem;
+            width: auto; 
+            max-width: 520px; 
+            position: relative;
+            text-align: center;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        #brickoutCanvas {
+            display: block;
+            margin: 10px auto 0; 
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .api-key-save-feedback {
+            font-size: 0.75rem; /* text-xs */
+            margin-left: 0.5rem;
+            transition: opacity 0.5s ease-out;
+        }
+
+        /* Tema Escuro (Padrão) */
+        body {
+            background-color: #111827; 
+            color: #d1d5db; 
+        }
+        .container {
+            background-color: #1f2937; 
+            border: 1px solid #374151; 
+        }
+        .top-controls-bar { background-color: #1f2937; border-bottom: 1px solid #374151;}
+        .api-key-section input[type="text"] { background-color: #0d1117; color: #c9d1d9; border: 1px solid #30363d;}
+        .api-key-section label { color: #9ca3af;}
+        .api-key-save-feedback { color: #6ee7b7; /* Green 300 */}
+
+        .title-main { color: #f9fafb; }
+        .subtitle-main { color: #9ca3af; }
+        .btn-primary, .btn-save-key { background-color: #374151; color: #f9fafb; border-color: #4b5563; }
+        .btn-primary:hover, .btn-save-key:hover { background-color: #4b5563; }
+        .btn-secondary, .theme-toggle-button, .language-toggle-button  { background-color: #374151; color: #d1d5db; border-color: #4b5563; }
+        .btn-secondary:hover, .theme-toggle-button:hover, .language-toggle-button:hover { background-color: #4b5563; }
+        .btn-action { background-color: #1e40af; color: #e0e7ff; border-color: #2563eb; }
+        .btn-action:hover { background-color: #1d4ed8; }
+        .btn-experimental { background-color: #7c3aed; color: #f3e8ff; border-color: #8b5cf6; }
+        .btn-experimental:hover { background-color: #6d28d9; }
+        .btn-refine { background-color: #059669; color: #d1fae5; border-color: #047857; }
+        .btn-refine:hover { background-color: #047857; }
+        .btn-query { background-color: #ca8a04; color: #fef9c3; border-color: #a16207; }
+        .btn-query:hover { background-color: #a16207; }
+        textarea, pre { background-color: #0d1117; color: #c9d1d9; border: 1px solid #30363d; }
+        .loader { border: 4px solid #374151; border-top: 4px solid #60a5fa; }
+        .warning-box { background-color: #312e22; border-left: 4px solid #facc15; color: #fef08a; }
+        .warning-box h3 { color: #fde047; }
+        .critical-warning-box { background-color: #3f2222; border-left: 4px solid #f87171; color: #fecaca; margin-top: 1rem; } 
+        .critical-warning-box h3 { color: #fca5a5; }
+        .output-section, .interaction-section, .next-steps-container { border: 1px solid #374151; background-color: #171e2b; }
+        .output-section h4, .interaction-section h4, .next-steps-container h3, .output-section h5 { color: #e5e7eb; }
+        .next-steps-container { background-color: #111827; }
+        .next-steps-container strong { color: #93c5fd; }
+        .next-steps-container code { background-color: #374151; color: #f9fafb; }
+        label { color: #d1d5db; }
+        .modal-content-base { background-color: #1f2937; border: 1px solid #374151; color: #e5e7eb; }
+        .modal-close-btn { color: #9ca3af; }
+        .modal-close-btn:hover, .modal-close-btn:focus { color: #f9fafb; }
+        #brickoutCanvas { background-color: #0d1117; border: 1px solid #30363d; }
+        #victoryMessageText, #gameOverMessageText { color: #a7f3d0; }
+
+
+        /* Tema Claro */
+        body.light-theme {
+            background-color: #f9fafb; 
+            color: #1f2937; 
+        }
+        body.light-theme .container {
+            background-color: #ffffff; 
+            border: 1px solid #e5e7eb; 
+        }
+        body.light-theme .top-controls-bar { background-color: #ffffff; border-bottom: 1px solid #e5e7eb;}
+        body.light-theme .api-key-section input[type="text"] { background-color: #f3f4f6; color: #111827; border: 1px solid #d1d5db;}
+        body.light-theme .api-key-section label { color: #4b5563;}
+        body.light-theme .api-key-save-feedback { color: #059669; /* Green 600 */}
+
+        body.light-theme .title-main { color: #111827; }
+        body.light-theme .subtitle-main { color: #4b5563; }
+        body.light-theme .btn-primary, body.light-theme .btn-save-key { background-color: #e5e7eb; color: #1f2937; border-color: #d1d5db; }
+        body.light-theme .btn-primary:hover, body.light-theme .btn-save-key:hover { background-color: #d1d5db; }
+        body.light-theme .btn-secondary, body.light-theme .theme-toggle-button, body.light-theme .language-toggle-button { background-color: #e5e7eb; color: #374151; border-color: #d1d5db; }
+        body.light-theme .btn-secondary:hover, body.light-theme .theme-toggle-button:hover, body.light-theme .language-toggle-button:hover { background-color: #d1d5db; }
+        body.light-theme .btn-action { background-color: #3b82f6; color: #ffffff; border-color: #2563eb; }
+        body.light-theme .btn-action:hover { background-color: #2563eb; }
+        body.light-theme .btn-experimental { background-color: #8b5cf6; color: #ffffff; border-color: #7c3aed; }
+        body.light-theme .btn-experimental:hover { background-color: #7c3aed; }
+        body.light-theme .btn-refine { background-color: #10b981; color: #ffffff; border-color: #059669; }
+        body.light-theme .btn-refine:hover { background-color: #059669; }
+        body.light-theme .btn-query { background-color: #f59e0b; color: #ffffff; border-color: #d97706; }
+        body.light-theme .btn-query:hover { background-color: #d97706; }
+        body.light-theme textarea, body.light-theme pre { background-color: #f3f4f6; color: #111827; border: 1px solid #d1d5db; }
+        body.light-theme .loader { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; }
+        body.light-theme .warning-box { background-color: #fffbeb; border-left: 4px solid #f59e0b; color: #b45309; }
+        body.light-theme .warning-box h3 { color: #92400e; }
+        body.light-theme .critical-warning-box { background-color: #fee2e2; border-left: 4px solid #ef4444; color: #b91c1c; margin-top: 1rem;}
+        body.light-theme .critical-warning-box h3 { color: #991b1b; }
+        body.light-theme .output-section, body.light-theme .interaction-section, body.light-theme .next-steps-container { border: 1px solid #e5e7eb; background-color: #f9fafb; }
+        body.light-theme .output-section h4, body.light-theme .interaction-section h4, body.light-theme .next-steps-container h3, body.light-theme .output-section h5 { color: #1f2937; }
+        body.light-theme .next-steps-container { background-color: #f3f4f6; }
+        body.light-theme .next-steps-container strong { color: #2563eb; }
+        body.light-theme .next-steps-container code { background-color: #e5e7eb; color: #1f2937; }
+        body.light-theme label { color: #374151; }
+        body.light-theme .modal-content-base { background-color: #ffffff; border: 1px solid #e5e7eb; color: #1f2937; }
+        body.light-theme .modal-close-btn { color: #6b7280; }
+        body.light-theme .modal-close-btn:hover, body.light-theme .modal-close-btn:focus { color: #111827; }
+        body.light-theme #brickoutCanvas { background-color: #e5e7eb; border: 1px solid #d1d5db; }
+        body.light-theme #victoryMessageText, body.light-theme #gameOverMessageText { color: #065f46; } 
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container">
+        <div class="top-controls-bar">
+            <div class="api-key-section">
+                <label for="geminiApiKeyInput" class="text-sm font-medium whitespace-nowrap" data-translate-key="apiKeyLabel">Sua Chave da API Gemini:</label>
+                <input type="text" id="geminiApiKeyInput" class="border" data-translate-key="apiKeyPlaceholder" placeholder="Cole sua chave aqui...">
+                <button id="saveApiKeyButton" class="btn btn-save-key py-1 px-3 text-xs">
+                    <svg class="btn-icon mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.338 0 4.5 4.5 0 0 1-1.41 8.775H6.75Z" /></svg>
+                    <span data-translate-key="saveApiKeyButton">Salvar Chave</span>
+                </button>
+                <span id="apiKeySaveFeedback" class="api-key-save-feedback" style="opacity: 0;"></span>
+            </div>
+            <div class="theme-lang-buttons">
+                <button id="themeToggleButton" class="btn theme-toggle-button py-1 px-3 text-xs"></button>
+                <button id="languageToggleButton" class="btn language-toggle-button py-1 px-3 text-xs"></button>
+            </div>
+        </div>
+
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold title-main" data-translate-key="mainTitle">
+                Conversor Contratual para Esqueleto Solidity
+            </h1>
+            <p class="subtitle-main mt-2" data-translate-key="subTitle">
+                Gere um ponto de partida em Solidity e obtenha insights sobre suas cláusulas.
+            </p>
+        </header>
+
+        <div class="warning-box">
+            <h3 class="text-lg font-semibold" data-translate-key="warningTitle">Atenção: Ferramenta Educacional e Experimental</h3>
+            <p class="text-sm mt-1" data-translate-key="warningText">
+                Este aplicativo tenta gerar um esqueleto de código Solidity e fornecer análises. <strong>NÃO PRODUZ CÓDIGO PRONTO PARA USO EM PRODUÇÃO NEM ACONSELHAMENTO JURÍDICO.</strong>
+                A conversão automática e a análise de contratos são complexas. Os resultados são para fins ilustrativos e educacionais.
+            </p>
+        </div>
+
+        <div>
+            <label for="naturalLanguageClause" class="block text-sm font-medium mb-1" data-translate-key="naturalClauseLabel">
+                Cláusula Contratual (Linguagem Natural):
+            </label>
+            <textarea id="naturalLanguageClause" rows="8"
+                class="focus:ring-indigo-500 focus:border-indigo-500"
+                data-translate-key="naturalClausePlaceholder"
+                placeholder="Ex: O LOCATÁRIO pagará ao LOCADOR a quantia de R$ 2.000,00 mensais, todo dia 05, a título de aluguel. Em caso de atraso, incidirá multa de 10% sobre o valor devido e juros de 1% ao mês."></textarea>
+            
+            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-3">
+                <button id="analyzeRiskButton" class="flex-1 btn btn-secondary py-2 px-4 text-sm">
+                    <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286Zm0 13.036h.008v.015h-.008v-.015Z" /></svg>
+                    <span data-translate-key="analyzeRiskButton">Analisar Riscos</span>
+                </button>
+                <button id="suggestClausesButton" class="flex-1 btn btn-secondary py-2 px-4 text-sm">
+                    <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                    <span data-translate-key="suggestClausesButton">Sugerir Cláusulas</span>
+                </button>
+            </div>
+
+            <div id="riskLoadingIndicator" class="mt-2 text-center" style="display: none;"><div class="loader"></div><p class="text-xs" data-translate-key="analyzingRiskText">Analisando riscos...</p></div>
+            <div id="riskAnalysisOutputContainer" class="output-section" style="display: none;"><h4 class="font-semibold mb-2 text-base" data-translate-key="riskAnalysisTitle">Análise de Riscos da Cláusula:</h4><pre id="riskAnalysisOutput"></pre></div>
+            <div id="suggestClausesLoadingIndicator" class="mt-2 text-center" style="display: none;"><div class="loader"></div><p class="text-xs" data-translate-key="suggestingClausesText">Sugerindo cláusulas...</p></div>
+            <div id="suggestClausesOutputContainer" class="output-section" style="display: none;"><h4 class="font-semibold mb-2 text-base" data-translate-key="suggestClausesTitle">Sugestões de Cláusulas Complementares:</h4><pre id="suggestClausesOutput"></pre></div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <button id="convertButton" class="btn btn-primary py-2 px-6">
+                <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
+                <span data-translate-key="generateSolidityButton">Gerar Esqueleto Solidity</span>
+            </button>
+        </div>
+         <div id="convertLoadingIndicator" class="mt-4 text-center" style="display: none;"><div class="loader"></div><p class="text-sm mt-2" data-translate-key="generatingSolidityText">Gerando código Solidity...</p></div>
+
+
+        <div class="mt-6">
+            <label for="solidityCodeOutput" class="block text-sm font-medium mb-1" data-translate-key="soliditySkeletonLabel">
+                Esqueleto do Smart Contract em Solidity (Requer Revisão Especializada!):
+            </label>
+            <div id="solidityOutputContainer">
+                 <pre id="solidityCodeOutput" data-translate-key="solidityOutputPlaceholder">O esqueleto do smart contract em Solidity aparecerá aqui...</pre>
+            </div>
+            
+            <div class="critical-warning-box" id="solidityWarning" style="display: none;">
+                <h3 class="text-lg font-semibold" data-translate-key="criticalWarningTitle">⚠️ ALERTA CRÍTICO ⚠️</h3>
+                <p class="text-sm mt-1" data-translate-key="criticalWarningText">
+                    O código Solidity gerado é um <strong>ESQUELETO EDUCACIONAL</strong> e <strong>NÃO DEVE SER USADO EM PRODUÇÃO SEM REVISÃO PROFISSIONAL</strong>.
+                    Smart contracts mal implementados podem resultar em <strong>PERDAS FINANCEIRAS IRREVERSÍVEIS</strong>.
+                </p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mt-4" id="solidityActionsContainer" style="display: none;">
+                <button id="explainSolidityButton" class="flex-1 btn btn-secondary py-2 px-4 text-sm">
+                    <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
+                    <span data-translate-key="explainSolidityButton">Explicar Código Solidity</span>
+                </button>
+                <button id="optimizeSolidityButton" class="flex-1 btn btn-secondary py-2 px-4 text-sm">
+                     <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.646.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.759 6.759 0 0 1 0 1.255c-.008.378.136.75.43.99l1.004.828c.414.34.515.942.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.6 6.6 0 0 1-.22.128c-.333.183-.582.495-.644.869l-.213 1.28c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.759 6.759 0 0 1 0-1.255c.008-.378-.136.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                    <span data-translate-key="optimizeSolidityButton">Otimizar Código Solidity (Sugestões)</span>
+                </button>
+            </div>
+
+            <div id="explanationLoadingIndicator" class="mt-2 text-center" style="display: none;"><div class="loader"></div><p class="text-xs" data-translate-key="explainingSolidityText">Explicando Solidity...</p></div>
+            <div id="explanationOutputContainer" class="output-section" style="display: none;"><h4 class="font-semibold mb-2 text-base" data-translate-key="explanationTitle">Explicação do Código Solidity:</h4><pre id="explanationOutput"></pre></div>
+
+            <div id="optimizationLoadingIndicator" class="mt-2 text-center" style="display: none;"><div class="loader"></div><p class="text-xs" data-translate-key="suggestingOptimizationsText">Sugerindo otimizações...</p></div>
+            <div id="optimizationOutputContainer" class="output-section" style="display: none;">
+                <h4 class="font-semibold mb-2 text-base" data-translate-key="optimizationTitle">Sugestões de Otimização para o Código Solidity:</h4>
+                <pre id="optimizationOutput"></pre>
+                <div class="mt-4 text-center">
+                    <button id="applyOptimizationButton" class="btn btn-experimental py-2 px-4 text-sm" style="display: none;">
+                         <svg class="btn-icon clickable-icon" id="rocketGameIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                          </svg>
+                        <span data-translate-key="applyOptimizationsButton">Aplicar Otimizações Sugeridas (Experimental)</span>
+                    </button>
+                    <div id="applyOptimizationLoadingIndicator" class="mt-2" style="display: none;"><div class="loader"></div><p class="text-xs" data-translate-key="applyingOptimizationsText">Aplicando otimizações...</p></div>
+                </div>
+            </div>
+            
+            <div id="codeRefinementContainer" class="interaction-section mt-4" style="display: none;">
+                <h4 class="font-semibold mb-2 text-base">
+                     <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                    </svg>
+                    <span data-translate-key="refineCodeTitle">Interagir e Refinar Código Solidity (Experimental)</span>
+                </h4>
+                <p class="text-sm text-gray-400 mb-3" data-translate-key="refineCodeDescription">
+                    Abaixo, você pode fazer observações sobre o código Solidity gerado ou solicitar adições/modificações.
+                    A IA tentará refinar o código com base no seu feedback. Lembre-se que este é um processo experimental.
+                </p>
+                <textarea id="refinementFeedback" rows="5" class="mb-3" data-translate-key="refineFeedbackPlaceholder" placeholder="Ex: Adicione uma função para verificar o saldo do contrato. Modifique a multa para 15%."></textarea>
+                <button id="submitRefinementButton" class="btn btn-refine w-full">
+                    <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                         <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                    </svg>
+                    <span data-translate-key="submitRefinementButton">Enviar Feedback e Refinar Código</span>
+                </button>
+                <div id="refinementLoadingIndicator" class="mt-2 text-center" style="display: none;"><div class="loader"></div><p class="text-xs" data-translate-key="refiningCodeText">Refinando código...</p></div>
+            </div>
+
+            <div id="codeQueryContainer" class="interaction-section mt-4" style="display: none;">
+                <h4 class="font-semibold mb-2 text-base">
+                    <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+                    </svg>
+                    <span data-translate-key="queryCodeTitle">Perguntar sobre o Código à IA (Análise sem Modificação)</span>
+                </h4>
+                <p class="text-sm text-gray-400 mb-3" data-translate-key="queryCodeDescription">
+                    Faça perguntas específicas sobre o código Solidity exibido acima. A IA fornecerá explicações ou análises sem alterar o código.
+                </p>
+                <textarea id="codeQueryInput" rows="4" class="mb-3" data-translate-key="queryCodePlaceholder" placeholder="Ex: Qual o propósito da função 'pagarAluguel'? Como a variável 'prazoLimite' é utilizada?"></textarea>
+                <button id="askCodeQueryButton" class="btn btn-query w-full">
+                     <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                    <span data-translate-key="askQueryButton">Enviar Pergunta à IA</span>
+                </button>
+                <div id="codeQueryLoadingIndicator" class="mt-2 text-center" style="display: none;"><div class="loader"></div><p class="text-xs" data-translate-key="analyzingQueryText">Analisando pergunta...</p></div>
+                <div id="codeQueryOutputContainer" class="output-section mt-3" style="display: none;">
+                    <h5 class="font-semibold mb-1" data-translate-key="queryResponseTitle">Resposta da IA:</h5>
+                    <pre id="codeQueryOutput" data-translate-key="queryOutputPlaceholder">As respostas às suas perguntas sobre o código aparecerão aqui...</pre>
+                </div>
+            </div>
+
+
+            <div id="nextStepsContainer" class="next-steps-container" style="display: none;">
+                <h3>
+                     <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                    </svg>
+                    <span data-translate-key="nextStepsTitle">Próximos Passos Essenciais</span>
+                </h3>
+                <ol>
+                    <li data-translate-key="nextStep1"><strong>Análise e Cópia do Código:</strong> Analise o esqueleto de código Solidity gerado. Este é o seu ponto de partida. Copie o código para a sua área de transferência.</li>
+                    <li data-translate-key="nextStep2"><strong>Acesso ao Ambiente de Desenvolvimento (IDE):</strong> Utilize o botão abaixo para abrir o <strong>Remix IDE</strong>, uma plataforma online padrão para desenvolvimento em Ethereum, diretamente no seu navegador.</li>
+                    <li data-translate-key="nextStep3"><strong>Compilação do Contrato:</strong> No Remix, crie um novo arquivo (ex: <code>meuContrato.sol</code>) e cole o código. Vá para a aba "Solidity Compiler". Certifique-se de que a versão do compilador (<code>Compiler</code>) corresponde à versão declarada no código (<code>pragma solidity ...</code>). Clique no botão <code>Compile</code>. Esta etapa verifica se há erros de sintaxe no código.</li>
+                    <li data-translate-key="nextStep4"><strong>Implantação (Deploy) em Rede de Teste:</strong> Vá para a aba "Deploy & Run Transactions". No menu <code>Environment</code>, selecione uma rede de teste como <strong>"Remix VM (Shanghai)"</strong> para uma simulação rápida no navegador, ou conecte sua carteira (ex: MetaMask) a uma rede de teste pública como a <strong>Sepolia</strong>. <strong>NUNCA</strong> utilize a Mainnet (rede principal) nesta fase. Clique em <code>Deploy</code> para implantar uma instância do seu contrato na rede de teste.</li>
+                    <li data-translate-key="nextStep5"><strong>Teste e Refinamento (Etapa Crítica com Desenvolvedor):</strong> Após a implantação na rede de teste, você verá a interface do seu contrato. Interaja com as funções, simule transações e verifique se o comportamento corresponde ao esperado. <strong>É nesta etapa que a colaboração com um desenvolvedor Solidity é indispensável.</strong> Ele(a) irá:
+                        <ul>
+                            <li class="mt-2" data-translate-key="nextStep5a">- Refinar a lógica de negócio e implementar condições complexas.</li>
+                            <li class="mt-2" data-translate-key="nextStep5b">- Adicionar mecanismos de segurança robustos (controle de acesso, prevenção de reentrância, etc.).</li>
+                            <li class="mt-2" data-translate-key="nextStep5c">- Otimizar o código para reduzir o custo de "gás" (taxas de transação).</li>
+                            <li class="mt-2" data-translate-key="nextStep5d">- Escrever testes automatizados para garantir a confiabilidade.</li>
+                        </ul>
+                    </li>
+                    <li data-translate-key="nextStep6"><strong>Auditoria de Segurança:</strong> Para qualquer contrato que gerenciará ativos de valor, uma auditoria de segurança formal, realizada por uma empresa ou profissional especializado e independente, é uma etapa crucial e não negociável antes da implantação na rede principal.</li>
+                </ol>
+                 <div class="text-center mt-6">
+                    <a href="https://remix.ethereum.org/" target="_blank" rel="noopener noreferrer" id="remixButton" class="btn btn-action py-2 px-6">
+                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                        <span data-translate-key="openRemixButton">Abrir no Remix IDE</span>
+                    </a>
+                 </div>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="mt-4 p-3 bg-red-900 border border-red-700 text-red-300 rounded-md" style="display: none;">
+            Ocorreu um erro ao processar a solicitação. Por favor, tente novamente.
+        </div>
+    </div>
+
+    <div id="brickoutModal" class="modal-overlay">
+        <div class="modal-content-base">
+            <span id="closeBrickoutModal" class="modal-close-btn">&times;</span>
+            <h3 class="text-xl font-semibold title-main mb-2" data-translate-key="brickoutTitle">Brick Out Minigame!</h3>
+            <canvas id="brickoutCanvas" width="480" height="320"></canvas>
+            <p class="text-xs text-gray-400 mt-2" data-translate-key="brickoutInstructions">Use as setas ⬅️ ➡️ para mover.</p>
+        </div>
+    </div>
+
+    <div id="victoryMessageModal" class="modal-overlay">
+        <div class="modal-content-base">
+            <span id="closeVictoryMessageModal" class="modal-close-btn">&times;</span>
+            <p id="victoryMessageText" class="text-lg" data-translate-key="victoryMessage">Feito por ETCS</p>
+        </div>
+    </div>
+
+    <div id="gameOverModal" class="modal-overlay">
+        <div class="modal-content-base">
+            <span id="closeGameOverModal" class="modal-close-btn">&times;</span>
+            <h3 id="gameOverModalTitle" class="text-xl font-semibold title-main mb-2" data-translate-key="gameOverTitle">FIM DE JOGO</h3>
+            <p id="gameOverMadeByText" class="text-sm mt-2" data-translate-key="gameOverMadeBy">Feito por ETCS</p>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const geminiApiKeyInput = document.getElementById('geminiApiKeyInput');
+        const saveApiKeyButton = document.getElementById('saveApiKeyButton');
+        const apiKeySaveFeedback = document.getElementById('apiKeySaveFeedback');
+
+        const naturalLanguageClauseInput = document.getElementById('naturalLanguageClause');
+        const solidityCodeOutputElement = document.getElementById('solidityCodeOutput');
+        const solidityOutputContainer = document.getElementById('solidityOutputContainer');
+        const solidityWarningElement = document.getElementById('solidityWarning');
+        const nextStepsContainer = document.getElementById('nextStepsContainer');
+        const solidityActionsContainer = document.getElementById('solidityActionsContainer');
+        
+        const convertButton = document.getElementById('convertButton');
+        const convertLoadingIndicator = document.getElementById('convertLoadingIndicator');
+        
+        const analyzeRiskButton = document.getElementById('analyzeRiskButton');
+        const riskLoadingIndicator = document.getElementById('riskLoadingIndicator');
+        const riskAnalysisOutputContainer = document.getElementById('riskAnalysisOutputContainer');
+        const riskAnalysisOutput = document.getElementById('riskAnalysisOutput');
+
+        const suggestClausesButton = document.getElementById('suggestClausesButton');
+        const suggestClausesLoadingIndicator = document.getElementById('suggestClausesLoadingIndicator');
+        const suggestClausesOutputContainer = document.getElementById('suggestClausesOutputContainer');
+        const suggestClausesOutput = document.getElementById('suggestClausesOutput');
+
+        const explainSolidityButton = document.getElementById('explainSolidityButton');
+        const explanationLoadingIndicator = document.getElementById('explanationLoadingIndicator');
+        const explanationOutputContainer = document.getElementById('explanationOutputContainer');
+        const explanationOutput = document.getElementById('explanationOutput');
+
+        const optimizeSolidityButton = document.getElementById('optimizeSolidityButton');
+        const optimizationLoadingIndicator = document.getElementById('optimizationLoadingIndicator');
+        const optimizationOutputContainer = document.getElementById('optimizationOutputContainer');
+        const optimizationOutput = document.getElementById('optimizationOutput');
+        
+        const applyOptimizationButton = document.getElementById('applyOptimizationButton');
+        const applyOptimizationLoadingIndicator = document.getElementById('applyOptimizationLoadingIndicator');
+        const rocketGameIcon = document.getElementById('rocketGameIcon'); 
+
+        const codeRefinementContainer = document.getElementById('codeRefinementContainer');
+        const refinementFeedbackInput = document.getElementById('refinementFeedback');
+        const submitRefinementButton = document.getElementById('submitRefinementButton');
+        const refinementLoadingIndicator = document.getElementById('refinementLoadingIndicator');
+
+        const codeQueryContainer = document.getElementById('codeQueryContainer');
+        const codeQueryInput = document.getElementById('codeQueryInput');
+        const askCodeQueryButton = document.getElementById('askCodeQueryButton');
+        const codeQueryLoadingIndicator = document.getElementById('codeQueryLoadingIndicator');
+        const codeQueryOutputContainer = document.getElementById('codeQueryOutputContainer');
+        const codeQueryOutput = document.getElementById('codeQueryOutput');
+
+        const themeToggleButton = document.getElementById('themeToggleButton');
+        const languageToggleButton = document.getElementById('languageToggleButton');
+
+
+        const errorMessageElement = document.getElementById('errorMessage');
+
+        // Game Modal Elements
+        const brickoutModal = document.getElementById('brickoutModal');
+        const closeBrickoutModal = document.getElementById('closeBrickoutModal');
+        const canvas = document.getElementById('brickoutCanvas');
+        const ctx = canvas.getContext('2d');
+        const victoryMessageModal = document.getElementById('victoryMessageModal');
+        const closeVictoryMessageModal = document.getElementById('closeVictoryMessageModal');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const closeGameOverModal = document.getElementById('closeGameOverModal');
+
+
+        // --- i18n (Tradução) e Tema ---
+        const uiTexts = {
+            pt: {
+                pageTitle: "Conversor Contratual para Esqueleto Solidity",
+                mainTitle: "Conversor Contratual para Esqueleto Solidity",
+                subTitle: "Gere um ponto de partida em Solidity e obtenha insights sobre suas cláusulas.",
+                apiKeyLabel: "Sua Chave da API Gemini:",
+                apiKeyPlaceholder: "Cole sua chave aqui...",
+                saveApiKeyButton: "Salvar Chave",
+                apiKeySavedFeedback: "Chave API salva!",
+                warningTitle: "Atenção: Ferramenta Educacional e Experimental",
+                warningText: "Este aplicativo tenta gerar um esqueleto de código Solidity e fornecer análises. <strong>NÃO PRODUZ CÓDIGO PRONTO PARA USO EM PRODUÇÃO NEM ACONSELHAMENTO JURÍDICO.</strong> A conversão automática e a análise de contratos são complexas. Os resultados são para fins ilustrativos e educacionais.",
+                naturalClauseLabel: "Cláusula Contratual (Linguagem Natural):",
+                naturalClausePlaceholder: "Ex: O LOCATÁRIO pagará ao LOCADOR a quantia de R$ 2.000,00 mensais, todo dia 05, a título de aluguel. Em caso de atraso, incidirá multa de 10% sobre o valor devido e juros de 1% ao mês.",
+                analyzeRiskButton: "Analisar Riscos",
+                suggestClausesButton: "Sugerir Cláusulas",
+                analyzingRiskText: "Analisando riscos...",
+                riskAnalysisTitle: "Análise de Riscos da Cláusula:",
+                suggestingClausesText: "Sugerindo cláusulas...",
+                suggestClausesTitle: "Sugestões de Cláusulas Complementares:",
+                generateSolidityButton: "Gerar Esqueleto Solidity",
+                generatingSolidityText: "Gerando código Solidity...",
+                soliditySkeletonLabel: "Esqueleto do Smart Contract em Solidity (Requer Revisão Especializada!):",
+                solidityOutputPlaceholder: "O esqueleto do smart contract em Solidity aparecerá aqui...",
+                criticalWarningTitle: "⚠️ ALERTA CRÍTICO ⚠️",
+                criticalWarningText: "O código Solidity gerado é um <strong>ESQUELETO EDUCACIONAL</strong> e <strong>NÃO DEVE SER USADO EM PRODUÇÃO SEM REVISÃO PROFISSIONAL</strong>. Smart contracts mal implementados podem resultar em <strong>PERDAS FINANCEIRAS IRREVERSÍVEIS</strong>.",
+                explainSolidityButton: "Explicar Código Solidity",
+                optimizeSolidityButton: "Otimizar Código Solidity (Sugestões)",
+                explainingSolidityText: "Explicando Solidity...",
+                explanationTitle: "Explicação do Código Solidity:",
+                suggestingOptimizationsText: "Sugerindo otimizações...",
+                optimizationTitle: "Sugestões de Otimização para o Código Solidity:",
+                applyOptimizationsButton: "Aplicar Otimizações Sugeridas (Experimental)",
+                applyingOptimizationsText: "Aplicando otimizações...",
+                refineCodeTitle: "💬 Interagir e Refinar Código Solidity (Experimental)",
+                refineCodeDescription: "Abaixo, você pode fazer observações sobre o código Solidity gerado ou solicitar adições/modificações. A IA tentará refinar o código com base no seu feedback. Lembre-se que este é um processo experimental.",
+                refineFeedbackPlaceholder: "Ex: Adicione uma função para verificar o saldo do contrato. Modifique a multa para 15%.",
+                submitRefinementButton: "Enviar Feedback e Refinar Código",
+                refiningCodeText: "Refinando código...",
+                queryCodeTitle: "❔ Perguntar sobre o Código à IA (Análise sem Modificação)",
+                queryCodeDescription: "Faça perguntas específicas sobre o código Solidity exibido acima. A IA fornecerá explicações ou análises sem alterar o código.",
+                queryCodePlaceholder: "Ex: Qual o propósito da função 'pagarAluguel'? Como a variável 'prazoLimite' é utilizada?",
+                askQueryButton: "Enviar Pergunta à IA",
+                analyzingQueryText: "Analisando pergunta...",
+                queryResponseTitle: "Resposta da IA:",
+                queryOutputPlaceholder: "As respostas às suas perguntas sobre o código aparecerão aqui...",
+                nextStepsTitle: "Próximos Passos Essenciais",
+                nextStep1: "<strong>Análise e Cópia do Código:</strong> Analise o esqueleto de código Solidity gerado. Este é o seu ponto de partida. Copie o código para a sua área de transferência.",
+                nextStep2: "<strong>Acesso ao Ambiente de Desenvolvimento (IDE):</strong> Utilize o botão abaixo para abrir o <strong>Remix IDE</strong>, uma plataforma online padrão para desenvolvimento em Ethereum, diretamente no seu navegador.",
+                nextStep3: "<strong>Compilação do Contrato:</strong> No Remix, crie um novo arquivo (ex: <code>meuContrato.sol</code>) e cole o código. Vá para a aba \"Solidity Compiler\". Certifique-se de que a versão do compilador (<code>Compiler</code>) corresponde à versão declarada no código (<code>pragma solidity ...</code>). Clique no botão <code>Compile</code>. Esta etapa verifica se há erros de sintaxe no código.",
+                nextStep4: "<strong>Implantação (Deploy) em Rede de Teste:</strong> Vá para a aba \"Deploy & Run Transactions\". No menu <code>Environment</code>, selecione uma rede de teste como <strong>\"Remix VM (Shanghai)\"</strong> para uma simulação rápida no navegador, ou conecte sua carteira (ex: MetaMask) a uma rede de teste pública como a <strong>Sepolia</strong>. <strong>NUNCA</strong> utilize a Mainnet (rede principal) nesta fase. Clique em <code>Deploy</code> para implantar uma instância do seu contrato na rede de teste.",
+                nextStep5: "<strong>Teste e Refinamento (Etapa Crítica com Desenvolvedor):</strong> Após a implantação na rede de teste, você verá a interface do seu contrato. Interaja com as funções, simule transações e verifique se o comportamento corresponde ao esperado. <strong>É nesta etapa que a colaboração com um desenvolvedor Solidity é indispensável.</strong> Ele(a) irá:",
+                nextStep5a: "- Refinar a lógica de negócio e implementar condições complexas.",
+                nextStep5b: "- Adicionar mecanismos de segurança robustos (controle de acesso, prevenção de reentrância, etc.).",
+                nextStep5c: "- Otimizar o código para reduzir o custo de \"gás\" (taxas de transação).",
+                nextStep5d: "- Escrever testes automatizados para garantir a confiabilidade.",
+                nextStep6: "<strong>Auditoria de Segurança:</strong> Para qualquer contrato que gerenciará ativos de valor, uma auditoria de segurança formal, realizada por uma empresa ou profissional especializado e independente, é uma etapa crucial e não negociável antes da implantação na rede principal.",
+                openRemixButton: "Abrir no Remix IDE",
+                themeToggleLight: "Tema Claro",
+                themeToggleDark: "Tema Escuro",
+                languageToggleEN: "English",
+                languageTogglePT: "Português",
+                brickoutTitle: "Brick Out Minigame!",
+                brickoutInstructions: "Use as setas ⬅️ ➡️ para mover.",
+                victoryMessage: "Feito por ETCS",
+                gameOverMessage: "FIM DE JOGO", // Já existia, mantido para consistência do alert antigo, mas agora usado no modal
+                gameOverTitle: "FIM DE JOGO",
+                gameOverMadeBy: "Feito por ETCS",
+                errorAPIFailure: "Falha na API Gemini",
+                errorAPIResponse: "Resposta da API vazia.",
+                errorAPIInvalidJSON: "Formato de resposta da API inválido (não é JSON válido).",
+                errorAPINotJSON: "Resposta da API não é do tipo JSON.",
+                errorAPIUnexpected: "Não foi possível gerar a resposta. Estrutura de resposta da IA inválida.",
+                errorGenericCall: "Ocorreu um erro",
+                errorProcessing: "Falha ao processar.",
+                errorNoSolidityCode: "Não há código Solidity para refinar.",
+                errorNoRefinementFeedback: "Por favor, forneça suas observações ou solicitações de refinamento.",
+                errorNoSolidityCodeQuery: "Gere ou carregue um código Solidity primeiro para fazer perguntas sobre ele.",
+                errorNoQuery: "Por favor, insira sua pergunta sobre o código Solidity.",
+                errorNoSolidityOptimize: "Não há código Solidity original para aplicar otimizações.",
+                errorNoOptimizationSuggestions: "Não há sugestões de otimização para aplicar."
+            },
+            en: {
+                pageTitle: "Contract Converter to Solidity Skeleton",
+                mainTitle: "Contract Converter to Solidity Skeleton",
+                subTitle: "Generate a starting point in Solidity and get insights into your clauses.",
+                apiKeyLabel: "Your Gemini API Key:",
+                apiKeyPlaceholder: "Paste your key here...",
+                saveApiKeyButton: "Save Key",
+                apiKeySavedFeedback: "API Key saved!",
+                warningTitle: "Attention: Educational and Experimental Tool",
+                warningText: "This application attempts to generate a Solidity code skeleton and provide analysis. <strong>IT DOES NOT PRODUCE PRODUCTION-READY CODE NOR LEGAL ADVICE.</strong> Automatic conversion and contract analysis are complex. The results are for illustrative and educational purposes.",
+                naturalClauseLabel: "Contract Clause (Natural Language):",
+                naturalClausePlaceholder: "Ex: The LESSEE shall pay the LESSOR the amount of R$ 2,000.00 monthly, on the 5th of each month, as rent. In case of delay, a fine of 10% on the amount due will be applied, plus interest of 1% per month.",
+                analyzeRiskButton: "Analyze Risks",
+                suggestClausesButton: "Suggest Clauses",
+                analyzingRiskText: "Analyzing risks...",
+                riskAnalysisTitle: "Clause Risk Analysis:",
+                suggestingClausesText: "Suggesting clauses...",
+                suggestClausesTitle: "Suggestions for Complementary Clauses:",
+                generateSolidityButton: "Generate Solidity Skeleton",
+                generatingSolidityText: "Generating Solidity code...",
+                soliditySkeletonLabel: "Smart Contract Skeleton in Solidity (Requires Expert Review!):",
+                solidityOutputPlaceholder: "The Solidity smart contract skeleton will appear here...",
+                criticalWarningTitle: "⚠️ CRITICAL ALERT ⚠️",
+                criticalWarningText: "The generated Solidity code is an <strong>EDUCATIONAL SKELETON</strong> and <strong>SHOULD NOT BE USED IN PRODUCTION WITHOUT PROFESSIONAL REVIEW</strong>. Poorly implemented smart contracts can result in <strong>IRREVERSIBLE FINANCIAL LOSSES</strong>.",
+                explainSolidityButton: "Explain Solidity Code",
+                optimizeSolidityButton: "Optimize Solidity Code (Suggestions)",
+                explainingSolidityText: "Explaining Solidity...",
+                explanationTitle: "Solidity Code Explanation:",
+                suggestingOptimizationsText: "Suggesting optimizations...",
+                optimizationTitle: "Optimization Suggestions for Solidity Code:",
+                applyOptimizationsButton: "Apply Suggested Optimizations (Experimental)",
+                applyingOptimizationsText: "Applying optimizations...",
+                refineCodeTitle: "💬 Interact and Refine Solidity Code (Experimental)",
+                refineCodeDescription: "Below, you can make observations about the generated Solidity code or request additions/modifications. The AI will attempt to refine the code based on your feedback. Remember this is an experimental process.",
+                refineFeedbackPlaceholder: "Ex: Add a function to check the contract balance. Modify the penalty to 15%.",
+                submitRefinementButton: "Submit Feedback and Refine Code",
+                refiningCodeText: "Refining code...",
+                queryCodeTitle: "❔ Ask AI About the Code (Analysis without Modification)",
+                queryCodeDescription: "Ask specific questions about the Solidity code displayed above. The AI will provide explanations or analysis without altering the code.",
+                queryCodePlaceholder: "Ex: What is the purpose of the 'pagarAluguel' function? How is the 'prazoLimite' variable used?",
+                askQueryButton: "Submit Question to AI",
+                analyzingQueryText: "Analyzing question...",
+                queryResponseTitle: "AI's Response:",
+                queryOutputPlaceholder: "Answers to your questions about the code will appear here...",
+                nextStepsTitle: "Essential Next Steps",
+                nextStep1: "<strong>Code Analysis and Copying:</strong> Analyze the generated Solidity code skeleton. This is your starting point. Copy the code to your clipboard.",
+                nextStep2: "<strong>Access Development Environment (IDE):</strong> Use the button below to open <strong>Remix IDE</strong>, a standard online platform for Ethereum development, directly in your browser.",
+                nextStep3: "<strong>Contract Compilation:</strong> In Remix, create a new file (e.g., <code>myContract.sol</code>) and paste the code. Go to the \"Solidity Compiler\" tab. Ensure the compiler version matches the one declared in the code (<code>pragma solidity ...</code>). Click the <code>Compile</code> button. This step checks for syntax errors.",
+                nextStep4: "<strong>Deployment to Test Network:</strong> Go to the \"Deploy & Run Transactions\" tab. In the <code>Environment</code> menu, select a test network like <strong>\"Remix VM (Shanghai)\"</strong> for quick browser simulation, or connect your wallet (e.g., MetaMask) to a public testnet like <strong>Sepolia</strong>. <strong>NEVER</strong> use the Mainnet at this stage. Click <code>Deploy</code>.",
+                nextStep5: "<strong>Testing and Refinement (Critical Step with Developer):</strong> After deploying to the testnet, interact with its functions. <strong>Collaboration with an experienced Solidity developer is indispensable here.</strong> They will:",
+                nextStep5a: "- Refine business logic and implement complex conditions.",
+                nextStep5b: "- Add robust security mechanisms (access control, reentrancy prevention, etc.).",
+                nextStep5c: "- Optimize code to reduce gas costs.",
+                nextStep5d: "- Write automated tests for reliability.",
+                nextStep6: "<strong>Security Audit:</strong> For any contract managing valuable assets, a formal, independent security audit is a crucial, non-negotiable step before mainnet deployment.",
+                openRemixButton: "Open in Remix IDE",
+                themeToggleLight: "Light Theme",
+                themeToggleDark: "Dark Theme",
+                languageToggleEN: "English",
+                languageTogglePT: "Português",
+                brickoutTitle: "Brick Out Minigame!",
+                brickoutInstructions: "Use ⬅️ ➡️ arrows to move.",
+                victoryMessage: "Made by ETCS",
+                gameOverMessage: "GAME OVER", // Already existed
+                gameOverTitle: "GAME OVER",
+                gameOverMadeBy: "Made by ETCS",
+                errorAPIFailure: "Gemini API Failure",
+                errorAPIResponse: "API response was empty.",
+                errorAPIInvalidJSON: "Invalid API response format (not valid JSON).",
+                errorAPINotJSON: "API response is not of type JSON.",
+                errorAPIUnexpected: "Could not generate response. Invalid AI response structure.",
+                errorGenericCall: "An error occurred",
+                errorProcessing: "Processing failed.",
+                errorNoSolidityCode: "There is no Solidity code to refine.",
+                errorNoRefinementFeedback: "Please provide your observations or refinement requests.",
+                errorNoSolidityCodeQuery: "Generate or load Solidity code first to ask questions about it.",
+                errorNoQuery: "Please enter your question about the Solidity code.",
+                errorNoSolidityOptimize: "No original Solidity code to apply optimizations to.",
+                errorNoOptimizationSuggestions: "No optimization suggestions to apply."
+            }
+        };
+
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+        let currentLanguage = localStorage.getItem('language') || 'pt';
+
+        function applyTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.add('light-theme');
+                themeToggleButton.textContent = uiTexts[currentLanguage].themeToggleDark;
+            } else {
+                document.body.classList.remove('light-theme');
+                themeToggleButton.textContent = uiTexts[currentLanguage].themeToggleLight;
+            }
+        }
+
+        function applyLanguage(lang) {
+            document.documentElement.lang = lang;
+            document.title = uiTexts[lang].pageTitle;
+            const elements = document.querySelectorAll('[data-translate-key]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-translate-key');
+                if (uiTexts[lang][key]) {
+                    if ((el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.hasAttribute('placeholder')) {
+                        el.placeholder = uiTexts[lang][key];
+                    } else if (el.tagName === 'PRE' && key === 'solidityOutputPlaceholder' && (el.textContent.includes('aparecerá aqui') || el.textContent.includes('will appear here') || el.textContent.includes("Por favor, insira uma cláusula contratual."))) {
+                         el.textContent = uiTexts[lang][key]; 
+                    } else if (el.tagName === 'PRE' && key === 'queryOutputPlaceholder' && (el.textContent.includes('aparecerão aqui') || el.textContent.includes('will appear here'))) {
+                         el.textContent = uiTexts[lang][key];
+                    } else if (el.tagName !== 'PRE') { 
+                        el.innerHTML = uiTexts[lang][key]; 
+                    }
+                }
+            });
+            applyTheme(currentTheme); 
+            languageToggleButton.textContent = (lang === 'pt') ? uiTexts.pt.languageToggleEN : uiTexts.en.languageTogglePT;
+            if (apiKeySaveFeedback.textContent && uiTexts[currentLanguage] && uiTexts[currentLanguage].apiKeySavedFeedback) { 
+                apiKeySaveFeedback.textContent = uiTexts[currentLanguage].apiKeySavedFeedback;
+            }
+        }
+        
+        const savedApiKey = localStorage.getItem('geminiApiKey');
+        if (savedApiKey) {
+            geminiApiKeyInput.value = savedApiKey;
+        }
+
+        saveApiKeyButton.addEventListener('click', () => {
+            const apiKeyToSave = geminiApiKeyInput.value.trim();
+            if (apiKeyToSave) {
+                localStorage.setItem('geminiApiKey', apiKeyToSave);
+                apiKeySaveFeedback.textContent = uiTexts[currentLanguage].apiKeySavedFeedback;
+                apiKeySaveFeedback.style.opacity = '1';
+                setTimeout(() => {
+                    apiKeySaveFeedback.style.opacity = '0';
+                }, 2000);
+            }
+        });
+
+
+        themeToggleButton.addEventListener('click', () => {
+            currentTheme = (currentTheme === 'dark') ? 'light' : 'dark';
+            localStorage.setItem('theme', currentTheme);
+            applyTheme(currentTheme);
+        });
+
+        languageToggleButton.addEventListener('click', () => {
+            currentLanguage = (currentLanguage === 'pt') ? 'en' : 'pt';
+            localStorage.setItem('language', currentLanguage);
+            applyLanguage(currentLanguage);
+        });
+        
+        applyTheme(currentTheme);
+        applyLanguage(currentLanguage);
+        
+        function cleanSimpleTextResponse(text) { 
+            let cleanedText = text;
+            if (cleanedText.startsWith("```") && cleanedText.endsWith("```")) {
+                cleanedText = cleanedText.substring(3, cleanedText.length - 3).trim();
+                const firstNewline = cleanedText.indexOf('\n');
+                if (firstNewline !== -1 && firstNewline < 35) { 
+                    const potentialLangSpec = cleanedText.substring(0, firstNewline).trim().toLowerCase();
+                    if (potentialLangSpec.length > 0 && /^[a-z0-9\-_]+$/.test(potentialLangSpec) && !potentialLangSpec.includes(" ")) { 
+                        cleanedText = cleanedText.substring(firstNewline + 1).trim();
+                    }
+                }
+            }
+            return cleanedText;
+        }
+
+        function cleanSolidityResponse(text) { 
+            let cleanedText = text;
+            if (cleanedText.startsWith("```")) { 
+                const firstNewline = cleanedText.indexOf('\n');
+                if (firstNewline !== -1) {
+                    // Check if the first line is a language specifier like ```solidity
+                     const langSpecifierLine = cleanedText.substring(0, firstNewline).trim();
+                    if (langSpecifierLine.toLowerCase() === '```solidity' || langSpecifierLine.toLowerCase() === '```') {
+                        cleanedText = cleanedText.substring(firstNewline + 1);
+                    } else if (langSpecifierLine.startsWith("```") && langSpecifierLine.length > 3 && !langSpecifierLine.substring(3).includes(" ")) {
+                         cleanedText = cleanedText.substring(firstNewline + 1);
+                    }
+                    // If it was just ``` then it's already handled by the outer if.
+                } else { // Only ``` and then the code on the same line (unlikely for Solidity but handle)
+                    cleanedText = cleanedText.substring(3); 
+                }
+                if (cleanedText.endsWith("```")) {
+                    cleanedText = cleanedText.substring(0, cleanedText.lastIndexOf("```")).trim();
+                }
+            }
+            return cleanedText.trim();
+        }
+        
+        async function callGeminiAPI(promptText, loadingIndicator, outputElement, outputContainerElement, buttonToDisable, responseCleaner) {
+            if (buttonToDisable) buttonToDisable.disabled = true;
+            loadingIndicator.style.display = 'block';
+            errorMessageElement.style.display = 'none';
+            if (outputElement) outputElement.textContent = '';
+            
+            if (outputContainerElement) {
+                if (outputContainerElement.id === 'solidityOutputContainer') {
+                    // No specific style change needed here for the container itself
+                } else if (outputContainerElement.style) { 
+                    outputContainerElement.style.display = 'none';
+                }
+            }
+            
+            const userApiKey = geminiApiKeyInput.value.trim();
+            if (!userApiKey) {
+                errorMessageElement.textContent = (currentLanguage === 'pt' ? "Por favor, insira sua chave da API Gemini no campo superior." : "Please enter your Gemini API Key in the field above.");
+                errorMessageElement.style.display = 'block';
+                loadingIndicator.style.display = 'none';
+                if (buttonToDisable) buttonToDisable.disabled = false;
+                return null;
+            }
+            // IMPORTANT: Use the correct model name, e.g., 'gemini-pro' or as specified by the API documentation.
+            // Using 'gemini-2.0-flash' as per instructions, adjust if a different model is intended.
+            const dynamicApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${userApiKey}`;
+
+
+            const payload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
+            let resultText = null; 
+
+            try {
+                const response = await fetch(dynamicApiUrl, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const responseBodyText = await response.text(); 
+
+                if (!response.ok) {
+                    let errorTextDetail = `${uiTexts[currentLanguage].errorAPIFailure}: ${response.status} ${response.statusText}`;
+                    if (responseBodyText) {
+                        if (response.headers.get("content-type")?.includes("application/json")) {
+                            try {
+                                const errorData = JSON.parse(responseBodyText);
+                                console.error('Erro da API Gemini (dados):', errorData);
+                                errorTextDetail += ` - Detalhes: ${errorData.error?.message || JSON.stringify(errorData)}`;
+                            } catch (e) {
+                                console.error('Erro ao fazer parse do corpo JSON do erro da API:', e, "Corpo:", responseBodyText);
+                                errorTextDetail += ` - Resposta (não JSON): ${responseBodyText.substring(0, 200)}...`;
+                            }
+                        } else {
+                            console.error('Erro da API Gemini (texto):', responseBodyText);
+                            errorTextDetail += ` - Resposta: ${responseBodyText.substring(0, 200)}...`; 
+                        }
+                    }
+                    throw new Error(errorTextDetail);
+                }
+
+                if (!responseBodyText && response.headers.get("content-type")?.includes("application/json")) {
+                    console.error('Resposta JSON da API vazia.');
+                    throw new Error(uiTexts[currentLanguage].errorAPIResponse);
+                }
+                
+                let parsedResult;
+                if (response.headers.get("content-type")?.includes("application/json")) {
+                    try {
+                        parsedResult = JSON.parse(responseBodyText);
+                    } catch (e) {
+                        console.error('Erro ao fazer parse da resposta JSON da API:', e);
+                        console.error('Corpo da resposta (texto):', responseBodyText);
+                        throw new Error(uiTexts[currentLanguage].errorAPIInvalidJSON); 
+                    }
+                } else if (responseBodyText) { 
+                    console.warn('Resposta da API não é JSON, mas tem corpo. Tentando usar como texto direto. Content-Type:', response.headers.get("content-type"));
+                    // Attempt to use text directly if a cleaner is not expecting JSON
+                    if (responseCleaner === cleanSolidityResponse || responseCleaner === cleanSimpleTextResponse) {
+                         parsedResult = { candidates: [{ content: { parts: [{ text: responseBodyText }] } }] };
+                    } else {
+                        console.error('Corpo da resposta (texto):', responseBodyText);
+                        throw new Error(uiTexts[currentLanguage].errorAPINotJSON + ` Recebido: ${response.headers.get("content-type")}`);
+                    }
+                } else { 
+                     throw new Error(uiTexts[currentLanguage].errorAPIResponse);
+                }
+                
+                if (parsedResult && parsedResult.candidates && parsedResult.candidates.length > 0 &&
+                    parsedResult.candidates[0].content && parsedResult.candidates[0].content.parts &&
+                    parsedResult.candidates[0].content.parts.length > 0) {
+                    
+                    let generatedText = parsedResult.candidates[0].content.parts[0].text;
+                    if (responseCleaner && typeof responseCleaner === 'function') { 
+                        generatedText = responseCleaner(generatedText);
+                    } else if (responseCleaner) {
+                        console.warn("responseCleaner foi fornecido mas não é uma função. Tipo:", typeof responseCleaner);
+                    }
+
+
+                    if (outputElement) outputElement.textContent = generatedText;
+                    resultText = generatedText; 
+                    
+                    if (outputContainerElement) {
+                         if (outputContainerElement.id !== 'solidityOutputContainer' && outputContainerElement.style) {
+                             outputContainerElement.style.display = 'block';
+                         }
+                    }
+                } else if (parsedResult && parsedResult.promptFeedback && parsedResult.promptFeedback.blockReason) {
+                    // Handle cases where the prompt was blocked
+                    console.error('Prompt bloqueado pela API Gemini:', parsedResult.promptFeedback);
+                    let blockReason = parsedResult.promptFeedback.blockReason;
+                    let safetyRatings = parsedResult.promptFeedback.safetyRatings?.map(r => `${r.category}: ${r.probability}`).join(', ');
+                    errorMessageElement.textContent = `${uiTexts[currentLanguage].errorAPIFailure}: Prompt bloqueado (${blockReason}). ${safetyRatings ? 'Classificações: ' + safetyRatings : ''}`;
+                    errorMessageElement.style.display = 'block';
+                    if (outputElement) outputElement.textContent = uiTexts[currentLanguage].errorProcessing;
+
+                } else {
+                    console.error('Resposta inesperada da API Gemini (estrutura):', parsedResult);
+                    throw new Error(uiTexts[currentLanguage].errorAPIUnexpected);
+                }
+            } catch (error) { 
+                console.error('Erro na chamada da API Gemini (geral):', error);
+                errorMessageElement.textContent = `${uiTexts[currentLanguage].errorGenericCall}: ${error.message}. Verifique o console.`;
+                errorMessageElement.style.display = 'block';
+                if (outputElement) outputElement.textContent = uiTexts[currentLanguage].errorProcessing;
+            } finally {
+                loadingIndicator.style.display = 'none';
+                if (buttonToDisable) buttonToDisable.disabled = false;
+                if (resultText === null && outputElement && outputContainerElement && outputContainerElement.id !== 'solidityOutputContainer' && outputContainerElement.style) {
+                     if(outputElement.textContent === uiTexts[currentLanguage].errorProcessing){
+                         outputContainerElement.style.display = 'block';
+                     }
+                }
+            }
+            return resultText; 
+        }
+
+        convertButton.addEventListener('click', async () => {
+            const clauseText = naturalLanguageClauseInput.value.trim();
+            if (!clauseText) {
+                solidityCodeOutputElement.textContent = uiTexts[currentLanguage].solidityOutputPlaceholder.replace(uiTexts[currentLanguage].solidityOutputPlaceholder.split(" ").slice(0,7).join(" "), "Por favor, insira uma cláusula contratual.");
+                solidityActionsContainer.style.display = 'none';
+                codeRefinementContainer.style.display = 'none';
+                codeQueryContainer.style.display = 'none';
+                explanationOutputContainer.style.display = 'none';
+                optimizationOutputContainer.style.display = 'none';
+                applyOptimizationButton.style.display = 'none';
+                solidityWarningElement.style.display = 'none';
+                nextStepsContainer.style.display = 'none';
+                return;
+            }
+            
+            solidityActionsContainer.style.display = 'none';
+            codeRefinementContainer.style.display = 'none';
+            codeQueryContainer.style.display = 'none';
+            explanationOutputContainer.style.display = 'none';
+            optimizationOutputContainer.style.display = 'none';
+            applyOptimizationButton.style.display = 'none';
+            solidityWarningElement.style.display = 'none';
+            nextStepsContainer.style.display = 'none';
+            riskAnalysisOutputContainer.style.display = 'none';
+            suggestClausesOutputContainer.style.display = 'none';
+
+
+            const prompt = `
+            Você é um assistente especializado em traduzir cláusulas contratuais em linguagem natural para um ESQUELETO de smart contract em Solidity.
+            Seu objetivo é gerar um código Solidity que sirva como PONTO DE PARTIDA EDUCACIONAL.
+            O código DEVE incluir:
+            1.  A declaração 'pragma solidity ^0.8.20;' (ou a versão estável mais recente do Solidity 0.8.x).
+            2.  Um nome de contrato derivado da cláusula (ex: ContratoDeAluguel).
+            3.  Comentários claros e úteis explicando as partes do código (variáveis, funções, eventos), mas evitando verbosidade excessiva ou explicações desnecessárias que não agreguem valor direto ao entendimento do código por um desenvolvedor. O código em si deve ser estruturado de forma eficiente e concisa.
+            4.  Tentativa de identificar e declarar:
+                * Partes envolvidas como variáveis de estado do tipo 'address' (ex: 'address payable locador;', 'address locatario;').
+                * Valores monetários como 'uint256' (ex: 'uint256 valorAluguel;').
+                * Prazos ou condições (de forma simplificada, talvez como variáveis 'uint256' para dias ou 'bool' para status).
+                * Funções básicas que representem as ações principais da cláusula (ex: 'function pagarAluguel() public payable { ... }', 'function registrarAtraso() public { ... }'). Use 'payable' em funções que recebem Ether.
+                * Eventos para registrar ocorrências importantes (ex: 'event AluguelPago(address pagador, uint256 valor);').
+            5.  Um AVISO EM COMENTÁRIO NO INÍCIO DO CÓDIGO: "// ATENÇÃO: Este é um esqueleto de contrato Solidity gerado por IA."
+            6.  Um AVISO EM COMENTÁRIO NO FINAL DO CÓDIGO: "// Lembre-se: ESTE CÓDIGO É UM PONTO DE PARTIDA E NECESSITA DE REVISÃO E ADAPTAÇÃO POR UM ESPECIALISTA ANTES DE QUALQUER USO."
+
+            NÃO gere um contrato completo e excessivamente complexo. Foque em um esqueleto Solidity que seja o mais eficiente e conciso possível, ao mesmo tempo que simples e bem comentado. Evite estruturas de código redundantes ou desnecessariamente verbosas.
+            Se a cláusula for muito complexa ou ambígua, gere uma estrutura básica e adicione comentários indicando onde a lógica mais complexa precisaria ser implementada.
+            Formate a saída APENAS como código Solidity, começando com 'pragma' e terminando com o fechamento do contrato '}'. Não inclua texto explicativo fora dos comentários do código.
+
+            Cláusula para converter:
+            "${clauseText}"
+            `;
+            const generatedSolidity = await callGeminiAPI(prompt, convertLoadingIndicator, solidityCodeOutputElement, null, convertButton, cleanSolidityResponse);
+            
+            if (generatedSolidity && generatedSolidity !== uiTexts[currentLanguage].errorProcessing && !generatedSolidity.includes("Por favor, insira uma cláusula contratual.")) {
+                solidityActionsContainer.style.display = 'flex';
+                codeRefinementContainer.style.display = 'block'; 
+                codeQueryContainer.style.display = 'block'; 
+                solidityWarningElement.style.display = 'block';
+                nextStepsContainer.style.display = 'block'; 
+                applyOptimizationButton.style.display = 'none'; 
+            } else {
+                 solidityCodeOutputElement.textContent = generatedSolidity || uiTexts[currentLanguage].errorProcessing.replace("Falha ao processar.", "Falha ao gerar o código Solidity.");
+                 solidityWarningElement.style.display = 'none';
+                 nextStepsContainer.style.display = 'none'; 
+            }
+        });
+        
+        analyzeRiskButton.addEventListener('click', async () => {
+            const clauseText = naturalLanguageClauseInput.value.trim();
+            if (!clauseText) {
+                riskAnalysisOutput.textContent = uiTexts[currentLanguage].naturalClausePlaceholder.replace("Ex: O LOCATÁRIO...", "Por favor, insira uma cláusula contratual para análise de riscos.");
+                riskAnalysisOutputContainer.style.display = 'block';
+                return;
+            }
+            suggestClausesOutputContainer.style.display = 'none'; // Hide other secondary output
+            const prompt = `
+            Você é um analista de riscos contratuais altamente experiente.
+            Analise a seguinte cláusula contratual e identifique potenciais riscos, ambiguidades, omissões importantes, ou termos que podem levar a disputas.
+            Apresente sua análise de forma clara e concisa, preferencialmente em tópicos ou uma lista numerada.
+
+            Cláusula para Análise:
+            "${clauseText}"
+
+            Concentre-se em fornecer insights práticos que ajudariam alguém a melhorar esta cláusula ou a entender suas implicações.
+            Evite saudações ou texto introdutório/conclusivo na sua resposta, forneça apenas a análise.
+            `;
+            await callGeminiAPI(prompt, riskLoadingIndicator, riskAnalysisOutput, riskAnalysisOutputContainer, analyzeRiskButton, cleanSimpleTextResponse);
+        });
+        
+        suggestClausesButton.addEventListener('click', async () => {
+            const clauseText = naturalLanguageClauseInput.value.trim();
+            if (!clauseText) {
+                suggestClausesOutput.textContent = uiTexts[currentLanguage].naturalClausePlaceholder.replace("Ex: O LOCATÁRIO...", "Por favor, insira uma cláusula contratual para receber sugestões.");
+                suggestClausesOutputContainer.style.display = 'block';
+                return;
+            }
+            riskAnalysisOutputContainer.style.display = 'none'; // Hide other secondary output
+            const prompt = `
+            Você é um especialista em redação e análise de contratos.
+            Dada a seguinte cláusula contratual, sugira 2 a 3 cláusulas adicionais ou complementares que seriam relevantes e benéficas para um contrato que contenha tal cláusula.
+            Para cada sugestão, forneça um título breve para a cláusula sugerida e uma explicação concisa (1-2 frases) do porquê ela seria útil ou relevante.
+            Formate sua resposta de forma clara, talvez usando tópicos para cada sugestão.
+
+            Cláusula fornecida para análise:
+            "${clauseText}"
+
+            Exemplo de formato de resposta esperado:
+            **Sugestão 1: Cláusula de Confidencialidade**
+            Justificativa: Se a cláusula envolve troca de informações sensíveis, uma cláusula de confidencialidade protegeria essas informações.
+
+            **Sugestão 2: Cláusula de Rescisão**
+            Justificativa: Definir as condições sob as quais o contrato pode ser terminado por qualquer uma das partes é crucial para evitar disputas futuras.
+
+            Evite saudações ou texto introdutório/conclusivo na sua resposta, forneça apenas as sugestões e suas justificativas.
+            `;
+            await callGeminiAPI(prompt, suggestClausesLoadingIndicator, suggestClausesOutput, suggestClausesOutputContainer, suggestClausesButton, cleanSimpleTextResponse);
+        });
+
+        explainSolidityButton.addEventListener('click', async () => {
+            const solidityCode = solidityCodeOutputElement.textContent.trim();
+            if (!solidityCode || solidityCode === uiTexts[currentLanguage].solidityOutputPlaceholder || solidityCode.includes(uiTexts[currentLanguage].errorProcessing) || solidityCode.includes("Por favor, insira uma cláusula contratual.")) {
+                explanationOutput.textContent = uiTexts[currentLanguage].solidityOutputPlaceholder.replace(uiTexts[currentLanguage].solidityOutputPlaceholder.split(" ").slice(0,7).join(" "), "Primeiro, gere um esqueleto de código Solidity para ser explicado.");
+                explanationOutputContainer.style.display = 'block';
+                return;
+            }
+            optimizationOutputContainer.style.display = 'none'; 
+            applyOptimizationButton.style.display = 'none';
+            codeQueryOutputContainer.style.display = 'none'; 
+            const prompt = `
+            Você é um especialista em smart contracts e na linguagem Solidity.
+            O seguinte código Solidity foi gerado por uma IA como um esqueleto a partir de uma cláusula contratual.
+            Explique detalhadamente este código Solidity. Descreva:
+            1.  O que é 'pragma solidity' e a versão especificada.
+            2.  O que é um 'contract' e o nome do contrato.
+            3.  Cada variável de estado declarada (tipo, nome, visibilidade, se é 'payable', etc.) e seu propósito provável no contexto da cláusula original.
+            4.  Cada função definida (nome, parâmetros, visibilidade, se é 'payable', 'view', 'pure', o que ela tenta fazer, e como se relaciona com a cláusula). Explique o corpo da função, se houver.
+            5.  Cada evento definido (nome, parâmetros) e por que eventos são importantes.
+            6.  Quaisquer outros elementos do Solidity presentes (construtor, modificadores, etc., se houver).
+            7.  Aponte áreas onde o código é claramente um esqueleto e precisaria de lógica adicional para ser funcional ou seguro (ex: falta de validações, controle de acesso rudimentar).
+
+            Código Solidity para Explicação:
+            \`\`\`solidity
+            ${solidityCode}
+            \`\`\`
+
+            Forneça uma explicação clara, educativa e técnica.
+            Evite saudações ou texto introdutório/conclusivo na sua resposta, forneça apenas a explicação técnica do código.
+            `;
+            await callGeminiAPI(prompt, explanationLoadingIndicator, explanationOutput, explanationOutputContainer, explainSolidityButton, cleanSimpleTextResponse);
+        });
+
+        optimizeSolidityButton.addEventListener('click', async () => {
+            const solidityCode = solidityCodeOutputElement.textContent.trim();
+            if (!solidityCode || solidityCode === uiTexts[currentLanguage].solidityOutputPlaceholder || solidityCode.includes(uiTexts[currentLanguage].errorProcessing) || solidityCode.includes("Por favor, insira uma cláusula contratual.")) {
+                optimizationOutput.textContent = uiTexts[currentLanguage].solidityOutputPlaceholder.replace(uiTexts[currentLanguage].solidityOutputPlaceholder.split(" ").slice(0,7).join(" "), "Primeiro, gere um esqueleto de código Solidity para otimizar.");
+                optimizationOutputContainer.style.display = 'block';
+                applyOptimizationButton.style.display = 'none';
+                return;
+            }
+            explanationOutputContainer.style.display = 'none'; 
+            codeQueryOutputContainer.style.display = 'none'; 
+            const promptForOptimizationSuggestions = `
+            Você é um especialista em otimização de smart contracts Solidity.
+            Analise o seguinte código Solidity, que é um esqueleto gerado por IA.
+            Forneça sugestões específicas e acionáveis para otimizar este código em termos de:
+            1.  **Eficiência de Gás:**
+                * Uso de tipos de dados.
+                * Estrutura de loops e condicionais.
+                * Minimização de escrita/leitura do 'storage'.
+                * Uso de 'memory'/'calldata'.
+                * Otimizações em operações.
+            2.  **Segurança (além do básico já mitigado pelo Solidity >0.8.x):**
+                * Controle de acesso.
+                * Validação de entradas ('require' statements).
+                * Prevenção contra reentrância.
+                * Ordem correta de operações (checks-effects-interactions pattern).
+            3.  **Boas Práticas e Legibilidade:**
+                * Nomenclatura e comentários.
+                * Estrutura e organização.
+                * Uso de constantes e 'immutable'.
+
+            Apresente suas sugestões em tópicos, explicando o "porquê" de cada sugestão e, se possível, um exemplo de "antes" e "depois".
+            Lembre-se que este é um esqueleto, então foque em melhorias relevantes ao expandir este código.
+
+            Código Solidity para Otimização:
+            \`\`\`solidity
+            ${solidityCode}
+            \`\`\`
+
+            Evite saudações ou texto introdutório/conclusivo na sua resposta, forneça apenas as sugestões de otimização.
+            `;
+            const optimizationSuggestions = await callGeminiAPI(promptForOptimizationSuggestions, optimizationLoadingIndicator, optimizationOutput, optimizationOutputContainer, optimizeSolidityButton, cleanSimpleTextResponse);
+            
+            if (optimizationSuggestions && optimizationSuggestions !== uiTexts[currentLanguage].errorProcessing) {
+                applyOptimizationButton.style.display = 'inline-flex'; 
+            } else {
+                applyOptimizationButton.style.display = 'none';
+            }
+        });
+        
+        applyOptimizationButton.addEventListener('click', async () => {
+            const originalSolidityCode = solidityCodeOutputElement.textContent.trim();
+            const optimizationSuggestionsText = optimizationOutput.textContent.trim(); 
+
+            if (!originalSolidityCode || originalSolidityCode === uiTexts[currentLanguage].solidityOutputPlaceholder || originalSolidityCode.includes(uiTexts[currentLanguage].errorProcessing)) {
+                errorMessageElement.textContent = uiTexts[currentLanguage].errorNoSolidityOptimize;
+                errorMessageElement.style.display = 'block';
+                return;
+            }
+            if (!optimizationSuggestionsText || optimizationSuggestionsText === uiTexts[currentLanguage].optimizationOutputPlaceholder || optimizationSuggestionsText.includes(uiTexts[currentLanguage].errorProcessing)) {
+                errorMessageElement.textContent = uiTexts[currentLanguage].errorNoOptimizationSuggestions;
+                errorMessageElement.style.display = 'block';
+                return;
+            }
+            explanationOutputContainer.style.display = 'none';
+            codeQueryOutputContainer.style.display = 'none';
+            
+            const promptForApplyingOptimizations = `
+            Você é um assistente de programação especializado em Solidity e em aplicar otimizações em código existente.
+            Dado o seguinte código Solidity original e uma lista de sugestões de otimização, reescreva o código Solidity original para incorporar essas sugestões da melhor forma possível, mantendo a funcionalidade principal do contrato.
+            Se uma sugestão for muito complexa de aplicar automaticamente ou puder alterar drasticamente a lógica, adicione um comentário no código indicando onde a otimização manual seria necessária, em vez de tentar uma aplicação arriscada.
+            Priorize a segurança e a clareza. O código Solidity reescrito deve ser o mais eficiente e conciso possível, aplicando as otimizações sugeridas e evitando qualquer verbosidade desnecessária nos comentários ou na estrutura do código. Os comentários devem ser estritamente para explicar lógica complexa ou alterações significativas.
+            O resultado deve ser APENAS o código Solidity reescrito. Não inclua nenhum texto explicativo fora dos comentários do código. Adicione um comentário no topo do código reescrito: "// Código otimizado (experimentalmente) pela IA com base nas sugestões."
+
+            Código Solidity Original:
+            \`\`\`solidity
+            ${originalSolidityCode}
+            \`\`\`
+
+            Sugestões de Otimização a serem Aplicadas:
+            \`\`\`
+            ${optimizationSuggestionsText}
+            \`\`\`
+
+            Código Solidity Reescrito e Otimizado:
+            `;
+
+            const optimizedCode = await callGeminiAPI(promptForApplyingOptimizations, applyOptimizationLoadingIndicator, solidityCodeOutputElement, null, applyOptimizationButton, cleanSolidityResponse);
+
+            if (optimizedCode && optimizedCode !== uiTexts[currentLanguage].errorProcessing) {
+                applyOptimizationButton.style.display = 'none';
+                codeRefinementContainer.style.display = 'block'; 
+            }
+        });
+
+        submitRefinementButton.addEventListener('click', async () => {
+            const currentSolidityCode = solidityCodeOutputElement.textContent.trim();
+            const userFeedback = refinementFeedbackInput.value.trim();
+
+            if (!currentSolidityCode || currentSolidityCode === uiTexts[currentLanguage].solidityOutputPlaceholder || currentSolidityCode.includes(uiTexts[currentLanguage].errorProcessing)) {
+                errorMessageElement.textContent = uiTexts[currentLanguage].errorNoSolidityCode;
+                errorMessageElement.style.display = 'block';
+                return;
+            }
+            if (!userFeedback) {
+                errorMessageElement.textContent = uiTexts[currentLanguage].errorNoRefinementFeedback;
+                errorMessageElement.style.display = 'block';
+                return;
+            }
+
+            explanationOutputContainer.style.display = 'none';
+            optimizationOutputContainer.style.display = 'none';
+            applyOptimizationButton.style.display = 'none';
+            codeQueryOutputContainer.style.display = 'none';
+
+            const promptForRefinement = `
+            Você é um assistente de programação especializado em Solidity.
+            Dado o seguinte código Solidity e o feedback/solicitações do usuário, reescreva o código Solidity para incorporar essas observações da melhor forma possível.
+            Mantenha a funcionalidade principal do contrato, a menos que o feedback instrua explicitamente o contrário.
+            Priorize a segurança, clareza e eficiência. O código Solidity reescrito deve ser conciso e os comentários devem ser pertinentes.
+            O resultado deve ser APENAS o código Solidity reescrito. Não inclua nenhum texto explicativo fora dos comentários do código. Adicione um comentário no topo do código reescrito: "// Código refinado (experimentalmente) pela IA com base no feedback do usuário."
+
+            Código Solidity Atual:
+            \`\`\`solidity
+            ${currentSolidityCode}
+            \`\`\`
+
+            Feedback e Solicitações do Usuário:
+            "${userFeedback}"
+
+            Código Solidity Refinado:
+            `;
+            const refinedCode = await callGeminiAPI(promptForRefinement, refinementLoadingIndicator, solidityCodeOutputElement, null, submitRefinementButton, cleanSolidityResponse);
+
+            if (refinedCode && refinedCode !== uiTexts[currentLanguage].errorProcessing) {
+                refinementFeedbackInput.value = ''; 
+            }
+        });
+
+        askCodeQueryButton.addEventListener('click', async () => {
+            const currentSolidityCode = solidityCodeOutputElement.textContent.trim();
+            const userQuery = codeQueryInput.value.trim();
+
+            if (!currentSolidityCode || currentSolidityCode === uiTexts[currentLanguage].solidityOutputPlaceholder || currentSolidityCode.includes(uiTexts[currentLanguage].errorProcessing) || currentSolidityCode.includes("Por favor, insira uma cláusula contratual.")) {
+                codeQueryOutput.textContent = uiTexts[currentLanguage].errorNoSolidityCodeQuery;
+                codeQueryOutputContainer.style.display = 'block';
+                return;
+            }
+            if (!userQuery) {
+                codeQueryOutput.textContent = uiTexts[currentLanguage].errorNoQuery;
+                codeQueryOutputContainer.style.display = 'block';
+                return;
+            }
+
+            explanationOutputContainer.style.display = 'none';
+            optimizationOutputContainer.style.display = 'none';
+            applyOptimizationButton.style.display = 'none';
+
+            const promptForQuery = `
+            Você é um assistente de IA especializado em analisar e explicar código Solidity.
+            O usuário forneceu o seguinte código Solidity e tem uma pergunta específica sobre ele.
+            Responda à pergunta do usuário da forma mais clara, concisa e precisa possível, baseando-se APENAS no código fornecido.
+            Não modifique o código. Apenas forneça uma resposta à pergunta.
+
+            Código Solidity em Análise:
+            \`\`\`solidity
+            ${currentSolidityCode}
+            \`\`\`
+
+            Pergunta do Usuário:
+            "${userQuery}"
+
+            Sua Resposta (forneça apenas a resposta direta à pergunta, sem saudações ou texto adicional):
+            `;
+            await callGeminiAPI(promptForQuery, codeQueryLoadingIndicator, codeQueryOutput, codeQueryOutputContainer, askCodeQueryButton, cleanSimpleTextResponse);
+        });
+        
+        // --- Brick Out Game Logic ---
+        let ballRadius = 8;
+        let x = canvas.width / 2;
+        let y = canvas.height - 30;
+        let dx = 2.5;
+        let dy = -2.5;
+        let paddleHeight = 10;
+        let paddleWidth = 75;
+        let paddleX = (canvas.width - paddleWidth) / 2;
+        let rightPressed = false;
+        let leftPressed = false;
+        let brickRowCount = 4;
+        let brickColumnCount = 6;
+        let brickWidth = 70;
+        let brickHeight = 18;
+        let brickPadding = 5;
+        let brickOffsetTop = 30;
+        let brickOffsetLeft = (canvas.width - (brickColumnCount * (brickWidth + brickPadding) - brickPadding)) / 2;
+        let score = 0;
+        let lives = 3;
+        let gameInterval;
+        let gameRunning = false;
+
+        const bricks = [];
+        function initBricks() {
+            bricks.length = 0; 
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    bricks[c][r] = { x: 0, y: 0, status: 1 };
+                }
+            }
+        }
+
+        document.addEventListener("keydown", keyDownHandler, false);
+        document.addEventListener("keyup", keyUpHandler, false);
+
+        function keyDownHandler(e) {
+            if (brickoutModal.style.display !== "flex") return; // Only process if game modal is active
+            if (e.key == "Right" || e.key == "ArrowRight") {
+                rightPressed = true;
+            } else if (e.key == "Left" || e.key == "ArrowLeft") {
+                leftPressed = true;
+            }
+        }
+
+        function keyUpHandler(e) {
+            if (brickoutModal.style.display !== "flex") return; // Only process if game modal is active
+            if (e.key == "Right" || e.key == "ArrowRight") {
+                rightPressed = false;
+            } else if (e.key == "Left" || e.key == "ArrowLeft") {
+                leftPressed = false;
+            }
+        }
+
+        function showVictoryMessage() {
+            victoryMessageModal.style.display = "flex";
+        }
+        function showGameOverModal() {
+            gameOverModal.style.display = "flex";
+        }
+
+
+        function collisionDetection() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    const b = bricks[c][r];
+                    if (b.status == 1) {
+                        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+                            dy = -dy;
+                            b.status = 0;
+                            score++;
+                            if (score == brickRowCount * brickColumnCount) {
+                                stopGame();
+                                showVictoryMessage(); 
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+            ctx.fillStyle = document.body.classList.contains('light-theme') ? "#3b82f6" : "#93c5fd"; 
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+            ctx.fillStyle = document.body.classList.contains('light-theme') ? "#2563eb" : "#60a5fa"; 
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            const lightThemeBrickColor1 = "#d1d5db"; 
+            const lightThemeBrickColor2 = "#e5e7eb"; 
+            const darkThemeBrickColor1 = "#4b5563"; 
+            const darkThemeBrickColor2 = "#374151"; 
+
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status == 1) {
+                        const brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
+                        const brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        if (document.body.classList.contains('light-theme')) {
+                             ctx.fillStyle = (r % 2 == 0) ? lightThemeBrickColor1 : lightThemeBrickColor2;
+                        } else {
+                            ctx.fillStyle = (r % 2 == 0) ? darkThemeBrickColor1 : darkThemeBrickColor2; 
+                        }
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+        
+        function drawScore() {
+            ctx.font = "14px Inter";
+            ctx.fillStyle = document.body.classList.contains('light-theme') ? "#4b5563" : "#9ca3af"; 
+            ctx.fillText(`${uiTexts[currentLanguage].brickoutScore || "Pontos"}: ${score}`, 8, 20);
+        }
+
+        function drawLives() {
+            ctx.font = "14px Inter";
+            ctx.fillStyle = document.body.classList.contains('light-theme') ? "#4b5563" : "#9ca3af"; 
+            ctx.fillText(`${uiTexts[currentLanguage].brickoutLives || "Vidas"}: ${lives}`, canvas.width - 75, 20);
+        }
+        
+        uiTexts.pt.brickoutScore = "Pontos";
+        uiTexts.en.brickoutScore = "Score";
+        uiTexts.pt.brickoutLives = "Vidas";
+        uiTexts.en.brickoutLives = "Lives";
+
+
+        function drawGame() {
+            if (!gameRunning) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBricks();
+            drawBall();
+            drawPaddle();
+            drawScore();
+            drawLives();
+            collisionDetection();
+
+            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+                dx = -dx;
+            }
+            if (y + dy < ballRadius) {
+                dy = -dy;
+            } else if (y + dy > canvas.height - ballRadius) {
+                if (x > paddleX && x < paddleX + paddleWidth) {
+                    dy = -dy;
+                } else {
+                    lives--;
+                    if (!lives) {
+                        stopGame(); 
+                        showGameOverModal();
+                    } else {
+                        x = canvas.width / 2;
+                        y = canvas.height - 30;
+                        dx = Math.random() < 0.5 ? 2.5 : -2.5; // Reset ball direction randomly
+                        dy = -2.5;
+                        paddleX = (canvas.width - paddleWidth) / 2;
+                    }
+                }
+            }
+
+            if (rightPressed && paddleX < canvas.width - paddleWidth) {
+                paddleX += 7;
+            } else if (leftPressed && paddleX > 0) {
+                paddleX -= 7;
+            }
+
+            x += dx;
+            y += dy;
+        }
+
+        function startGame() {
+            if (gameRunning) return;
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            x = canvas.width / 2;
+            y = canvas.height - 30;
+            dx = Math.random() < 0.5 ? 2.5 : -2.5; 
+            dy = -2.5;
+            paddleX = (canvas.width - paddleWidth) / 2;
+            initBricks();
+            if(gameInterval) clearInterval(gameInterval); 
+            gameInterval = setInterval(drawGame, 10);
+        }
+
+        function stopGame() {
+            gameRunning = false;
+            clearInterval(gameInterval);
+        }
+        
+        if (rocketGameIcon) {
+            rocketGameIcon.addEventListener('click', (event) => {
+                event.stopPropagation(); 
+                brickoutModal.style.display = "flex";
+                startGame();
+            });
+        }
+
+        if (closeBrickoutModal) {
+            closeBrickoutModal.onclick = function() {
+                brickoutModal.style.display = "none";
+                stopGame();
+            }
+        }
+         if (closeVictoryMessageModal) {
+            closeVictoryMessageModal.onclick = function() {
+                victoryMessageModal.style.display = "none";
+            }
+        }
+        if (closeGameOverModal) {
+            closeGameOverModal.onclick = function() {
+                gameOverModal.style.display = "none";
+            }
+        }
+        
+        window.onclick = function(event) {
+            if (event.target == brickoutModal) {
+                brickoutModal.style.display = "none";
+                stopGame();
+            }
+            if (event.target == victoryMessageModal) {
+                victoryMessageModal.style.display = "none";
+            }
+            if (event.target == gameOverModal) {
+                gameOverModal.style.display = "none";
+            }
+        }
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") {
+                if (brickoutModal.style.display === "flex") {
+                    brickoutModal.style.display = "none";
+                    stopGame();
+                }
+                if (victoryMessageModal.style.display === "flex") {
+                    victoryMessageModal.style.display = "none";
+                }
+                if (gameOverModal.style.display === "flex") {
+                    gameOverModal.style.display = "none";
+                }
+            }
+        });
+
+        applyLanguage(currentLanguage); 
+    </script>
+</body>
+</html>

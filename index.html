@@ -9,7 +9,7 @@
         se conecta à API Gemini. Protege a chave da API contra scripts de
         terceiros.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com https://api.coingecko.com https://api.coinbase.com https://ethereum-rpc.publicnode.com https://eth.llamarpc.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com https://api.anthropic.com https://api.openai.com https://api.deepseek.com https://api.coingecko.com https://api.coinbase.com https://ethereum-rpc.publicnode.com https://eth.llamarpc.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="description" content="Ferramenta educacional que converte cláusulas contratuais em linguagem natural em esqueletos de smart contracts em Solidity, com modelos revisados, verificação de segurança e testes em blockchain simulada.">
     <meta name="color-scheme" content="light dark">
     <meta name="author" content="Eduardo Chacon (https://github.com/EduChacon)">
@@ -85,7 +85,9 @@
             </summary>
             <div class="settings-body">
                 <div class="settings-col">
-                    <label for="geminiApiKeyInput" class="field-label" data-i18n="apiKeyLabel">Chave da API Gemini</label>
+                    <label for="providerSelect" class="field-label" data-i18n="providerLabel">Provedor de IA</label>
+                    <select id="providerSelect"></select>
+                    <label for="geminiApiKeyInput" class="field-label" data-i18n="apiKeyLabel">Chave da API</label>
                     <div class="inline-row">
                         <input type="password" id="geminiApiKeyInput" autocomplete="off" spellcheck="false" data-i18n-placeholder="apiKeyPlaceholder">
                         <button type="button" id="toggleKeyVisibility" class="btn btn-quiet" data-i18n="showKey">Mostrar</button>
@@ -96,7 +98,7 @@
                         <label class="checkbox"><input type="checkbox" id="rememberKeyCheckbox"> <span data-i18n="rememberKey">Lembrar neste navegador</span></label>
                     </div>
                     <p class="hint"><span data-i18n="apiKeyHelp"></span>
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" data-i18n="apiKeyHelpLink">Obter chave</a></p>
+                        <a id="apiKeyLink" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" data-i18n="apiKeyHelpLink">Obter chave</a></p>
                     <p id="apiKeySaveFeedback" class="feedback" role="status" aria-live="polite"></p>
                 </div>
                 <div class="settings-col" id="aiParams">

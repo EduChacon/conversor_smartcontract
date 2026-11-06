@@ -23,7 +23,9 @@
     const SETTINGS_KEY = 'csc.settings';
     const DRAFT_KEY = 'csc.draft';
 
-    const DEFAULT_SETTINGS = { model: CSC.config.DEFAULT_MODEL, temperature: 0.2, rounds: 2, autoCompile: true };
+    const DEFAULT_SETTINGS = { provider: 'gemini', model: CSC.config.DEFAULT_MODEL, modelsByProvider: {}, temperature: 0.2, rounds: 2, autoCompile: true };
+    const PROV = () => CSC.llm.PROVIDERS[state.settings.provider] || CSC.llm.PROVIDERS.gemini;
+    const keyName = () => PROV().keyName;
     const MODE_KEY = 'csc.mode';
 
     // ---------- Estado ----------
@@ -117,8 +119,8 @@
 
     // ---------- Chave da API ----------
     function loadKey() {
-        const session = store.get('sessionStorage', KEY_NAME);
-        const persistent = store.get('localStorage', KEY_NAME);
+        const session = store.get('sessionStorage', keyName());
+        const persistent = store.get('localStorage', keyName());
         el.apiKey.value = session || persistent || '';
         el.remember.checked = !!persistent;
     }
@@ -133,17 +135,17 @@
     function saveKey() {
         const key = el.apiKey.value.trim();
         if (!key) return flash(el.keyFeedback, t('apiKeyEmpty'));
-        store.remove('localStorage', KEY_NAME);
-        store.remove('sessionStorage', KEY_NAME);
-        if (el.remember.checked) store.set('localStorage', KEY_NAME, key);
-        else store.set('sessionStorage', KEY_NAME, key);
+        store.remove('localStorage', keyName());
+        store.remove('sessionStorage', keyName());
+        if (el.remember.checked) store.set('localStorage', keyName(), key);
+        else store.set('sessionStorage', keyName(), key);
         flash(el.keyFeedback, el.remember.checked ? t('apiKeySavedPersistent') : t('apiKeySavedSession'));
         refreshModels();
     }
 
     function forgetKey() {
-        store.remove('localStorage', KEY_NAME);
-        store.remove('sessionStorage', KEY_NAME);
+        store.remove('localStorage', keyName());
+        store.remove('sessionStorage', keyName());
         el.apiKey.value = '';
         el.remember.checked = false;
         flash(el.keyFeedback, t('apiKeyForgotten'));
@@ -168,17 +170,47 @@
         const key = el.apiKey.value.trim();
         if (!key) return;
         try {
-            const models = await CSC.gemini.listModels(key);
+            const models = await CSC.llm.listModels(state.settings.provider, key);
             if (models.length) {
-                const preferred = CSC.config.FALLBACK_MODELS.filter(m => models.includes(m));
+                const preferred = PROV().models.filter(m => models.includes(m));
+                if (!models.includes(state.settings.model)) { state.settings.model = preferred[0] || models[0]; saveSettings(); updateSettingsStatus(); }
                 renderModelOptions(preferred.concat(models.sort()));
                 flash(el.keyFeedback, t('modelsLoaded'));
             }
         } catch (_) { /* mantém a lista padrão */ }
     }
 
+    function renderProviders() {
+        const sel = $('providerSelect');
+        if (!sel) return;
+        sel.textContent = '';
+        for (const [id, p] of Object.entries(CSC.llm.PROVIDERS)) {
+            const o = document.createElement('option');
+            o.value = id;
+            o.textContent = p.label + (p.free ? (CSC.lang === 'en' ? ' (default, free tier)' : ' (padrão, plano gratuito)') : '');
+            sel.appendChild(o);
+        }
+        sel.value = state.settings.provider in CSC.llm.PROVIDERS ? state.settings.provider : 'gemini';
+        const link = $('apiKeyLink');
+        if (link) link.href = PROV().keyUrl;
+    }
+
+    function setProvider(id) {
+        if (!(id in CSC.llm.PROVIDERS) || id === state.settings.provider) return;
+        state.settings.modelsByProvider = Object.assign({}, state.settings.modelsByProvider, { [state.settings.provider]: state.settings.model });
+        state.settings.provider = id;
+        state.settings.model = (state.settings.modelsByProvider || {})[id] || CSC.llm.PROVIDERS[id].defaultModel;
+        saveSettings();
+        loadKey();
+        renderSettings();
+        updateSettingsStatus();
+        if (el.apiKey.value) refreshModels();
+        document.dispatchEvent(new CustomEvent('csc:language'));
+    }
+
     function renderSettings() {
-        renderModelOptions(CSC.config.FALLBACK_MODELS);
+        renderProviders();
+        renderModelOptions(PROV().models);
         el.temperature.value = String(state.settings.temperature);
         el.temperatureValue.textContent = Number(state.settings.temperature).toFixed(1);
         el.rounds.value = String(state.settings.rounds);
@@ -240,9 +272,9 @@
 
     /** Escolhe outro modelo disponível para a chave quando o atual não existe. */
     async function switchToAvailableModel(apiKey) {
-        const available = await CSC.gemini.listModels(apiKey);
-        const preferred = CSC.config.FALLBACK_MODELS.find(m => available.includes(m) && m !== state.settings.model)
-            || available.find(m => /flash/.test(m) && m !== state.settings.model);
+        const available = await CSC.llm.listModels(state.settings.provider, apiKey);
+        const preferred = PROV().models.find(m => available.includes(m) && m !== state.settings.model)
+            || available.find(m => m !== state.settings.model);
         if (!preferred) return null;
         const from = state.settings.model;
         state.settings.model = preferred;
@@ -260,7 +292,8 @@
             e.code = 'no-key';
             throw e;
         }
-        const call = () => CSC.gemini.generate({
+        const call = () => CSC.llm.generate({
+            provider: state.settings.provider,
             apiKey,
             model: state.settings.model,
             system: request.system,
@@ -756,7 +789,7 @@
     function updateSettingsStatus() {
         const st = $('settingsStatus');
         if (!st) return;
-        st.textContent = el.apiKey.value.trim() ? t('settingsWithKey', { model: state.settings.model }) : t('settingsNoKey');
+        st.textContent = el.apiKey.value.trim() ? t('settingsWithKey', { provider: PROV().label, model: state.settings.model }) : t('settingsNoKey');
     }
 
     function renderTemplateSelect() {
@@ -1126,7 +1159,7 @@
         lines.push('- ' + t('reportGenerated') + ': ' + now.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR'));
         const origin = state.history[state.index] ? state.history[state.index].origin : '';
         lines.push('- ' + t('reportOrigin') + ': ' + originLabel(origin));
-        if (state.aiUsed) lines.push('- ' + t('reportModel') + ': ' + state.settings.model + ' (' + t('temperatureLabel').toLowerCase() + ' ' + state.settings.temperature + ')');
+        if (state.aiUsed) lines.push('- ' + t('reportModel') + ': ' + PROV().label + ' · ' + state.settings.model + ' (' + t('temperatureLabel').toLowerCase() + ' ' + state.settings.temperature + ')');
         else lines.push('- ' + t('reportNoAI'));
         lines.push('- solc: ' + CSC.config.SOLC_VERSION, '');
         lines.push('> ' + (state.aiUsed ? t('reportDisclaimer') : t('reportDisclaimerNoAI')), '');
@@ -1190,6 +1223,7 @@
     el.apiKey.addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
 
     el.model.addEventListener('change', () => { state.settings.model = el.model.value; saveSettings(); updateSettingsStatus(); });
+    if ($('providerSelect')) $('providerSelect').addEventListener('change', e => setProvider(e.target.value));
     el.temperature.addEventListener('input', () => {
         state.settings.temperature = Number(el.temperature.value);
         el.temperatureValue.textContent = state.settings.temperature.toFixed(1);
@@ -1624,6 +1658,7 @@
     CSC.app = {
         askAI,
         hasKey: () => !!el.apiKey.value.trim(),
+        providerLabel: () => PROV().label,
         openSettings() {
             $('settingsPanel').open = true;
             $('settingsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });

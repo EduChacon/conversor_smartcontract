@@ -184,7 +184,9 @@ The panel also fetches the **current gas price** on Ethereum mainnet (PublicNode
 
 ## 10. Artificial intelligence (optional)
 
-With a free key from [Google AI Studio](https://aistudio.google.com/app/apikey), the **"Assistant (AI)"** panel at the top of the page chats in plain language: it answers questions about using the tool, explains the test results and what is missing for legal validity and, given a contract text, **builds it by itself**, with parties, clauses, links and wording. The proposal is checked against the tool's own rules (and fixed by the AI if needed); one click on **"Apply to the contract, generate the code and test"** loads the contract, generates the code and runs the tests. Party details (names, IDs, addresses and wallets) are not sent to the assistant.
+**Providers.** Under **"Artificial intelligence (optional)"**, choose the provider and enter its key: **Google Gemini** (the default, with a free key from [Google AI Studio](https://aistudio.google.com/app/apikey)), **Anthropic Claude**, **OpenAI (ChatGPT)** or **DeepSeek** (these three charge for usage). Each key is stored separately, and the model list comes from your own account.
+
+With a key set, the **"Assistant (AI)"** panel at the top of the page chats in plain language: it answers questions about using the tool, explains the test results and what is missing for legal validity and, given a contract text, **builds it by itself**, with parties, clauses, links and wording. The proposal is checked against the tool's own rules (and fixed by the AI if needed); one click on **"Apply to the contract, generate the code and test"** loads the contract, generates the code and runs the tests. Party details (names, IDs, addresses and wallets) are not sent to the assistant.
 
 ![Chat assistant answering about the contract's enforceability](docs/img/en/assistant.png)
 
@@ -195,9 +197,9 @@ Besides the assistant, AI can help to:
 - convert clauses that do not fit the blocks ("Free text" mode);
 - generate additional tests.
 
-The default model is lightweight and has the largest free quota. If it is not available for your key, the app picks another one. When the free tier limit is reached, the app waits and retries.
+On Gemini, the default model is lightweight and has the largest free quota. If the chosen model is not available for your key, the app picks another one from the same provider. When a rate limit is reached, the app waits and retries.
 
-**Privacy:** the key stays only in your browser and is sent only to Google. On the free tier, Google may use the content sent to improve its products; do not enter personal or confidential data. The non-AI modes do not send the contract anywhere.
+**Privacy:** the key stays only in your browser and is sent only to the chosen provider. Each provider has its own data-use policy (on Gemini's free tier, Google may use the content to improve its products); do not enter personal or confidential data. The non-AI modes do not send the contract anywhere.
 
 ## 11. Taking the contract to a real testnet
 
@@ -257,7 +259,7 @@ In every contract, the predefined tests include an unauthorized account trying e
 
 **Can I use it with real money?** No. The code is educational and requires professional review and an audit.
 
-**Does my data go anywhere?** Without AI, the contract stays in your browser. With AI, the text goes to Google's API; party details (names, IDs, addresses and wallets) are not sent to the assistant. The price lookup contacts CoinGecko or Coinbase, and the gas price lookup contacts public Ethereum nodes, only when you open the price panel or enable gas charging in the Lab.
+**Does my data go anywhere?** Without AI, the contract stays in your browser. With AI, the text goes to the chosen provider's API; party details (names, IDs, addresses and wallets) are not sent to the assistant. The price lookup contacts CoinGecko or Coinbase, and the gas price lookup contacts public Ethereum nodes, only when you open the price panel or enable gas charging in the Lab.
 
 **Why does the Ether amount change?** Because Ether's price varies. When the code is generated, the Ether amount is fixed by the chosen scale or price.
 

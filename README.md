@@ -184,7 +184,9 @@ O painel também consulta o **preço atual do "gás"** na rede principal do Ethe
 
 ## 10. Inteligência artificial (opcional)
 
-Com uma chave gratuita do [Google AI Studio](https://aistudio.google.com/app/apikey), o painel **"Assistente (IA)"**, no topo da página, conversa em linguagem comum: responde dúvidas sobre o uso da ferramenta, explica os resultados dos testes e o que falta para a validade jurídica e, ao receber o texto de um contrato, **monta-o sozinho**, com as partes, as cláusulas, as ligações e a redação. A proposta é conferida pelas regras da própria ferramenta (e corrigida pela IA, se preciso); com um clique em **"Aplicar ao contrato, gerar o código e testar"**, o contrato é carregado, o código é gerado e os testes são executados. Os dados das partes (nomes, documentos, endereços e carteiras) não são enviados ao assistente.
+**Provedores.** Em **"Inteligência artificial (facultativa)"**, escolha o provedor e informe a chave correspondente: **Google Gemini** (padrão, com chave gratuita no [Google AI Studio](https://aistudio.google.com/app/apikey)), **Anthropic Claude**, **OpenAI (ChatGPT)** ou **DeepSeek** (estes três cobram pelo uso). Cada chave fica guardada separadamente, e a lista de modelos é obtida da própria conta.
+
+Com a chave configurada, o painel **"Assistente (IA)"**, no topo da página, conversa em linguagem comum: responde dúvidas sobre o uso da ferramenta, explica os resultados dos testes e o que falta para a validade jurídica e, ao receber o texto de um contrato, **monta-o sozinho**, com as partes, as cláusulas, as ligações e a redação. A proposta é conferida pelas regras da própria ferramenta (e corrigida pela IA, se preciso); com um clique em **"Aplicar ao contrato, gerar o código e testar"**, o contrato é carregado, o código é gerado e os testes são executados. Os dados das partes (nomes, documentos, endereços e carteiras) não são enviados ao assistente.
 
 ![Assistente de conversa respondendo sobre a força executiva do contrato](docs/img/pt/assistente.png)
 
@@ -195,9 +197,9 @@ Além do assistente, a IA ajuda a:
 - converter cláusulas que não cabem nos blocos (modo "Texto livre");
 - gerar testes adicionais.
 
-O modelo padrão é leve e tem a maior cota gratuita. Se ele não estiver disponível para a chave, o aplicativo escolhe outro. No limite do plano gratuito, o aplicativo aguarda e tenta de novo.
+No Gemini, o modelo padrão é leve e tem a maior cota gratuita. Se o modelo escolhido não estiver disponível para a chave, o aplicativo escolhe outro do mesmo provedor. No limite de requisições, o aplicativo aguarda e tenta de novo.
 
-**Privacidade:** a chave fica apenas no seu navegador e só é enviada ao Google. No plano gratuito, o Google pode usar o conteúdo enviado para aprimorar seus produtos; não insira dados pessoais nem confidenciais. Os modos sem IA não enviam o contrato a ninguém.
+**Privacidade:** a chave fica apenas no seu navegador e só é enviada ao provedor escolhido. Cada provedor tem a própria política de uso dos dados (no plano gratuito do Gemini, o Google pode usar o conteúdo para aprimorar seus produtos); não insira dados pessoais nem confidenciais. Os modos sem IA não enviam o contrato a ninguém.
 
 ## 11. Levar o contrato a uma rede de teste real
 
@@ -257,7 +259,7 @@ Os testes predefinidos incluem, em todo contrato, a tentativa de uma conta não 
 
 **Posso usar com dinheiro real?** Não. O código é educacional e exige revisão profissional e auditoria.
 
-**Meus dados vão para algum lugar?** Sem IA, o contrato fica no seu navegador. Com IA, o texto vai à API do Google; os dados das partes (nomes, documentos, endereços e carteiras) não são enviados ao assistente. A consulta de cotação acessa a CoinGecko ou a Coinbase, e a do preço do "gás", nós públicos do Ethereum, apenas quando você abre o painel de cotação ou marca a cobrança de "gás" no Laboratório.
+**Meus dados vão para algum lugar?** Sem IA, o contrato fica no seu navegador. Com IA, o texto vai à API do provedor escolhido; os dados das partes (nomes, documentos, endereços e carteiras) não são enviados ao assistente. A consulta de cotação acessa a CoinGecko ou a Coinbase, e a do preço do "gás", nós públicos do Ethereum, apenas quando você abre o painel de cotação ou marca a cobrança de "gás" no Laboratório.
 
 **Por que o valor em Ether muda?** Porque o Ether tem cotação variável. Ao gerar o código, o valor em Ether fica fixado pela escala ou pela cotação escolhida.
 

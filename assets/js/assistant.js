@@ -23,10 +23,10 @@
     const TXT = {
         pt: {
             title: 'Assistente (IA)',
-            statusNoKey: 'requer chave do Google AI Studio',
+            statusNoKey: 'requer chave de API',
             statusReady: 'pronto',
             intro: 'Pergunte sobre o uso da ferramenta, sobre o seu contrato ou sobre os testes. Para converter um contrato, cole o texto e peça para montá-lo: o assistente organiza as partes, as cláusulas, as ligações e a redação; você revisa e aplica com um clique, e o código é gerado e testado.',
-            privacy: 'O que você escreve aqui, o contrato montado e o código são enviados ao Google (Gemini). Os dados das partes (nomes, documentos, endereços e carteiras) não são enviados. Não cole dados pessoais no texto.',
+            privacy: 'O que você escreve aqui, o contrato montado e o código são enviados ao provedor de IA escolhido ({provider}). Os dados das partes (nomes, documentos, endereços e carteiras) não são enviados. Não cole dados pessoais no texto.',
             placeholder: 'Escreva sua pergunta ou cole o texto de um contrato…',
             send: 'Enviar',
             sending: 'Pensando…',
@@ -52,14 +52,14 @@
             repairing: 'Ajustando a proposta às regras da ferramenta…',
             errorPrefix: 'Não foi possível obter resposta: ',
             badProposal: 'A proposta recebida não está no formato esperado.',
-            noKey: 'Para usar o assistente, informe a chave gratuita do Google AI Studio em "Configurações da IA".'
+            noKey: 'Para usar o assistente, escolha o provedor e informe a chave em "Inteligência artificial (facultativa)", no topo da página. O Gemini, padrão, tem chave gratuita no Google AI Studio.'
         },
         en: {
             title: 'Assistant (AI)',
-            statusNoKey: 'requires a Google AI Studio key',
+            statusNoKey: 'requires an API key',
             statusReady: 'ready',
             intro: 'Ask about using the tool, about your contract or about the tests. To convert a contract, paste its text and ask to build it: the assistant organizes the parties, clauses, links and wording; you review and apply with one click, and the code is generated and tested.',
-            privacy: 'What you write here, the composed contract and the code are sent to Google (Gemini). Party details (names, IDs, addresses and wallets) are not sent. Do not paste personal data in the text.',
+            privacy: 'What you write here, the composed contract and the code are sent to the chosen AI provider ({provider}). Party details (names, IDs, addresses and wallets) are not sent. Do not paste personal data in the text.',
             placeholder: 'Write your question or paste a contract text…',
             send: 'Send',
             sending: 'Thinking…',
@@ -85,7 +85,7 @@
             repairing: 'Adjusting the proposal to the tool\'s rules…',
             errorPrefix: 'Could not get an answer: ',
             badProposal: 'The proposal received is not in the expected format.',
-            noKey: 'To use the assistant, enter the free Google AI Studio key under "AI settings".'
+            noKey: 'To use the assistant, choose the provider and enter the key under "Artificial intelligence (optional)" at the top of the page. Gemini, the default, has a free key at Google AI Studio.'
         }
     };
     const lang = () => (CSC.lang === 'en' ? 'en' : 'pt');
@@ -127,7 +127,7 @@ O QUE É A FERRAMENTA
 "Conversor Contratual para Esqueleto Solidity": ferramenta educacional que transforma um contrato em linguagem comum num "smart contract" Solidity 0.8.28, verifica a segurança, compila e testa numa "blockchain" simulada no navegador. Não publica nada em rede real e não substitui advogado nem auditoria.
 
 SEÇÕES DA PÁGINA
-- Topo: "Como usar: tutoriais práticos" (guias passo a passo), "Configurações da IA" (chave, modelo, temperatura), "Cotação do Ether (ETH, R$, US$, BTC)" (CoinGecko, com Coinbase de reserva; botão "Usar esta cotação no contrato"; também mostra o preço do "gás" da rede principal) e este assistente.
+- Topo: "Como usar: tutoriais práticos" (guias passo a passo), "Inteligência artificial (facultativa)" (provedor de IA — Google Gemini, padrão e com plano gratuito, Anthropic Claude, OpenAI ou DeepSeek —, chave, modelo e temperatura), "Cotação do Ether (ETH, R$, US$, BTC)" (CoinGecko, com Coinbase de reserva; botão "Usar esta cotação no contrato"; também mostra o preço do "gás" da rede principal) e este assistente.
 - § 1 Cláusula contratual, com três modos: "Montar contrato" (padrão, sem IA: documento por cláusulas com lacunas destacadas), "Modelos prontos" (sem IA: quatro modelos com extração por regras) e "Texto livre" (com IA).
   No modo "Montar contrato": "Começar de um exemplo" (exemplos prontos e "Meus modelos"), "Salvar contrato (.json)", "Abrir contrato", "Imprimir para assinatura (PDF)", "Meus modelos" (salvar o contrato inteiro como modelo), "+ Acrescentar cláusula" (paleta por categorias e "Meus blocos"), "Dados das partes (opcional)" (nome, documento, endereço e carteira; a qualificação entra no texto assinado e na impressão digital, nunca no código), "Mapa das ligações entre cláusulas", pendências, avisos e "Conferência jurídica" (lembretes e avisos com referência legal). O texto de cada cláusula é editável; os trechos destacados (partes, valores, prazos, percentuais) são os que o código executa. Cada cláusula tem uma cor, repetida no código, no Laboratório e nos testes.
 - § 2 Esqueleto do "smart contract": código gerado (cada cláusula transcrita em comentário), legenda de cores por cláusula, copiar, baixar .sol, desfazer/refazer, "Abrir no Remix" (com otimização e EVM cancun), relatório (.md) e "Imprimir / PDF".
@@ -352,7 +352,7 @@ Na resposta de "montar"/"ajustar", resuma as cláusulas criadas, as ligações e
         dom.title.textContent = tt('title');
         dom.status.textContent = CSC.app && CSC.app.hasKey() ? tt('statusReady') : tt('statusNoKey');
         dom.intro.textContent = tt('intro');
-        dom.privacy.textContent = tt('privacy');
+        dom.privacy.textContent = tt('privacy', { provider: CSC.app && CSC.app.providerLabel ? CSC.app.providerLabel() : 'Google Gemini' });
         dom.input.placeholder = tt('placeholder');
         dom.send.textContent = state.busy ? tt('sending') : tt('send');
         dom.clear.textContent = tt('clear');

@@ -72,11 +72,11 @@ function rng(seed) {
     return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 2 ** 32; };
 }
 
-test('combinações aleatórias de blocos (40 montagens)', async () => {
+test('combinações aleatórias de blocos (60 montagens)', async () => {
     const rand = rng(20251106);
     const pick = arr => arr[Math.floor(rand() * arr.length)];
     let total = 0;
-    for (let k = 0; k < 40; k++) {
+    for (let k = 0; k < 60; k++) {
         const lang = k % 2 ? 'en' : 'pt';
         const roles = [{ id: 'a', label: lang === 'en' ? 'Alice' : 'Ana' }, { id: 'b', label: lang === 'en' ? 'Bob' : 'Bruno' }, { id: 'c', label: lang === 'en' ? 'Carol' : 'Carla' }];
         const model = { name: 'Montagem ' + k, scale: 1000, roles, blocks: [] };
@@ -102,6 +102,19 @@ test('combinações aleatórias de blocos (40 montagens)', async () => {
         if (rand() < 0.5) { const c = add('caucao'); c.params.garantidor = 'b'; c.params.beneficiario = 'a'; c.params.valor = 100 + Math.floor(rand() * 3000); c.params.prazo = 1 + Math.floor(rand() * 30); }
         if (arb) { const a = add('arbitro'); a.params.arbitro = 'c'; }
         if (rand() < 0.3) add('clausulaLivre');
+        // Obrigações de dar, fazer e não fazer, com cláusula penal.
+        if (rand() < 0.5) {
+            const o = add(pick(['obrigacaoDar', 'obrigacaoFazer', 'obrigacaoNaoFazer']));
+            o.params.devedor = pick(['a', 'b']);
+            o.params.credor = o.params.devedor === 'a' ? 'b' : 'a';
+            o.params.verificador = rand() < 0.7 ? o.params.credor : 'c';
+            if (o.type === 'obrigacaoNaoFazer') o.params.duracao = 1 + Math.floor(rand() * 200); else o.params.prazo = 1 + Math.floor(rand() * 40);
+            if (rand() < 0.6) { const c = add('clausulaPenal'); c.params.alvo = o.uid; c.params.valor = 100 + Math.floor(rand() * 5000); }
+            const cus0 = model.blocks.find(b => b.type === 'custodia');
+            if (cus0 && o.type !== 'obrigacaoNaoFazer' && o.params.verificador !== cus0.params.beneficiario && rand() < 0.5) {
+                const rel = add('liberacaoPorEvento'); rel.params.alvo = cus0.uid; rel.params.evento = o.uid;
+            }
+        }
         // Informações externas (oráculos) ligadas aos pagamentos e garantias.
         const pays = model.blocks.filter(b => b.type === 'pagamentoUnico' || b.type === 'pagamentoPeriodico');
         if (pays.length && rand() < 0.5) {
@@ -111,11 +124,11 @@ test('combinações aleatórias de blocos (40 montagens)', async () => {
             const x = add(kind); x.params.alvo = target.uid; x.params[kind === 'reajuste' ? 'indice' : 'cotacao'] = o.uid;
         }
         const cus = model.blocks.find(b => b.type === 'custodia');
-        if (cus && rand() < 0.6) {
+        if (cus && !model.blocks.some(b => b.type === 'liberacaoPorEvento') && rand() < 0.6) {
             const ev = add('oraculoEvento'); ev.params.fonte = 'c';
             const rel = add('liberacaoPorEvento'); rel.params.alvo = cus.uid; rel.params.evento = ev.uid;
         }
-        if (!model.blocks.some(b => b.type === 'arbitro' || ((b.type === 'oraculoValor' || b.type === 'oraculoEvento') && b.params.fonte === 'c'))) model.roles = roles.slice(0, 2);
+        if (!model.blocks.some(b => b.type === 'arbitro' || b.params.verificador === 'c' || ((b.type === 'oraculoValor' || b.type === 'oraculoEvento') && b.params.fonte === 'c'))) model.roles = roles.slice(0, 2);
         total += await check(model, lang, 'combinação ' + k + ' [' + model.blocks.map(b => b.type).join(', ') + ']');
     }
     assert.ok(total > 100);

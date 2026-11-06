@@ -457,7 +457,7 @@
 
         // Divisão antes de multiplicação na mesma expressão.
         {
-            const re = /\/\s*(\(?[\w.$\[\]]+\)?)\s*\*/g;
+            const re = /\/\s*([\w.$\[\]]+|\([^()]*\))\s*\*/g;
             let m;
             while ((m = re.exec(clean)) !== null) {
                 // Ignora "/*" residual (comentários já foram apagados).

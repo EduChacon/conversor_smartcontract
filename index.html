@@ -1,319 +1,336 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!--
-        Política de segurança de conteúdo: só executa scripts deste site,
-        só se conecta à API Gemini e impede que a página seja usada para
-        enviar formulários ou carregar plugins. Protege a chave da API
-        contra scripts de terceiros.
+        Política de segurança de conteúdo: só executa scripts deste site e só
+        se conecta à API Gemini. Protege a chave da API contra scripts de
+        terceiros.
     -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
-    <meta name="description" content="Ferramenta educacional que converte cláusulas contratuais em linguagem natural em esqueletos de smart contracts em Solidity, com verificação de segurança.">
-    <meta name="color-scheme" content="dark light">
+    <meta name="description" content="Ferramenta educacional que converte cláusulas contratuais em linguagem natural em esqueletos de smart contracts em Solidity, com modelos revisados, verificação de segurança e testes em blockchain simulada.">
+    <meta name="color-scheme" content="light dark">
     <title>Conversor Contratual para Esqueleto Solidity</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2'%3E%3Cpath d='M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5'/%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f6f1e7'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='22' text-anchor='middle' fill='%237a1f2b'%3E%C2%A7%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
-    <a class="skip-link" href="#main">Ir para o conteúdo</a>
-    <div class="container">
-        <!-- Barra superior: chave, modelo, tema e idioma -->
-        <div class="top-controls-bar">
-            <div class="api-key-section">
-                <label for="geminiApiKeyInput" class="field-label" data-i18n="apiKeyLabel">Chave da API Gemini</label>
-                <div class="api-key-row">
-                    <input type="password" id="geminiApiKeyInput" autocomplete="off" spellcheck="false" data-i18n-placeholder="apiKeyPlaceholder" placeholder="Cole sua chave aqui">
-                    <button type="button" id="toggleKeyVisibility" class="btn btn-ghost btn-small" data-i18n="showKey">Mostrar</button>
-                    <button type="button" id="saveApiKeyButton" class="btn btn-primary btn-small" data-i18n="saveApiKeyButton">Salvar chave</button>
-                    <button type="button" id="forgetApiKeyButton" class="btn btn-ghost btn-small" data-i18n="forgetApiKeyButton">Apagar chave</button>
-                </div>
-                <div class="api-key-row api-key-options">
-                    <label class="checkbox"><input type="checkbox" id="rememberKeyCheckbox"> <span data-i18n="rememberKey">Lembrar neste navegador</span></label>
-                    <span class="muted small"><span data-i18n="apiKeyHelp">A chave fica apenas neste navegador.</span>
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" data-i18n="apiKeyHelpLink">Obter chave</a></span>
-                </div>
-                <span id="apiKeySaveFeedback" class="feedback" role="status" aria-live="polite"></span>
-            </div>
-            <div class="top-side">
-                <details class="ai-params" id="aiParams">
-                    <summary data-i18n="aiParamsTitle">Parâmetros da IA</summary>
-                    <div class="ai-params-body">
-                        <label class="param">
-                            <span class="field-label" data-i18n="modelLabel">Modelo</span>
-                            <select id="modelSelect"></select>
-                        </label>
-                        <label class="param">
-                            <span class="field-label"><span data-i18n="temperatureLabel">Temperatura</span>: <output id="temperatureValue">0.2</output></span>
-                            <input type="range" id="temperatureInput" min="0" max="1" step="0.1" value="0.2">
-                            <span class="muted small" data-i18n="temperatureHelp"></span>
-                        </label>
-                        <label class="param">
-                            <span class="field-label" data-i18n="roundsLabel">Rodadas de autocorreção</span>
-                            <select id="roundsSelect">
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                            </select>
-                            <span class="muted small" data-i18n="roundsHelp"></span>
-                        </label>
-                        <label class="checkbox param">
-                            <input type="checkbox" id="autoCompileCheckbox">
-                            <span data-i18n="autoCompileLabel">Compilar automaticamente</span>
-                        </label>
-                        <button type="button" id="resetParamsButton" class="btn btn-ghost btn-small" data-i18n="resetParams">Restaurar padrões</button>
-                    </div>
-                </details>
-                <div class="theme-lang-buttons">
-                    <button type="button" id="themeToggleButton" class="btn btn-secondary btn-small"></button>
-                    <button type="button" id="languageToggleButton" class="btn btn-secondary btn-small"></button>
-                </div>
-            </div>
-        </div>
+    <a class="skip-link" href="#main" data-i18n="skipLink">Ir para o conteúdo</a>
+    <div class="page">
 
-        <header class="page-header">
+        <header class="masthead">
+            <div class="utility">
+                <span class="utility-label" data-i18n="utilityLabel">Ferramenta educacional de pesquisa</span>
+                <span class="utility-actions">
+                    <button type="button" id="themeToggleButton" class="link-btn"></button>
+                    <span aria-hidden="true">·</span>
+                    <button type="button" id="languageToggleButton" class="link-btn"></button>
+                </span>
+            </div>
+            <p class="kicker" data-i18n="kicker">Direito contratual e "smart contracts"</p>
             <h1 class="title-main" data-i18n="mainTitle">Conversor Contratual para Esqueleto Solidity</h1>
-            <p class="subtitle-main" data-i18n="subTitle">Gere um ponto de partida em Solidity, verifique sua segurança e obtenha análises sobre as cláusulas.</p>
+            <p class="deck" data-i18n="subTitle"></p>
         </header>
 
+        <aside class="notice">
+            <h2 class="notice-title" data-i18n="warningTitle">Advertência</h2>
+            <p data-i18n-html="warningText"></p>
+            <p class="notice-small" data-i18n-html="privacyText"></p>
+        </aside>
+
+        <!-- Configuração da IA (facultativa) -->
+        <details class="settings" id="settingsPanel">
+            <summary>
+                <span class="settings-title" data-i18n="settingsTitle">Inteligência artificial (facultativa)</span>
+                <span class="settings-status" id="settingsStatus"></span>
+            </summary>
+            <div class="settings-body">
+                <div class="settings-col">
+                    <label for="geminiApiKeyInput" class="field-label" data-i18n="apiKeyLabel">Chave da API Gemini</label>
+                    <div class="inline-row">
+                        <input type="password" id="geminiApiKeyInput" autocomplete="off" spellcheck="false" data-i18n-placeholder="apiKeyPlaceholder">
+                        <button type="button" id="toggleKeyVisibility" class="btn btn-quiet" data-i18n="showKey">Mostrar</button>
+                    </div>
+                    <div class="inline-row">
+                        <button type="button" id="saveApiKeyButton" class="btn btn-ink" data-i18n="saveApiKeyButton">Salvar chave</button>
+                        <button type="button" id="forgetApiKeyButton" class="btn btn-quiet" data-i18n="forgetApiKeyButton">Apagar chave</button>
+                        <label class="checkbox"><input type="checkbox" id="rememberKeyCheckbox"> <span data-i18n="rememberKey">Lembrar neste navegador</span></label>
+                    </div>
+                    <p class="hint"><span data-i18n="apiKeyHelp"></span>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" data-i18n="apiKeyHelpLink">Obter chave</a></p>
+                    <p id="apiKeySaveFeedback" class="feedback" role="status" aria-live="polite"></p>
+                </div>
+                <div class="settings-col" id="aiParams">
+                    <label class="param">
+                        <span class="field-label" data-i18n="modelLabel">Modelo</span>
+                        <select id="modelSelect"></select>
+                    </label>
+                    <label class="param">
+                        <span class="field-label"><span data-i18n="temperatureLabel">Temperatura</span>: <output id="temperatureValue">0.2</output></span>
+                        <input type="range" id="temperatureInput" min="0" max="1" step="0.1" value="0.2">
+                        <span class="hint" data-i18n="temperatureHelp"></span>
+                    </label>
+                    <label class="param">
+                        <span class="field-label" data-i18n="roundsLabel">Rodadas de autocorreção</span>
+                        <select id="roundsSelect">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                        <span class="hint" data-i18n="roundsHelp"></span>
+                    </label>
+                    <label class="checkbox param">
+                        <input type="checkbox" id="autoCompileCheckbox">
+                        <span data-i18n="autoCompileLabel">Compilar automaticamente</span>
+                    </label>
+                    <p class="hint" id="requestCount"></p>
+                    <button type="button" id="resetParamsButton" class="btn btn-quiet" data-i18n="resetParams">Restaurar padrões</button>
+                </div>
+            </div>
+        </details>
+
         <main id="main">
-            <div class="warning-box">
-                <h2 class="box-title" data-i18n="warningTitle">Atenção: ferramenta educacional e experimental</h2>
-                <p data-i18n-html="warningText"></p>
-                <p class="privacy" data-i18n-html="privacyText"></p>
+            <div class="spread">
+                <!-- § 1 Cláusula -->
+                <section class="sec" aria-labelledby="step1Title">
+                    <header class="sec-head"><span class="sec-num">§ 1</span><h2 id="step1Title" data-i18n="step1Title">Cláusula contratual</h2></header>
+
+                    <div class="label-row">
+                        <label for="naturalLanguageClause" class="field-label" data-i18n="naturalClauseLabel">Cláusula ou contrato</label>
+                        <label class="example-field"><span class="sr-only" data-i18n="examplesLabel">Exemplos</span>
+                            <select id="exampleSelect"></select>
+                        </label>
+                    </div>
+                    <textarea id="naturalLanguageClause" class="clause" rows="9" maxlength="20000" data-i18n-placeholder="naturalClausePlaceholder"></textarea>
+
+                    <fieldset class="mode-switch">
+                        <legend class="field-label" data-i18n="modeLegend">Modo de conversão</legend>
+                        <label class="mode-option">
+                            <input type="radio" name="mode" value="template" id="modeTemplate">
+                            <span><strong data-i18n="modeTemplate">Modelos revisados</strong> <span class="mode-sub" data-i18n="modeTemplateSub">sem IA · reprodutível</span></span>
+                        </label>
+                        <label class="mode-option">
+                            <input type="radio" name="mode" value="ai" id="modeAI">
+                            <span><strong data-i18n="modeAI">Texto livre</strong> <span class="mode-sub" data-i18n="modeAISub">com IA · qualquer cláusula</span></span>
+                        </label>
+                    </fieldset>
+
+                    <div id="templatePanel" class="mode-panel">
+                        <p class="hint" data-i18n="modeTemplateHelp"></p>
+                        <div class="inline-row">
+                            <label for="templateSelect" class="field-label" data-i18n="templateLabel">Modelo</label>
+                            <select id="templateSelect"></select>
+                        </div>
+                        <p id="templateDetected" class="detected" role="status" aria-live="polite"></p>
+                        <div id="templateFields" class="param-grid"></div>
+                        <div class="scale-row">
+                            <label for="scaleInput" class="field-label" data-i18n="scaleLabel">Escala do laboratório</label>
+                            <span class="scale-eq">1 ETH <span data-i18n="scaleEquals">de teste equivale a</span></span>
+                            <input type="text" id="scaleInput" inputmode="decimal" value="1000">
+                            <span class="hint" data-i18n="scaleHelp"></span>
+                        </div>
+                        <div class="actions">
+                            <button type="button" id="templateGenerateButton" class="btn btn-ink btn-wide" data-i18n="templateGenerateButton">Gerar a partir do modelo</button>
+                            <button type="button" id="aiExtractButton" class="btn btn-quiet" data-ai data-i18n="aiExtractButton">Conferir a extração com IA</button>
+                        </div>
+                        <div id="aiExtractLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="aiExtracting">Conferindo...</span></div>
+                    </div>
+
+                    <div id="aiPanel" class="mode-panel" hidden>
+                        <p class="hint" data-i18n="modeAIHelp"></p>
+                        <div class="actions">
+                            <button type="button" id="convertButton" class="btn btn-ink btn-wide" data-ai data-i18n="generateSolidityButton">Gerar com IA</button>
+                        </div>
+                    </div>
+                    <div id="convertLoadingIndicator" class="loading" hidden><span class="loader"></span><span id="convertProgressText"></span></div>
+                    <p id="pipelineSummary" class="status-line" role="status" aria-live="polite" hidden></p>
+
+                    <div class="complementary">
+                        <p class="field-label" data-i18n="complementaryTitle">Análises complementares (IA)</p>
+                        <div class="inline-row">
+                            <button type="button" id="analyzeRiskButton" class="btn btn-quiet" data-ai data-i18n="analyzeRiskButton">Analisar riscos</button>
+                            <button type="button" id="suggestClausesButton" class="btn btn-quiet" data-ai data-i18n="suggestClausesButton">Sugerir cláusulas</button>
+                        </div>
+                    </div>
+                    <div id="riskLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="analyzingRiskText"></span></div>
+                    <div id="riskAnalysisOutputContainer" class="note" hidden>
+                        <h3 class="note-title" data-i18n="riskAnalysisTitle"></h3>
+                        <div id="riskAnalysisOutput" class="md-output"></div>
+                    </div>
+                    <div id="suggestClausesLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="suggestingClausesText"></span></div>
+                    <div id="suggestClausesOutputContainer" class="note" hidden>
+                        <h3 class="note-title" data-i18n="suggestClausesTitle"></h3>
+                        <div id="suggestClausesOutput" class="md-output"></div>
+                    </div>
+                </section>
+
+                <!-- § 2 Código -->
+                <section class="sec" aria-labelledby="step2Title">
+                    <header class="sec-head"><span class="sec-num">§ 2</span><h2 id="step2Title" data-i18n="step2Title">Esqueleto do "smart contract"</h2></header>
+                    <div class="label-row">
+                        <label for="solidityCode" class="field-label" data-i18n="soliditySkeletonLabel">Código Solidity</label>
+                        <span id="versionInfo" class="version" hidden></span>
+                    </div>
+                    <div class="toolbar" role="toolbar">
+                        <button type="button" id="copyCodeButton" class="link-btn" data-needs-code data-i18n="copyButton">Copiar</button>
+                        <button type="button" id="downloadCodeButton" class="link-btn" data-needs-code data-i18n="downloadButton">Baixar .sol</button>
+                        <button type="button" id="undoButton" class="link-btn" data-i18n="undoButton">Desfazer</button>
+                        <button type="button" id="redoButton" class="link-btn" data-i18n="redoButton">Refazer</button>
+                        <button type="button" id="remixShortButton" class="link-btn" data-needs-code data-i18n="remixButtonShort">Abrir no Remix</button>
+                        <button type="button" id="reportButton" class="link-btn" data-needs-code data-i18n="reportButton">Relatório</button>
+                        <span id="toolbarFeedback" class="feedback" role="status" aria-live="polite"></span>
+                    </div>
+                    <textarea id="solidityCode" class="code-editor" rows="26" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off" data-i18n-placeholder="solidityOutputPlaceholder"></textarea>
+
+                    <div id="adaptRow" class="adapt" hidden>
+                        <p class="hint" data-i18n="adaptHelp"></p>
+                        <button type="button" id="adaptButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="adaptButton">Adaptar com IA às particularidades da cláusula</button>
+                        <div id="adaptLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="adaptingText"></span></div>
+                    </div>
+
+                    <div class="critical" id="solidityWarning" hidden>
+                        <p class="critical-title" data-i18n="criticalWarningTitle">Alerta crítico</p>
+                        <p data-i18n-html="criticalWarningText"></p>
+                    </div>
+                </section>
             </div>
 
-            <!-- 1. Cláusula -->
-            <section class="step" aria-labelledby="step1Title">
-                <h2 id="step1Title" class="step-title" data-i18n="step1Title">1. Cláusula contratual</h2>
-                <div class="label-row">
-                    <label for="naturalLanguageClause" class="field-label" data-i18n="naturalClauseLabel">Cláusula contratual em linguagem natural</label>
-                    <label class="example-field"><span class="sr-only" data-i18n="examplesLabel">Exemplos</span>
-                        <select id="exampleSelect"></select>
-                    </label>
-                </div>
-                <textarea id="naturalLanguageClause" rows="7" maxlength="20000" data-i18n-placeholder="naturalClausePlaceholder"></textarea>
-
-                <div class="button-row">
-                    <button type="button" id="analyzeRiskButton" class="btn btn-secondary flex-1" data-ai>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286Zm0 13.036h.008v.015h-.008v-.015Z" /></svg>
-                        <span data-i18n="analyzeRiskButton">Analisar riscos</span>
-                    </button>
-                    <button type="button" id="suggestClausesButton" class="btn btn-secondary flex-1" data-ai>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                        <span data-i18n="suggestClausesButton">Sugerir cláusulas</span>
-                    </button>
-                </div>
-
-                <div id="riskLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="analyzingRiskText">Analisando riscos...</p></div>
-                <div id="riskAnalysisOutputContainer" class="output-section" hidden>
-                    <h3 class="output-title" data-i18n="riskAnalysisTitle">Análise de riscos da cláusula</h3>
-                    <div id="riskAnalysisOutput" class="md-output"></div>
-                </div>
-                <div id="suggestClausesLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="suggestingClausesText">Sugerindo cláusulas...</p></div>
-                <div id="suggestClausesOutputContainer" class="output-section" hidden>
-                    <h3 class="output-title" data-i18n="suggestClausesTitle">Sugestões de cláusulas complementares</h3>
-                    <div id="suggestClausesOutput" class="md-output"></div>
-                </div>
-
-                <div class="center mt-6">
-                    <button type="button" id="convertButton" class="btn btn-primary btn-large" data-ai>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
-                        <span data-i18n="generateSolidityButton">Gerar esqueleto Solidity</span>
-                    </button>
-                </div>
-                <div id="convertLoadingIndicator" class="loading" hidden><div class="loader"></div><p id="convertProgressText" data-i18n="generatingSolidityText">Gerando código Solidity...</p></div>
-                <p id="pipelineSummary" class="pipeline-summary" role="status" aria-live="polite" hidden></p>
-            </section>
-
-            <!-- 2. Código -->
-            <section class="step" aria-labelledby="step2Title">
-                <h2 id="step2Title" class="step-title" data-i18n="step2Title">2. Esqueleto do "smart contract"</h2>
-                <div class="label-row">
-                    <label for="solidityCode" class="field-label" data-i18n="soliditySkeletonLabel">Código Solidity</label>
-                    <span id="versionInfo" class="badge" hidden></span>
-                </div>
-                <div class="toolbar" role="toolbar">
-                    <button type="button" id="copyCodeButton" class="btn btn-ghost btn-small" data-needs-code data-i18n="copyButton">Copiar</button>
-                    <button type="button" id="downloadCodeButton" class="btn btn-ghost btn-small" data-needs-code data-i18n="downloadButton">Baixar .sol</button>
-                    <button type="button" id="undoButton" class="btn btn-ghost btn-small" data-i18n="undoButton">Desfazer</button>
-                    <button type="button" id="redoButton" class="btn btn-ghost btn-small" data-i18n="redoButton">Refazer</button>
-                    <button type="button" id="remixShortButton" class="btn btn-ghost btn-small" data-needs-code data-i18n="remixButtonShort">Abrir no Remix</button>
-                    <button type="button" id="reportButton" class="btn btn-ghost btn-small" data-needs-code data-i18n="reportButton">Baixar relatório</button>
-                    <span id="toolbarFeedback" class="feedback" role="status" aria-live="polite"></span>
-                </div>
-                <textarea id="solidityCode" class="code-editor" rows="22" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off" data-i18n-placeholder="solidityOutputPlaceholder"></textarea>
-
-                <div class="critical-warning-box" id="solidityWarning" hidden>
-                    <h3 class="box-title" data-i18n="criticalWarningTitle">⚠️ ALERTA CRÍTICO</h3>
-                    <p data-i18n-html="criticalWarningText"></p>
-                </div>
-            </section>
-
-            <!-- 3. Segurança -->
-            <section class="step" aria-labelledby="step3Title" id="securitySection" hidden>
-                <h2 id="step3Title" class="step-title" data-i18n="step3Title">3. Verificação de segurança</h2>
-
-                <div class="output-section">
-                    <div class="section-head">
-                        <h3 class="output-title" data-i18n="scanTitle">Verificador automático</h3>
-                        <div id="scanSummary" class="severity-summary"></div>
+            <!-- § 3 Verificação -->
+            <section class="sec sec-wide" aria-labelledby="step3Title" id="securitySection" hidden>
+                <header class="sec-head"><span class="sec-num">§ 3</span><h2 id="step3Title" data-i18n="step3Title">Verificação de segurança</h2></header>
+                <div class="columns">
+                    <div>
+                        <div class="sub-head">
+                            <h3 class="sub-title" data-i18n="scanTitle">Verificador automático</h3>
+                            <div id="scanSummary" class="tally"></div>
+                        </div>
+                        <p class="hint" data-i18n="scanIntro"></p>
+                        <ol id="scanFindings" class="findings"></ol>
                     </div>
-                    <p class="muted small" data-i18n="scanIntro"></p>
-                    <ul id="scanFindings" class="findings"></ul>
-                </div>
-
-                <div class="output-section">
-                    <h3 class="output-title" id="compileTitle"></h3>
-                    <p class="muted small" data-i18n="compileIntro"></p>
-                    <div class="button-row">
-                        <button type="button" id="compileButton" class="btn btn-secondary" data-needs-code data-i18n="compileButton">Compilar e verificar</button>
+                    <div>
+                        <h3 class="sub-title" id="compileTitle"></h3>
+                        <p class="hint" data-i18n="compileIntro"></p>
+                        <div class="inline-row">
+                            <button type="button" id="compileButton" class="btn btn-quiet" data-needs-code data-i18n="compileButton">Compilar e verificar</button>
+                        </div>
+                        <div id="compileLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="compileLoading"></span></div>
+                        <p id="compileStatus" class="status-line" role="status" aria-live="polite" hidden></p>
+                        <ol id="compileMessages" class="findings"></ol>
                     </div>
-                    <div id="compileLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="compileLoading">Carregando o compilador...</p></div>
-                    <p id="compileStatus" class="compile-status" role="status" aria-live="polite" hidden></p>
-                    <ul id="compileMessages" class="findings"></ul>
                 </div>
-
-                <div class="button-row">
-                    <button type="button" id="securityReviewButton" class="btn btn-secondary flex-1" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
-                        <span data-i18n="securityReviewButton">Revisão de segurança por IA</span>
-                    </button>
-                    <button type="button" id="fixButton" class="btn btn-refine flex-1" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z" /></svg>
-                        <span data-i18n="fixButton">Corrigir problemas com IA</span>
-                    </button>
+                <div class="actions">
+                    <button type="button" id="securityReviewButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="securityReviewButton">Revisão de segurança por IA</button>
+                    <button type="button" id="fixButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="fixButton">Corrigir problemas com IA</button>
                 </div>
-                <div id="reviewLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="reviewingText">Revisando a segurança...</p></div>
-                <div id="fixLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="fixingText">Corrigindo o código...</p></div>
-                <div id="securityReviewOutputContainer" class="output-section" hidden>
-                    <h3 class="output-title" data-i18n="securityReviewTitle">Revisão de segurança por IA</h3>
+                <div id="reviewLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="reviewingText"></span></div>
+                <div id="fixLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="fixingText"></span></div>
+                <div id="securityReviewOutputContainer" class="note" hidden>
+                    <h3 class="note-title" data-i18n="securityReviewTitle"></h3>
                     <div id="securityReviewOutput" class="md-output"></div>
                 </div>
             </section>
 
-            <!-- 4. Laboratório -->
-            <section class="step" aria-labelledby="labTitle" id="labSection" hidden>
-                <h2 id="labTitle" class="step-title" data-i18n="labTitle">4. Laboratório</h2>
-                <p class="muted" data-i18n="labIntro"></p>
-                <div class="concepts">
-                    <div class="concept"><span class="concept-icon" aria-hidden="true">👤</span><div><strong data-i18n="labConceptAccount">Conta</strong><p class="small" data-i18n="labConceptAccountText"></p></div></div>
-                    <div class="concept"><span class="concept-icon" aria-hidden="true">⛓</span><div><strong data-i18n="labConceptTx">Transação</strong><p class="small" data-i18n="labConceptTxText"></p></div></div>
-                    <div class="concept"><span class="concept-icon" aria-hidden="true">↩</span><div><strong data-i18n="labConceptRevert">Reversão</strong><p class="small" data-i18n="labConceptRevertText"></p></div></div>
+            <!-- § 4 Laboratório -->
+            <section class="sec sec-wide" aria-labelledby="labTitle" id="labSection" hidden>
+                <header class="sec-head"><span class="sec-num">§ 4</span><h2 id="labTitle" data-i18n="labTitle">Laboratório</h2></header>
+                <p class="lede" data-i18n="labIntro"></p>
+                <dl class="glossary">
+                    <div><dt data-i18n="labConceptAccount">Conta</dt><dd data-i18n="labConceptAccountText"></dd></div>
+                    <div><dt data-i18n="labConceptTx">Transação</dt><dd data-i18n="labConceptTxText"></dd></div>
+                    <div><dt data-i18n="labConceptRevert">Reversão</dt><dd data-i18n="labConceptRevertText"></dd></div>
+                </dl>
+                <div class="actions">
+                    <button type="button" id="labTemplateTestsButton" class="btn btn-ink" data-needs-code data-i18n="labTemplateTestsButton">Executar os testes do modelo</button>
+                    <button type="button" id="labStartButton" class="btn btn-quiet" data-needs-code data-i18n="labDeployButton">Implantar e interagir</button>
+                    <button type="button" id="labScenariosButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="labScenariosButton">Gerar testes com IA</button>
                 </div>
-                <div class="button-row">
-                    <button type="button" id="labStartButton" class="btn btn-primary flex-1" data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>
-                        <span data-i18n="labDeployButton">Implantar no laboratório</span>
-                    </button>
-                    <button type="button" id="labScenariosButton" class="btn btn-experimental flex-1" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                        <span data-i18n="labScenariosButton">Gerar e executar testes com IA</span>
-                    </button>
-                </div>
-                <div id="labLoadingIndicator" class="loading" hidden><div class="loader"></div><p id="labLoadingText"></p></div>
-                <p id="labStatus" class="lab-status" role="status" aria-live="polite" hidden></p>
+                <div id="labLoadingIndicator" class="loading" hidden><span class="loader"></span><span id="labLoadingText"></span></div>
+                <p id="labStatus" class="status-line" role="status" aria-live="polite" hidden></p>
 
-                <div id="labDeployForm" class="lab-panel" hidden></div>
-                <div id="labWorkspace" hidden>
-                    <div class="lab-grid">
-                        <div id="labAccounts" class="lab-panel"></div>
-                        <div id="labState" class="lab-panel"></div>
-                    </div>
-                    <div id="labFunctions" class="lab-panel"></div>
-                    <div id="labTimelinePanel" class="lab-panel"></div>
-                </div>
-
-                <div id="labScenariosPanel" class="output-section" hidden>
-                    <h3 class="output-title" data-i18n="labScenariosTitle">Testes de funcionalidade e segurança</h3>
-                    <p class="muted small" data-i18n="labScenariosIntro"></p>
+                <div id="labScenariosPanel" class="lab-block" hidden>
+                    <h3 class="sub-title" data-i18n="labScenariosTitle">Testes de funcionalidade e segurança</h3>
+                    <p class="hint" id="labScenariosIntro" data-i18n="labScenariosIntro"></p>
                     <div id="labScenarioResults"></div>
-                    <div id="labScenarioActions" class="button-row" hidden>
-                        <button type="button" id="labRerunButton" class="btn btn-secondary flex-1" data-needs-code data-i18n="labRerunButton">Executar os testes novamente</button>
-                        <button type="button" id="labFixFromTestsButton" class="btn btn-refine flex-1" data-ai data-needs-code data-i18n="labFixFromTests">Corrigir o código com base nos testes</button>
+                    <div id="labScenarioActions" class="actions" hidden>
+                        <button type="button" id="labRerunButton" class="btn btn-quiet" data-needs-code data-i18n="labRerunButton">Executar os testes novamente</button>
+                        <button type="button" id="labFixFromTestsButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="labFixFromTests">Corrigir com IA a partir das falhas</button>
                     </div>
+                </div>
+
+                <div id="labDeployForm" class="lab-block" hidden></div>
+                <div id="labWorkspace" hidden>
+                    <div class="columns">
+                        <div id="labAccounts" class="lab-block"></div>
+                        <div id="labState" class="lab-block"></div>
+                    </div>
+                    <div id="labFunctions" class="lab-block"></div>
+                    <div id="labTimelinePanel" class="lab-block"></div>
                 </div>
             </section>
 
-            <!-- 5. Entender e aprimorar -->
-            <section class="step" aria-labelledby="step4Title" id="improveSection" hidden>
-                <h2 id="step4Title" class="step-title" data-i18n="step4Title">5. Entender e aprimorar</h2>
-                <div class="button-row">
-                    <button type="button" id="explainSolidityButton" class="btn btn-secondary flex-1" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
-                        <span data-i18n="explainSolidityButton">Explicar código</span>
-                    </button>
-                    <button type="button" id="mappingButton" class="btn btn-secondary flex-1" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
-                        <span data-i18n="mappingButton">Mapa cláusula ↔ código</span>
-                    </button>
-                    <button type="button" id="optimizeSolidityButton" class="btn btn-secondary flex-1" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg>
-                        <span data-i18n="optimizeSolidityButton">Sugerir otimizações</span>
-                    </button>
+            <!-- § 5 Análise e aprimoramento -->
+            <section class="sec sec-wide" aria-labelledby="step4Title" id="improveSection" hidden>
+                <header class="sec-head"><span class="sec-num">§ 5</span><h2 id="step4Title" data-i18n="step4Title">Análise e aprimoramento</h2></header>
+                <div class="actions">
+                    <button type="button" id="explainSolidityButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="explainSolidityButton">Explicar código</button>
+                    <button type="button" id="mappingButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="mappingButton">Mapa cláusula ↔ código</button>
+                    <button type="button" id="optimizeSolidityButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="optimizeSolidityButton">Sugerir otimizações</button>
                 </div>
 
-                <div id="explanationLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="explainingSolidityText">Explicando o código...</p></div>
-                <div id="explanationOutputContainer" class="output-section" hidden>
-                    <h3 class="output-title" data-i18n="explanationTitle">Explicação do código Solidity</h3>
+                <div id="explanationLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="explainingSolidityText"></span></div>
+                <div id="explanationOutputContainer" class="note" hidden>
+                    <h3 class="note-title" data-i18n="explanationTitle"></h3>
                     <div id="explanationOutput" class="md-output"></div>
                 </div>
 
-                <div id="mappingLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="mappingLoadingText">Mapeando a correspondência...</p></div>
-                <div id="mappingOutputContainer" class="output-section" hidden>
-                    <h3 class="output-title" data-i18n="mappingTitle">Mapa de correspondência cláusula ↔ código</h3>
-                    <p class="muted small" data-i18n="mappingIntro"></p>
+                <div id="mappingLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="mappingLoadingText"></span></div>
+                <div id="mappingOutputContainer" class="note" hidden>
+                    <h3 class="note-title" data-i18n="mappingTitle"></h3>
+                    <p class="hint" data-i18n="mappingIntro"></p>
                     <div id="mappingSummary" class="mapping-summary"></div>
-                    <div class="table-wrap"><table id="mappingTable" class="mapping-table"></table></div>
+                    <div class="table-wrap"><table id="mappingTable" class="ledger"></table></div>
                 </div>
 
-                <div id="optimizationLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="suggestingOptimizationsText">Sugerindo otimizações...</p></div>
-                <div id="optimizationOutputContainer" class="output-section" hidden>
-                    <h3 class="output-title" data-i18n="optimizationTitle">Sugestões de otimização</h3>
+                <div id="optimizationLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="suggestingOptimizationsText"></span></div>
+                <div id="optimizationOutputContainer" class="note" hidden>
+                    <h3 class="note-title" data-i18n="optimizationTitle"></h3>
                     <div id="optimizationOutput" class="md-output"></div>
-                    <div class="center mt-4">
-                        <button type="button" id="applyOptimizationButton" class="btn btn-experimental" data-ai data-needs-code hidden>
-                            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" /></svg>
-                            <span data-i18n="applyOptimizationsButton">Aplicar otimizações (experimental)</span>
-                        </button>
-                        <div id="applyOptimizationLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="applyingOptimizationsText">Aplicando otimizações...</p></div>
+                    <div class="actions">
+                        <button type="button" id="applyOptimizationButton" class="btn btn-quiet" data-ai data-needs-code hidden data-i18n="applyOptimizationsButton">Aplicar otimizações</button>
+                    </div>
+                    <div id="applyOptimizationLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="applyingOptimizationsText"></span></div>
+                </div>
+
+                <div class="columns">
+                    <div>
+                        <h3 class="sub-title" data-i18n="refineCodeTitle">Refinar o código</h3>
+                        <p class="hint" data-i18n="refineCodeDescription"></p>
+                        <label for="refinementFeedback" class="sr-only" data-i18n="refineCodeTitle"></label>
+                        <textarea id="refinementFeedback" rows="4" maxlength="5000" data-i18n-placeholder="refineFeedbackPlaceholder"></textarea>
+                        <button type="button" id="submitRefinementButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="submitRefinementButton">Enviar pedido e refinar</button>
+                        <div id="refinementLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="refiningCodeText"></span></div>
+                    </div>
+                    <div>
+                        <h3 class="sub-title" data-i18n="queryCodeTitle">Perguntar sobre o código</h3>
+                        <p class="hint" data-i18n="queryCodeDescription"></p>
+                        <label for="codeQueryInput" class="sr-only" data-i18n="queryCodeTitle"></label>
+                        <textarea id="codeQueryInput" rows="4" maxlength="5000" data-i18n-placeholder="queryCodePlaceholder"></textarea>
+                        <button type="button" id="askCodeQueryButton" class="btn btn-quiet" data-ai data-needs-code data-i18n="askQueryButton">Enviar pergunta</button>
+                        <div id="codeQueryLoadingIndicator" class="loading" hidden><span class="loader"></span><span data-i18n="analyzingQueryText"></span></div>
+                        <div id="codeQueryOutputContainer" class="note" hidden>
+                            <h4 class="note-title" data-i18n="queryResponseTitle"></h4>
+                            <div id="codeQueryOutput" class="md-output"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="interaction-section">
-                    <h3 class="output-title" data-i18n="refineCodeTitle">💬 Refinar o código (experimental)</h3>
-                    <p class="muted small" data-i18n="refineCodeDescription"></p>
-                    <label for="refinementFeedback" class="sr-only" data-i18n="refineCodeTitle"></label>
-                    <textarea id="refinementFeedback" rows="4" maxlength="5000" data-i18n-placeholder="refineFeedbackPlaceholder"></textarea>
-                    <button type="button" id="submitRefinementButton" class="btn btn-refine w-full" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" /></svg>
-                        <span data-i18n="submitRefinementButton">Enviar pedido e refinar</span>
-                    </button>
-                    <div id="refinementLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="refiningCodeText">Refinando o código...</p></div>
-                </div>
-
-                <div class="interaction-section">
-                    <h3 class="output-title" data-i18n="queryCodeTitle">❔ Perguntar sobre o código</h3>
-                    <p class="muted small" data-i18n="queryCodeDescription"></p>
-                    <label for="codeQueryInput" class="sr-only" data-i18n="queryCodeTitle"></label>
-                    <textarea id="codeQueryInput" rows="3" maxlength="5000" data-i18n-placeholder="queryCodePlaceholder"></textarea>
-                    <button type="button" id="askCodeQueryButton" class="btn btn-query w-full" data-ai data-needs-code>
-                        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-                        <span data-i18n="askQueryButton">Enviar pergunta</span>
-                    </button>
-                    <div id="codeQueryLoadingIndicator" class="loading" hidden><div class="loader"></div><p data-i18n="analyzingQueryText">Analisando a pergunta...</p></div>
-                    <div id="codeQueryOutputContainer" class="output-section" hidden>
-                        <h4 class="output-title" data-i18n="queryResponseTitle">Resposta da IA</h4>
-                        <div id="codeQueryOutput" class="md-output"></div>
-                    </div>
-                </div>
-
-                <div id="nextStepsContainer" class="next-steps-container">
-                    <h3 class="output-title" data-i18n="nextStepsTitle">Próximos passos essenciais</h3>
+                <div id="nextStepsContainer" class="endnotes">
+                    <h3 class="sub-title" data-i18n="nextStepsTitle">Próximos passos</h3>
                     <ol>
                         <li data-i18n-html="nextStep1"></li>
                         <li data-i18n-html="nextStep2"></li>
@@ -329,25 +346,20 @@
                         </li>
                         <li data-i18n-html="nextStep6"></li>
                     </ol>
-                    <div class="center mt-6">
-                        <button type="button" id="remixButton" class="btn btn-action" data-needs-code>
-                            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-                            <span data-i18n="openRemixButton">Abrir no Remix IDE</span>
-                        </button>
-                        <button type="button" id="reportButton2" class="btn btn-secondary" data-needs-code>
-                            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                            <span data-i18n="reportButtonLong">Baixar relatório da sessão (.md)</span>
-                        </button>
+                    <div class="actions">
+                        <button type="button" id="remixButton" class="btn btn-ink" data-needs-code data-i18n="openRemixButton">Abrir no Remix IDE</button>
+                        <button type="button" id="reportButton2" class="btn btn-quiet" data-needs-code data-i18n="reportButtonLong">Baixar relatório da sessão (.md)</button>
                     </div>
                 </div>
             </section>
 
+            <p id="quotaNotice" class="toast" role="status" aria-live="polite" hidden></p>
             <div id="errorMessage" class="error-box" role="alert" hidden></div>
         </main>
 
-        <footer class="page-footer">
-            <span data-i18n="footerText"></span>
-            <a href="https://github.com/EduChacon/conversor_smartcontract" target="_blank" rel="noopener noreferrer" data-i18n="footerRepo">Código-fonte no GitHub</a>
+        <footer class="colophon">
+            <p><span data-i18n="footerText"></span> <span data-i18n="footerCredit">Feito por ETCS.</span></p>
+            <p><a href="https://github.com/EduChacon/conversor_smartcontract" target="_blank" rel="noopener noreferrer" data-i18n="footerRepo">Código-fonte no GitHub</a></p>
         </footer>
     </div>
 
@@ -355,6 +367,7 @@
     <script src="assets/js/prompts.js"></script>
     <script src="assets/js/markdown.js"></script>
     <script src="assets/js/security-scan.js"></script>
+    <script src="assets/js/templates.js"></script>
     <script src="assets/js/gemini.js"></script>
     <script src="assets/js/compiler.js"></script>
     <script src="assets/vendor/evm-lab.js"></script>

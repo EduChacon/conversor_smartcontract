@@ -12,7 +12,7 @@
     const t = (k, v) => CSC.t(k, v);
 
     Object.assign(CSC.texts.pt, {
-        labTitle: '4. Laboratório: teste na "blockchain" simulada',
+        labTitle: 'Laboratório: teste em "blockchain" simulada',
         labIntro: 'O contrato é implantado numa "blockchain" que roda só no seu navegador: sem carteira, sem custo e sem risco. Cada parte recebe uma conta fictícia com 100 ETH de teste. Experimente as funções como cada parte, avance o tempo e veja o contrato aceitar ou recusar as operações.',
         labConceptAccount: 'Conta',
         labConceptAccountText: 'Cada parte é identificada por um endereço (0x...). Quem chama a função é o "msg.sender".',
@@ -20,9 +20,9 @@
         labConceptTxText: 'Toda alteração é uma transação registrada em bloco, com custo de "gás".',
         labConceptRevert: 'Reversão',
         labConceptRevertText: 'Se uma regra é violada, o contrato reverte: nada muda e o Ether volta a quem enviou.',
-        labDeployButton: 'Implantar no laboratório',
+        labDeployButton: 'Implantar e interagir',
         labRedeployButton: 'Reiniciar laboratório',
-        labScenariosButton: 'Gerar e executar testes com IA',
+        labScenariosButton: 'Gerar testes com IA',
         labRerunButton: 'Executar os testes novamente',
         labNeedsCompile: 'Compilando o código para o laboratório...',
         labCompileErrors: 'Corrija os erros de compilação antes de usar o laboratório (seção 3).',
@@ -61,6 +61,7 @@
         labInvalidArg: 'Argumento inválido para "{name}" ({type}): {value}',
         labScenariosTitle: 'Testes de funcionalidade e segurança',
         labScenariosIntro: 'A IA propõe cenários a partir da cláusula e do código; o laboratório os executa de verdade, cada um a partir de uma implantação nova.',
+        labScenariosIntroTemplate: 'Cenários predefinidos do modelo revisado (sem IA), executados de verdade, cada um a partir de uma implantação nova. Servem também de teste de regressão após edições ou adaptações.',
         labGeneratingScenarios: 'A IA está elaborando os cenários de teste...',
         labRunningScenario: 'Executando cenário {i} de {n}...',
         labSummary: '{pass} de {total} cenários aprovados',
@@ -80,7 +81,7 @@
         labInvalidStep: 'Passo não executável: {msg}',
         labUnknownFunction: 'a função "{name}" não existe na ABI',
         labUnknownAccount: 'conta "{name}" desconhecida',
-        labFixFromTests: 'Corrigir o código com base nos testes que falharam',
+        labFixFromTests: 'Corrigir com IA a partir das falhas',
         labNoFailures: 'Nenhum teste apontou falha do contrato.',
         labScenarioError: 'Não foi possível executar os cenários: {msg}',
         panic_1: 'falha de "assert"',
@@ -92,7 +93,7 @@
         errOutOfGas: 'A execução esgotou o limite de "gás".'
     });
     Object.assign(CSC.texts.en, {
-        labTitle: '4. Lab: test on a simulated blockchain',
+        labTitle: 'Lab: testing on a simulated blockchain',
         labIntro: 'The contract is deployed to a blockchain that runs only in your browser: no wallet, no cost, no risk. Each party gets a fictitious account with 100 test ETH. Try the functions as each party, move time forward and watch the contract accept or reject operations.',
         labConceptAccount: 'Account',
         labConceptAccountText: 'Each party is identified by an address (0x...). Whoever calls the function is "msg.sender".',
@@ -100,9 +101,9 @@
         labConceptTxText: 'Every change is a transaction recorded in a block, with a gas cost.',
         labConceptRevert: 'Revert',
         labConceptRevertText: 'If a rule is broken the contract reverts: nothing changes and the Ether goes back to the sender.',
-        labDeployButton: 'Deploy to the lab',
+        labDeployButton: 'Deploy and interact',
         labRedeployButton: 'Reset lab',
-        labScenariosButton: 'Generate and run tests with AI',
+        labScenariosButton: 'Generate tests with AI',
         labRerunButton: 'Run the tests again',
         labNeedsCompile: 'Compiling the code for the lab...',
         labCompileErrors: 'Fix the compilation errors before using the lab (section 3).',
@@ -141,6 +142,7 @@
         labInvalidArg: 'Invalid argument for "{name}" ({type}): {value}',
         labScenariosTitle: 'Functional and security tests',
         labScenariosIntro: 'The AI proposes scenarios from the clause and code; the lab actually runs them, each one on a fresh deployment.',
+        labScenariosIntroTemplate: 'Predefined scenarios of the reviewed template (no AI), actually executed, each on a fresh deployment. They also work as regression tests after edits or adaptations.',
         labGeneratingScenarios: 'The AI is drafting the test scenarios...',
         labRunningScenario: 'Running scenario {i} of {n}...',
         labSummary: '{pass} of {total} scenarios passed',
@@ -160,7 +162,7 @@
         labInvalidStep: 'Step could not run: {msg}',
         labUnknownFunction: 'function "{name}" does not exist in the ABI',
         labUnknownAccount: 'unknown account "{name}"',
-        labFixFromTests: 'Fix the code based on the failed tests',
+        labFixFromTests: 'Fix with AI based on the failures',
         labNoFailures: 'No test pointed to a contract failure.',
         labScenarioError: 'Could not run the scenarios: {msg}',
         panic_1: 'assertion failure',
@@ -342,7 +344,11 @@
     function formatResult(result, fnAbi) {
         if (result === undefined) return '—';
         const outputs = (fnAbi && fnAbi.outputs) || [];
-        if (outputs.length <= 1) return formatValue(result, outputs[0]);
+        if (outputs.length <= 1) {
+            // Getters públicos têm saída sem nome: usa o nome da função para reconhecer prazos.
+            const out = outputs[0] && !outputs[0].name ? Object.assign({}, outputs[0], { name: fnAbi.name }) : outputs[0];
+            return formatValue(result, out);
+        }
         return outputs.map((o, i) => (o.name || '#' + i) + ': ' + formatValue(result[i], o)).join(' · ');
     }
 
@@ -485,14 +491,14 @@
             ? el('label', { class: 'lab-field' }, [el('span', { class: 'lab-field-name', text: t('labValue') }), el('input', { id: 'labCtorValue', type: 'text', value: '0' })])
             : null;
 
-        d.deployForm.appendChild(el('h4', { class: 'lab-panel-title', text: t('labDeployTitle') + ' — ' + compiled.name }));
+        d.deployForm.appendChild(el('h4', { class: 'block-title', text: t('labDeployTitle') + ' — ' + compiled.name }));
         d.deployForm.appendChild(el('p', { class: 'muted small', text: t('labDeployHint') }));
         d.deployForm.appendChild(el('label', { class: 'lab-field' }, [el('span', { class: 'lab-field-name', text: t('labAccounts') }), accountsInput]));
         fields.forEach(f => d.deployForm.appendChild(f));
         if (valueField) d.deployForm.appendChild(valueField);
         d.deployForm.appendChild(el('div', { class: 'lab-inline' }, [
             el('span', { class: 'muted small', text: t('labDeployAs') }), deployAsSelect,
-            el('button', { type: 'button', class: 'btn btn-primary btn-small', text: t('labDeploy'), onclick: () => doDeploy(compiled) })
+            el('button', { type: 'button', class: 'btn btn-ink', text: t('labDeploy'), onclick: () => doDeploy(compiled) })
         ]));
         d.deployForm.hidden = false;
     }
@@ -528,41 +534,37 @@
     async function renderAccounts() {
         const d = lab.dom;
         d.accounts.textContent = '';
-        d.accounts.appendChild(el('h4', { class: 'lab-panel-title', text: t('labAccounts') }));
-        const list = el('ul', { class: 'account-list' });
+        d.accounts.appendChild(el('h4', { class: 'block-title', text: t('labAccounts') }));
+        const rows = [];
         for (const a of lab.accounts) {
             const bal = await lab.chain.balanceOf(a.address);
-            list.appendChild(el('li', { class: 'account' }, [
-                el('span', { class: 'avatar', style: null, 'data-color': a.color, text: a.label.charAt(0).toUpperCase() }),
-                el('span', { class: 'account-name', text: a.label }),
-                el('code', { class: 'account-addr', title: a.address, text: shortAddr(a.address) }),
-                el('span', { class: 'account-balance', text: formatEth(bal) + ' ETH' })
+            rows.push(el('tr', {}, [
+                el('th', { scope: 'row' }, [el('span', { class: 'party-mark', 'data-color': a.color }), a.label]),
+                el('td', {}, [el('code', { title: a.address, text: shortAddr(a.address) })]),
+                el('td', { class: 'num', text: formatEth(bal) + ' ETH' })
             ]));
         }
         if (lab.contract && lab.contract.address) {
             const bal = await lab.chain.balanceOf(lab.contract.address);
-            list.appendChild(el('li', { class: 'account account-contract' }, [
-                el('span', { class: 'avatar avatar-contract', text: '⧉' }),
-                el('span', { class: 'account-name', text: t('labContractRow') + ' ' + lab.contract.name }),
-                el('code', { class: 'account-addr', title: lab.contract.address, text: shortAddr(lab.contract.address) }),
-                el('span', { class: 'account-balance', text: formatEth(bal) + ' ETH' })
+            rows.push(el('tr', { class: 'row-contract' }, [
+                el('th', { scope: 'row', text: t('labContractRow') + ' ' + lab.contract.name }),
+                el('td', {}, [el('code', { title: lab.contract.address, text: shortAddr(lab.contract.address) })]),
+                el('td', { class: 'num', text: formatEth(bal) + ' ETH' })
             ]));
         }
-        d.accounts.appendChild(list);
-        // Aplica as cores dos avatares sem estilos em linha (CSP).
-        d.accounts.querySelectorAll('.avatar[data-color]').forEach(node => { node.style.backgroundColor = node.getAttribute('data-color'); });
+        d.accounts.appendChild(el('table', { class: 'ledger compact' }, [el('tbody', {}, rows)]));
+        d.accounts.querySelectorAll('.party-mark[data-color]').forEach(node => { node.style.backgroundColor = node.getAttribute('data-color'); });
 
         const date = new Date(Number(lab.chain.timestamp) * 1000);
-        const fmt = date.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
-        const advance = secs => () => { lab.chain.advanceTime(secs); renderWorkspace(); };
+        const fmt = date.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
+        const advance = secs => () => { lab.chain.advanceTime(secs); renderWorkspace(true); };
         d.accounts.appendChild(el('div', { class: 'clock' }, [
-            el('span', { class: 'clock-icon', text: '⏱' }),
-            el('span', {}, [el('span', { class: 'muted small', text: t('labClock') + ': ' }), el('strong', { text: fmt })]),
+            el('p', {}, [el('span', { class: 'field-label', text: t('labClock') }), el('br'), el('span', { class: 'clock-date', text: fmt })]),
             el('div', { class: 'clock-buttons' }, [
-                el('button', { type: 'button', class: 'btn btn-ghost btn-small', text: t('labDay'), onclick: advance(86400) }),
-                el('button', { type: 'button', class: 'btn btn-ghost btn-small', text: t('labWeek'), onclick: advance(7 * 86400) }),
-                el('button', { type: 'button', class: 'btn btn-ghost btn-small', text: t('labMonth'), onclick: advance(30 * 86400) }),
-                el('button', { type: 'button', class: 'btn btn-ghost btn-small', text: t('labYear'), onclick: advance(365 * 86400) })
+                el('button', { type: 'button', class: 'link-btn', text: t('labDay'), onclick: advance(86400) }),
+                el('button', { type: 'button', class: 'link-btn', text: t('labWeek'), onclick: advance(7 * 86400) }),
+                el('button', { type: 'button', class: 'link-btn', text: t('labMonth'), onclick: advance(30 * 86400) }),
+                el('button', { type: 'button', class: 'link-btn', text: t('labYear'), onclick: advance(365 * 86400) })
             ])
         ]));
     }
@@ -570,7 +572,7 @@
     async function renderState() {
         const d = lab.dom;
         d.state.textContent = '';
-        d.state.appendChild(el('h4', { class: 'lab-panel-title', text: t('labState') }));
+        d.state.appendChild(el('h4', { class: 'block-title', text: t('labState') }));
         const getters = lab.contract.abi.filter(x => x.type === 'function' && (x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0);
         if (!getters.length) {
             d.state.appendChild(el('p', { class: 'muted small', text: t('labStateEmpty') }));
@@ -589,7 +591,7 @@
     function renderFunctions() {
         const d = lab.dom;
         d.functions.textContent = '';
-        d.functions.appendChild(el('h4', { class: 'lab-panel-title', text: t('labFunctions') }));
+        d.functions.appendChild(el('h4', { class: 'block-title', text: t('labFunctions') }));
         d.functions.appendChild(el('p', { class: 'muted small', text: t('labFunctionsHint') }));
         const fns = lab.contract.abi.filter(x => x.type === 'function' && !((x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0));
         const grid = el('div', { class: 'fn-grid' });
@@ -615,7 +617,7 @@
                     el('span', { class: 'muted small', text: t('labCallAs') }), asSelect,
                     valueInput ? el('span', { class: 'muted small', text: t('labValue') }) : null, valueInput,
                     el('button', {
-                        type: 'button', class: 'btn btn-small ' + (isView ? 'btn-secondary' : 'btn-primary'), text: isView ? t('labQuery') : t('labExecute'),
+                        type: 'button', class: 'btn ' + (isView ? 'btn-quiet' : 'btn-ink'), text: isView ? t('labQuery') : t('labExecute'),
                         onclick: async () => {
                             output.textContent = '';
                             try {
@@ -652,12 +654,12 @@
     function renderTimeline() {
         const d = lab.dom;
         d.timeline.textContent = '';
-        d.timeline.appendChild(el('h4', { class: 'lab-panel-title', text: t('labTimeline') }));
+        d.timeline.appendChild(el('h4', { class: 'block-title', text: t('labTimeline') }));
         if (!lab.timeline.length) {
             d.timeline.appendChild(el('p', { class: 'muted small', text: t('labTimelineEmpty') }));
             return;
         }
-        const list = el('ol', { class: 'timeline' });
+        const list = el('ol', { class: 'timeline', reversed: true });
         for (const tx of lab.timeline) {
             const date = new Date(Number(tx.time) * 1000).toLocaleDateString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { timeZone: 'UTC' });
             const head = el('div', { class: 'tx-head' }, [
@@ -675,7 +677,7 @@
             }
             if (tx.events && tx.events.length) {
                 body.push(el('ul', { class: 'tx-events' }, tx.events.map(ev => el('li', {}, [
-                    el('span', { class: 'tag tag-event', text: '⚡ ' + ev.name }),
+                    el('span', { class: 'tag tag-event', text: ev.name }),
                     el('span', { class: 'small', text: ' ' + Object.entries(ev.args || {}).map(([k, v]) => k + ': ' + formatValue(v)).join(' · ') })
                 ]))));
             }
@@ -694,7 +696,7 @@
     function setStatus(text, kind) {
         const s = lab.dom.status;
         s.textContent = text;
-        s.className = 'lab-status ' + (kind || '');
+        s.className = 'status-line ' + (kind === 'ok' ? 'status-ok' : kind === 'error' ? 'status-error' : '');
         s.hidden = !text;
     }
     function clearStatus() { setStatus('', ''); }
@@ -767,7 +769,16 @@
                     const actor = accountByName(step.conta || env.accounts[0].label);
                     if (!actor) throw new Error(t('labUnknownAccount', { name: step.conta }));
                     const args = fnAbi.inputs.map((input, i) => parseArg((step.argumentos || [])[i] ?? '', input));
-                    const value = step.valor ? parseAmount(step.valor, /^\d+$/.test(String(step.valor).trim()) ? 'wei' : 'ether') : 0n;
+                    let value = 0n;
+                    if (step.valor && /^=/.test(String(step.valor).trim())) {
+                        // Valor obtido de uma função de consulta (ex.: "=valorDevido").
+                        const viewName = String(step.valor).trim().slice(1);
+                        const q = await env.chain.call({ from: actor.address, to: dep.address, abi: compiled.abi, functionName: viewName, args: [] });
+                        if (!q.ok) throw new Error(t('labUnknownFunction', { name: viewName }));
+                        value = BigInt(Array.isArray(q.result) ? q.result[0] : q.result);
+                    } else if (step.valor) {
+                        value = parseAmount(step.valor, /^\d+$/.test(String(step.valor).trim()) ? 'wei' : 'ether');
+                    }
                     entry.text = actor.label + ' → ' + fnAbi.name + '(' + args.map(a => formatValue(a)).join(', ') + ')' + (value ? ' + ' + formatEth(value) + ' ETH' : '');
                     const r = await env.chain.call({ from: actor.address, to: dep.address, abi: compiled.abi, functionName: fnAbi.name, args, value });
                     const expectRevert = step.esperado === 'reverter';
@@ -851,7 +862,7 @@
                         s.expected ? el('span', { class: 'muted small', text: ' · ' + s.expected }) : null
                     ]),
                     s.outcome ? el('div', { class: 'small step-outcome', text: s.outcome }) : null,
-                    s.events && s.events.length ? el('div', { class: 'small' }, s.events.map(ev => el('span', { class: 'tag tag-event', text: '⚡ ' + ev.name }))) : null,
+                    s.events && s.events.length ? el('div', { class: 'small' }, s.events.map(ev => el('span', { class: 'tag tag-event', text: ev.name }))) : null,
                     s.note ? el('div', { class: 'small step-note', text: s.note }) : null,
                     s.explicacao ? el('div', { class: 'muted small', text: s.explicacao }) : null
                 ])))
@@ -922,6 +933,8 @@
         },
         async runPlan(plan, compiled, onProgress) {
             lab.scenarioPlan = plan;
+            const intro = document.getElementById('labScenariosIntro');
+            if (intro) intro.textContent = t(plan.origem === 'modelo' ? 'labScenariosIntroTemplate' : 'labScenariosIntro');
             lab.scenarioResults = await runAllScenarios(plan, compiled, onProgress);
             renderScenarioResults();
             return lab.scenarioResults;

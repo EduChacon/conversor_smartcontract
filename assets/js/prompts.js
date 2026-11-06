@@ -13,8 +13,9 @@
     const SOLC_VERSION = '0.8.28';
     CSC.config = {
         SOLC_VERSION,
-        DEFAULT_MODEL: 'gemini-flash-latest',
-        FALLBACK_MODELS: ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-lite-latest'],
+        // Modelos de entrada (plano gratuito) primeiro; a lista real vem da chave.
+        DEFAULT_MODEL: 'gemini-flash-lite-latest',
+        FALLBACK_MODELS: ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-pro'],
         REQUEST_TIMEOUT_MS: 120000
     };
 
@@ -356,6 +357,42 @@ REGRAS
 6. Use SOMENTE funções, argumentos e erros existentes na ABI fornecida, respeitando a quantidade e os tipos dos parâmetros.
 7. "objetivo" e "explicacao" são didáticos: explique, em uma frase simples, o que se testa e por que importa para o contrato e para a segurança.`,
                 user: `${clause ? block('CLAUSULA', clause) + '\n\n' : ''}${block('CODIGO', code)}\n\n${block('ABI_RESUMIDA', abiSummary)}`
+            };
+        },
+
+        extractParams(clause, fields, current, lang) {
+            const properties = {};
+            for (const f of fields) properties[f.key] = { type: 'NUMBER' };
+            return {
+                kind: 'json',
+                schema: { type: 'OBJECT', properties },
+                system: `Você extrai parâmetros numéricos de cláusulas contratuais para preencher um modelo de contrato.
+${languageRule(lang)}
+${DATA_RULE}
+Para cada campo da lista, informe o número que o texto estabelece. Regras:
+- valores monetários: apenas o número, sem símbolo de moeda (ex.: "R$ 2.000,00" → 2000);
+- percentuais: apenas o número (ex.: "10%" → 10);
+- prazos e periodicidades: em dias corridos (ex.: "mensal" → 30; "5 dias úteis" → 5);
+- quantidades: número inteiro.
+Omita o campo se o texto não o estabelecer, em vez de inventar. Os valores atuais, extraídos por regras, podem conter erros: confira-os.`,
+                user: `${block('CLAUSULA', clause)}\n\n${block('CAMPOS', fields.map(f => f.key + ': ' + f.label + ' (' + f.type + ')').join('\n'))}\n\n${block('VALORES_ATUAIS', JSON.stringify(current))}`
+            };
+        },
+
+        adapt(code, clause, lang) {
+            return {
+                kind: 'code',
+                system: `Você é engenheiro(a) de Solidity e adapta um contrato gerado a partir de modelo revisado às particularidades de uma cláusula.
+${languageRule(lang)}
+${DATA_RULE}
+${SECURITY_BASELINE}
+REGRAS DA ADAPTAÇÃO:
+1. Preserve integralmente o nome do contrato, os nomes e assinaturas das funções, eventos, erros e variáveis existentes, e todas as proteções de segurança: há testes automatizados que dependem deles.
+2. Acrescente somente o que a cláusula prevê e o código ainda não cobre, marcando cada acréscimo com o comentário "// ADAPTAÇÃO:" e explicando-o em uma linha.
+3. Se a cláusula não exigir nenhuma alteração, devolva o código sem mudanças.
+4. Se algum ponto da cláusula não puder ser automatizado com segurança, registre "// LIMITAÇÃO:" em vez de implementá-lo.
+${CODE_OUTPUT_RULE(lang)}`,
+                user: `${block('CLAUSULA', clause)}\n\n${block('CODIGO', code)}`
             };
         },
 

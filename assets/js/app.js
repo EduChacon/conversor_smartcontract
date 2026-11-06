@@ -16,10 +16,11 @@
     const DRAFT_KEY = 'csc.draft';
 
     const DEFAULT_SETTINGS = { model: CSC.config.DEFAULT_MODEL, temperature: 0.2, rounds: 2, autoCompile: true };
+    const MODE_KEY = 'csc.mode';
 
     // ---------- Estado ----------
     const state = {
-        theme: store.get('localStorage', 'theme') || 'dark',
+        theme: store.get('localStorage', 'theme') || 'light',
         settings: Object.assign({}, DEFAULT_SETTINGS, safeJson(store.get('localStorage', SETTINGS_KEY))),
         history: [],        // [{ code, origin }]
         index: -1,
@@ -28,7 +29,10 @@
         compile: null,      // { code, result | error }
         optimization: '',
         outputs: {},        // textos das análises, para o relatório
-        mapping: null
+        mapping: null,
+        mode: store.get('localStorage', MODE_KEY) === 'ai' ? 'ai' : 'template',
+        template: { id: null, values: {}, status: {}, manual: false, scale: 1000 },
+        templatePlan: null   // { id, values, lang } do último código gerado por modelo
     };
     CSC.lang = store.get('localStorage', 'language') === 'en' ? 'en' : 'pt';
 
@@ -70,7 +74,12 @@
         el.language.textContent = t('languageToggle');
         el.toggleKey.textContent = el.apiKey.type === 'password' ? t('showKey') : t('hideKey');
         el.compileTitle.textContent = t('compileTitle', { v: CSC.config.SOLC_VERSION });
+        if (CSC.gemini) renderRequestCount(CSC.gemini.stats.requests);
         renderExamples();
+        renderTemplateSelect();
+        renderTemplateFields();
+        renderDetected();
+        updateSettingsStatus();
         applyTheme();
         updateCodeUI();
         renderCompile();
@@ -178,6 +187,8 @@
             case 'invalid-key': return t('errInvalidKey');
             case 'model-not-found': return t('errModelNotFound', { model: state.settings.model });
             case 'quota': return t('errQuota');
+            case 'quota-daily': return t('errQuotaDaily');
+            case 'bad-json': return t('errBadJson');
             case 'server': return t('errServer');
             case 'timeout': return t('errTimeout');
             case 'network': return t('errNetwork');
@@ -201,6 +212,33 @@
         el.undo.disabled = state.busy || state.index <= 0;
         el.redo.disabled = state.busy || state.index >= state.history.length - 1;
         el.code.readOnly = state.busy;
+        const tt = $('labTemplateTestsButton');
+        if (tt) tt.disabled = state.busy || !hasCode || !state.templatePlan;
+        const gen = $('templateGenerateButton');
+        if (gen) gen.disabled = state.busy || !state.template.id;
+    }
+
+    /** Mostra a contagem regressiva quando o plano gratuito pede espera. */
+    function onQuotaWait(seconds) {
+        const n = $('quotaNotice');
+        if (!n) return;
+        n.hidden = seconds <= 0;
+        n.textContent = seconds > 0 ? t('waitingQuota', { s: seconds }) : '';
+    }
+
+    /** Escolhe outro modelo disponível para a chave quando o atual não existe. */
+    async function switchToAvailableModel(apiKey) {
+        const available = await CSC.gemini.listModels(apiKey);
+        const preferred = CSC.config.FALLBACK_MODELS.find(m => available.includes(m) && m !== state.settings.model)
+            || available.find(m => /flash/.test(m) && m !== state.settings.model);
+        if (!preferred) return null;
+        const from = state.settings.model;
+        state.settings.model = preferred;
+        saveSettings();
+        renderModelOptions(CSC.config.FALLBACK_MODELS.filter(m => available.includes(m)).concat(available));
+        flash(el.keyFeedback, t('modelSwitched', { from, to: preferred }));
+        showNotice(t('modelSwitched', { from, to: preferred }));
+        return preferred;
     }
 
     async function askAI(request) {
@@ -210,18 +248,31 @@
             e.code = 'no-key';
             throw e;
         }
-        const res = await CSC.gemini.generate({
+        const call = () => CSC.gemini.generate({
             apiKey,
             model: state.settings.model,
             system: request.system,
             user: request.user,
             kind: request.kind,
             schema: request.schema,
-            temperature: request.kind === 'text' ? Math.max(0.3, state.settings.temperature) : state.settings.temperature
+            temperature: request.kind === 'text' ? Math.max(0.3, state.settings.temperature) : state.settings.temperature,
+            onWait: onQuotaWait
         });
+        let res;
+        try {
+            res = await call();
+        } catch (err) {
+            if (err && err.code === 'model-not-found' && await switchToAvailableModel(apiKey).catch(() => null)) {
+                res = await call();
+            } else {
+                throw err;
+            }
+        } finally {
+            onQuotaWait(0);
+        }
         if (request.kind === 'json') {
             try {
-                return { data: JSON.parse(res.text), truncated: res.truncated };
+                return { data: CSC.gemini.parseJsonLoose(res.text), truncated: res.truncated };
             } catch (_) {
                 const e = new Error('invalid JSON');
                 e.code = 'bad-json';
@@ -238,6 +289,15 @@
             return { code, truncated: res.truncated };
         }
         return res;
+    }
+
+    function showNotice(text) {
+        const n = $('quotaNotice');
+        if (!n) return;
+        n.hidden = false;
+        n.textContent = text;
+        clearTimeout(n._t);
+        n._t = setTimeout(() => { n.hidden = true; }, 6000);
     }
 
     /** Executa uma tarefa com indicador de carregamento e tratamento de erros. */
@@ -287,7 +347,7 @@
     }
 
     function originLabel(origin) {
-        return t({ generated: 'originGenerated', optimized: 'originOptimized', refined: 'originRefined', fixed: 'originFixed', autofixed: 'originAutoFixed', manual: 'originManual' }[origin] || 'originManual');
+        return t({ generated: 'originGenerated', optimized: 'originOptimized', refined: 'originRefined', fixed: 'originFixed', autofixed: 'originAutoFixed', manual: 'originManual', template: 'originTemplate', adapted: 'originAdapted' }[origin] || 'originManual');
     }
 
     function updateCodeUI() {
@@ -296,6 +356,7 @@
         el.securitySection.hidden = !hasCode;
         el.labSection.hidden = !hasCode;
         el.improveSection.hidden = !hasCode;
+        $('adaptRow').hidden = !hasCode || !state.templatePlan;
         if (state.index >= 0 && state.history[state.index]) {
             el.versionInfo.hidden = false;
             el.versionInfo.textContent = t('versionLabel', { n: state.index + 1, total: state.history.length }) + ' · ' + originLabel(state.history[state.index].origin);
@@ -335,11 +396,16 @@
     });
 
     function saveDraft() {
-        store.set('sessionStorage', DRAFT_KEY, JSON.stringify({ clause: el.clause.value, history: state.history.slice(-20), index: Math.min(state.index, 19) }));
+        store.set('sessionStorage', DRAFT_KEY, JSON.stringify({
+            clause: el.clause.value, history: state.history.slice(-20), index: Math.min(state.index, 19),
+            template: state.template, templatePlan: state.templatePlan
+        }));
     }
     function loadDraft() {
         const d = safeJson(store.get('sessionStorage', DRAFT_KEY));
         if (d.clause) el.clause.value = d.clause;
+        if (d.template && d.template.id) state.template = Object.assign(state.template, d.template);
+        if (d.templatePlan && d.templatePlan.id) state.templatePlan = d.templatePlan;
         if (Array.isArray(d.history) && d.history.length) {
             state.history = d.history;
             state.index = Math.max(0, Math.min(d.index ?? d.history.length - 1, d.history.length - 1));
@@ -461,13 +527,13 @@
         if (!c) { el.compileStatus.hidden = true; return; }
         el.compileStatus.hidden = false;
         if (c.error) {
-            el.compileStatus.className = 'compile-status status-error';
+            el.compileStatus.className = 'status-line status-error';
             el.compileStatus.textContent = t('compileUnavailable');
             return;
         }
         const errors = compileErrors(c);
         const warnings = c.result.errors.filter(e => e.severity === 'warning');
-        el.compileStatus.className = 'compile-status ' + (errors.length ? 'status-error' : warnings.length ? 'status-warn' : 'status-ok');
+        el.compileStatus.className = 'status-line ' + (errors.length ? 'status-error' : warnings.length ? 'status-warn' : 'status-ok');
         el.compileStatus.textContent = (errors.length ? t('compileFailed', { n: errors.length }) : warnings.length ? t('compileOkWarnings', { n: warnings.length }) : '✓ ' + t('compileOk'))
             + ' (solc ' + (c.result.version || '').split('+')[0] + ')'
             + (c.code !== currentCode() ? ' — ' + t('compileStale') : '');
@@ -550,15 +616,16 @@
         const highLeft = blockingFindings().length;
         el.pipelineSummary.hidden = false;
         if (!errorsLeft && !highLeft) {
-            el.pipelineSummary.className = 'pipeline-summary status-ok';
-            el.pipelineSummary.textContent = '✓ ' + t('pipelineClean', { n: fixesDone, compiled: compiled ? t('pipelineCompiledSuffix') : '' });
+            el.pipelineSummary.className = 'status-line status-ok';
+            el.pipelineSummary.textContent = '✓ ' + t(fixesDone ? 'pipelineClean' : 'pipelineCleanNoFix', { n: fixesDone, compiled: compiled ? t('pipelineCompiledSuffix') : '' });
         } else {
-            el.pipelineSummary.className = 'pipeline-summary status-warn';
+            el.pipelineSummary.className = 'status-line status-warn';
             el.pipelineSummary.textContent = t('pipelineRemaining', { n: fixesDone, e: errorsLeft, h: highLeft });
         }
     }
 
-    function resetDerivedOutputs() {
+    function resetDerivedOutputs(keepTemplatePlan) {
+        if (!keepTemplatePlan) state.templatePlan = null;
         ['riskAnalysisOutputContainer', 'suggestClausesOutputContainer', 'explanationOutputContainer', 'optimizationOutputContainer',
             'securityReviewOutputContainer', 'codeQueryOutputContainer', 'mappingOutputContainer', 'labScenariosPanel'].forEach(id => { $(id).hidden = true; });
         $('applyOptimizationButton').hidden = true;
@@ -569,13 +636,188 @@
         CSC.lab.reset();
     }
 
+    // ---------- Modo sem IA: modelos revisados ----------
+    const TPL = CSC.templates;
+
+    function applyMode() {
+        $('modeTemplate').checked = state.mode === 'template';
+        $('modeAI').checked = state.mode === 'ai';
+        $('templatePanel').hidden = state.mode !== 'template';
+        $('aiPanel').hidden = state.mode !== 'ai';
+    }
+
+    function updateSettingsStatus() {
+        const st = $('settingsStatus');
+        if (!st) return;
+        st.textContent = el.apiKey.value.trim() ? t('settingsWithKey', { model: state.settings.model }) : t('settingsNoKey');
+    }
+
+    function renderTemplateSelect() {
+        const sel = $('templateSelect');
+        sel.textContent = '';
+        for (const tpl of TPL.list(CSC.lang)) {
+            const o = document.createElement('option');
+            o.value = tpl.id;
+            o.textContent = tpl.name;
+            sel.appendChild(o);
+        }
+        if (!state.template.id) state.template.id = TPL.list(CSC.lang)[0].id;
+        sel.value = state.template.id;
+        $('scaleInput').value = String(state.template.scale || 1000);
+    }
+
+    function renderDetected() {
+        const out = $('templateDetected');
+        const text = el.clause.value.trim();
+        if (state.template.manual) out.textContent = t('templateManual');
+        else if (!text) out.textContent = '';
+        else if (state.template.detected) out.textContent = t('templateDetected', { name: TPL.list(CSC.lang).find(x => x.id === state.template.detected).name });
+        else out.textContent = t('templateNotDetected');
+    }
+
+    function renderTemplateFields() {
+        const box = $('templateFields');
+        box.textContent = '';
+        const id = state.template.id;
+        if (!id) return;
+        const statusLabel = { found: 'fieldFound', default: 'fieldDefault', ai: 'fieldAI', edited: 'fieldEdited' };
+        for (const f of TPL.fields(id, CSC.lang)) {
+            const value = state.template.values[f.key] != null ? state.template.values[f.key] : f.def;
+            const status = state.template.status[f.key] || 'default';
+            const wrap = document.createElement('label');
+            wrap.className = 'param-field status-' + status;
+            const name = document.createElement('span');
+            name.className = 'param-name';
+            name.textContent = f.label;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.inputMode = 'decimal';
+            input.value = String(value);
+            input.dataset.key = f.key;
+            const tag = document.createElement('span');
+            tag.className = 'param-status';
+            tag.textContent = (f.type === 'money' ? '(R$/US$) · ' : '') + t(statusLabel[status]);
+            input.addEventListener('input', () => {
+                state.template.values[f.key] = input.value;
+                state.template.status[f.key] = 'edited';
+                wrap.className = 'param-field status-edited';
+                tag.textContent = (f.type === 'money' ? '(R$/US$) · ' : '') + t('fieldEdited');
+                saveDraft();
+            });
+            wrap.append(name, input, tag);
+            box.appendChild(wrap);
+        }
+    }
+
+    /** Extração por regras a cada alteração do texto (sem IA). */
+    function runExtraction() {
+        const text = el.clause.value;
+        const detected = TPL.detect(text).type;
+        state.template.detected = detected;
+        if (!state.template.manual && detected) state.template.id = detected;
+        const id = state.template.id;
+        const ex = TPL.extract(text, id);
+        const keep = {};
+        for (const [k, st] of Object.entries(state.template.status)) if (st === 'edited') keep[k] = state.template.values[k];
+        state.template.values = Object.assign({}, ex.values, keep);
+        state.template.status = {};
+        for (const k of ex.found) state.template.status[k] = 'found';
+        for (const k of Object.keys(keep)) state.template.status[k] = 'edited';
+        $('templateSelect').value = id;
+        renderTemplateFields();
+        renderDetected();
+        updateButtons();
+    }
+
+    function templateValues() {
+        return Object.assign({}, state.template.values, { escala: Number(String($('scaleInput').value).replace(',', '.')) || 1000 });
+    }
+
+    /** Verificação sem IA (verificador local e, se ativado, compilação). */
+    async function verifyOnly() {
+        runScan();
+        let compileText = t('compileNotRun');
+        if (state.settings.autoCompile) {
+            el.convertProgress.textContent = t('compileLoading');
+            const c = await compileNow();
+            if (c && c.result) {
+                const n = compileErrors(c).length;
+                compileText = n ? t('compileErrShort', { n }) : t('compileOkShort');
+            }
+        }
+        const n = blockingFindings().length;
+        el.pipelineSummary.hidden = false;
+        el.pipelineSummary.className = 'status-line ' + (n ? 'status-warn' : 'status-ok');
+        el.pipelineSummary.textContent = t('templateGenerated', { scan: n ? t('scanIssues', { n }) : t('scanClean'), compile: compileText });
+    }
+
+    async function generateFromTemplate() {
+        const id = state.template.id;
+        if (!id || state.busy) return;
+        clearError();
+        setBusy(true);
+        $('convertLoadingIndicator').hidden = false;
+        try {
+            const values = templateValues();
+            const { params } = TPL.normalize(id, values);
+            resetDerivedOutputs();
+            state.templatePlan = { id, values: params, lang: CSC.lang };
+            setCode(TPL.build(id, params, CSC.lang), 'template');
+            await verifyOnly();
+            el.code.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } finally {
+            $('convertLoadingIndicator').hidden = true;
+            setBusy(false);
+        }
+    }
+
+    async function aiExtract() {
+        const clause = el.clause.value.trim();
+        if (!clause) return showError(t('errNoClause'));
+        const id = state.template.id;
+        const fields = TPL.fields(id, CSC.lang);
+        await runTask('aiExtractLoadingIndicator', async () => {
+            const current = TPL.normalize(id, state.template.values).params;
+            const res = await askAI(CSC.prompts.extractParams(clause, fields, current, CSC.lang));
+            let changed = 0;
+            for (const f of fields) {
+                const v = res.data && res.data[f.key];
+                if (typeof v === 'number' && Number.isFinite(v) && v >= 0) {
+                    if (Number(current[f.key]) !== v) changed++;
+                    state.template.values[f.key] = v;
+                    state.template.status[f.key] = 'ai';
+                }
+            }
+            renderTemplateFields();
+            saveDraft();
+            const d = $('templateDetected');
+            d.textContent = t('aiExtractDone', { n: changed });
+        });
+    }
+
+    /** Executa os cenários predefinidos do modelo no Laboratório (sem IA). */
+    async function runTemplateTests() {
+        if (!state.templatePlan) return CSC.lab.setStatus(t('labNoTemplatePlan'), 'error');
+        await runTask('labLoadingIndicator', async () => {
+            const c = await compiledForLab();
+            if (!c) return;
+            const tp = state.templatePlan;
+            const plan = TPL.plan(tp.id, tp.values, tp.lang);
+            const chosen = CSC.lab.pickContract(c.result.contracts, plan.contrato);
+            if (!chosen) return CSC.lab.setStatus(t('labNoDeployable'), 'error');
+            $('labScenariosPanel').hidden = false;
+            await CSC.lab.runPlan(plan, Object.assign({ source: currentCode() }, chosen), (i, n) => { $('labLoadingText').textContent = t('labRunningScenario', { i, n }); });
+            $('labScenariosPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
     async function generate() {
         const clause = el.clause.value.trim();
         if (!clause) return showError(t('errNoClause'));
         await runTask('convertLoadingIndicator', async () => {
             el.convertProgress.textContent = t('stepGenerating');
             const res = await askAI(CSC.prompts.generate(clause, CSC.lang));
-            resetDerivedOutputs();
+            resetDerivedOutputs(false);
             setCode(res.code, 'generated');
             await verifyAndFix(el.convertProgress);
             el.code.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -584,6 +826,7 @@
 
     /** Aplica nova versão vinda da IA e roda o ciclo de verificação. */
     async function applyAICode(request, origin, loadingId, progressId) {
+        // O plano de testes do modelo é mantido: serve de teste de regressão após ajustes da IA.
         return runTask(loadingId, async () => {
             const res = await askAI(request);
             setCode(res.code, origin);
@@ -804,11 +1047,11 @@
         el.apiKey.type = el.apiKey.type === 'password' ? 'text' : 'password';
         el.toggleKey.textContent = el.apiKey.type === 'password' ? t('showKey') : t('hideKey');
     });
-    el.saveKey.addEventListener('click', saveKey);
-    el.forgetKey.addEventListener('click', forgetKey);
+    el.saveKey.addEventListener('click', () => { saveKey(); updateSettingsStatus(); });
+    el.forgetKey.addEventListener('click', () => { forgetKey(); updateSettingsStatus(); });
     el.apiKey.addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
 
-    el.model.addEventListener('change', () => { state.settings.model = el.model.value; saveSettings(); });
+    el.model.addEventListener('change', () => { state.settings.model = el.model.value; saveSettings(); updateSettingsStatus(); });
     el.temperature.addEventListener('input', () => {
         state.settings.temperature = Number(el.temperature.value);
         el.temperatureValue.textContent = state.settings.temperature.toFixed(1);
@@ -832,9 +1075,39 @@
 
     el.examples.addEventListener('change', () => {
         const ex = t('examples')[Number(el.examples.value)];
-        if (ex) { el.clause.value = ex.text; saveDraft(); }
+        if (ex) {
+            el.clause.value = ex.text;
+            state.template.manual = false;
+            state.template.status = {};
+            runExtraction();
+            saveDraft();
+        }
     });
-    el.clause.addEventListener('input', () => { clearTimeout(el.clause._t); el.clause._t = setTimeout(saveDraft, 400); });
+    el.clause.addEventListener('input', () => {
+        clearTimeout(el.clause._t);
+        el.clause._t = setTimeout(() => { runExtraction(); saveDraft(); }, 400);
+    });
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', () => {
+        state.mode = r.value === 'ai' ? 'ai' : 'template';
+        store.set('localStorage', MODE_KEY, state.mode);
+        applyMode();
+    }));
+    $('templateSelect').addEventListener('change', () => {
+        state.template.id = $('templateSelect').value;
+        state.template.manual = true;
+        runExtraction();
+        saveDraft();
+    });
+    $('scaleInput').addEventListener('input', () => { state.template.scale = Number(String($('scaleInput').value).replace(',', '.')) || 1000; saveDraft(); });
+    $('templateGenerateButton').addEventListener('click', generateFromTemplate);
+    $('aiExtractButton').addEventListener('click', aiExtract);
+    $('labTemplateTestsButton').addEventListener('click', runTemplateTests);
+    $('adaptButton').addEventListener('click', async () => {
+        const clause = el.clause.value.trim();
+        if (!clause) return showError(t('errNoClause'));
+        const ok = await applyAICode(CSC.prompts.adapt(currentCode(), clause, CSC.lang), 'adapted', 'adaptLoadingIndicator', 'convertProgressText', true);
+        if (ok && state.templatePlan) await runTemplateTests();
+    });
 
     $('convertButton').addEventListener('click', generate);
 
@@ -952,6 +1225,13 @@
         if (ok) el.code.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
+    // ---------- Contador de requisições ----------
+    function renderRequestCount(n) {
+        const c = $('requestCount');
+        if (c) c.textContent = t('requestsCount', { n });
+    }
+    CSC.gemini.stats.listeners.push(renderRequestCount);
+
     // ---------- Inicialização ----------
     CSC.SecurityScanCompat = window.SecurityScan;
     CSC.lab.init({
@@ -962,7 +1242,10 @@
     loadKey();
     renderSettings();
     loadDraft();
+    applyMode();
+    if (!state.template.status || !Object.keys(state.template.status).length) runExtraction();
     applyLanguage();
+    renderRequestCount(CSC.gemini.stats.requests);
     runScan();
     if (el.apiKey.value) refreshModels();
 })();

@@ -1279,24 +1279,31 @@
         const m = CSC.composer.model();
         if (!m) return;
         const B = CSC.blocks;
-        const lines = [];
+        // Montado com textContent (sem Markdown): nenhum texto do contrato é interpretado como formatação.
+        const mk = (tag, text, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+        let area = $('printArea');
+        if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+        area.textContent = '';
         const title = String(m.name || '').trim();
-        if (title) lines.push('# ' + title, '');
+        if (title) area.appendChild(mk('h1', title.toUpperCase()));
         const parts = B.minuta(m, CSC.lang);
         const q = B.qualificacao(m, CSC.lang);
         if (q) parts[0] = Object.assign({}, parts[0], { texto: q });
-        for (const c of parts) lines.push('**' + c.numero + ' — ' + c.titulo + '.** ' + c.texto, '');
-        if (m.blocks.some(b => b.type === 'assinaturas')) lines.push('> ' + t('printSigHash') + ': `' + B.hashDoTexto(m, CSC.lang) + '`', '');
-        lines.push('## ' + t('printSigTitle'), '');
+        for (const c of parts) {
+            const p = mk('p');
+            p.appendChild(mk('strong', c.numero + ' — ' + c.titulo));
+            p.appendChild(document.createElement('br'));
+            p.appendChild(document.createTextNode(c.texto));
+            area.appendChild(p);
+        }
+        if (m.blocks.some(b => b.type === 'assinaturas')) area.appendChild(mk('p', t('printSigHash') + ': ' + B.hashDoTexto(m, CSC.lang), 'print-hash'));
+        area.appendChild(mk('h2', t('printSigTitle')));
         const witnesses = new Set(m.blocks.filter(b => b.type === 'testemunha').map(b => b.params.testemunha));
         for (const r of m.roles) {
-            lines.push('', '_______________________________________________', '');
-            lines.push('**' + (witnesses.has(r.id) ? t('printWitness') + ' — ' : '') + r.label + '**' + (r.nome ? ' — ' + r.nome : '') + (r.documento ? ' — ' + r.documento : ''), '');
+            area.appendChild(mk('p', '_______________________________________________', 'print-line'));
+            area.appendChild(mk('p', (witnesses.has(r.id) ? t('printWitness') + ' — ' : '') + r.label + (r.nome ? ' — ' + r.nome : '') + (r.documento ? ' — ' + r.documento : '')));
         }
-        lines.push('', '> ' + t('printNoteSig'));
-        let area = $('printArea');
-        if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
-        area.innerHTML = CSC.markdown.render(lines.join('\n'));
+        area.appendChild(mk('p', t('printNoteSig'), 'print-note'));
         document.body.classList.add('printing');
         const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
         window.addEventListener('afterprint', done);

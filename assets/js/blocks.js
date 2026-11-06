@@ -48,6 +48,7 @@
         'juros', 'interest', 'encargos', 'charges', 'vencimento', 'duedate', 'diasatraso', 'dayslate', 'restante', 'rest', 'aobeneficiario',
         'tobeneficiary', 'descricao', 'description', 'cumprida', 'fulfilled', 'indice', 'index', 'favorbeneficiario', 'favorbeneficiary',
         'valoraobeneficiario', 'amounttobeneficiary', 'ato', 'act', 'novo', 'next', 'original', 'novoprazo', 'newdeadline',
+        'throw', 'fixed', 'ufixed', 'encerrar', 'close', 'verificarconclusao', 'checkcompletion', 'dias', 'venc', 'due', 'k', 's', 'suicide', 'sha3', 'callcode', 'i', 'garantia', 'bond', 'etapa', 'milestone',
         'hex', 'unicode', 'indexed', 'anonymous', 'blobhash', 'blobbasefee', 'prevrandao', 'basefee', 'coinbase', 'gaslimit', 'origin', 'sender',
         'rescindir', 'terminate', 'encerrarpordecursodoprazo', 'closeatterm', 'notificar', 'notify', 'assinar', 'sign', 'registrardocumento',
         'recorddocument', 'cancelarporfaltadeassinatura', 'cancelformissingsignatures', 'criadoem', 'createdat', 'assinadoem', 'signedat',
@@ -71,7 +72,7 @@
     function camel(label) {
         const p = pascal(label);
         const c = p.charAt(0).toLowerCase() + p.slice(1);
-        return RESERVED.has(c.toLowerCase()) ? c + 'Parte' : c;
+        return RESERVED.has(c.toLowerCase()) || /^(u?int|bytes|u?fixed)\d*(x\d+)?$/i.test(c) ? c + 'Parte' : c;
     }
     function upper(label) { return words(label).map(x => x.toUpperCase()).join('_').replace(/^([0-9])/, 'X$1') || 'ITEM'; }
 
@@ -95,9 +96,13 @@
     }
     /** SHA-256 (hexadecimal) de um texto em UTF-8, síncrono e sem dependências. */
     function sha256Hex(text) {
-        const bytes = [];
-        const str = unescape(encodeURIComponent(String(text)));
-        for (let i = 0; i < str.length; i++) bytes.push(str.charCodeAt(i));
+        let bytes;
+        if (typeof TextEncoder !== 'undefined') bytes = Array.from(new TextEncoder().encode(String(text)));
+        else {
+            bytes = [];
+            const str = unescape(encodeURIComponent(String(text).replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?:[^\ud800-\udbff]|^)[\udc00-\udfff]/g, '\ufffd')));
+            for (let i = 0; i < str.length; i++) bytes.push(str.charCodeAt(i));
+        }
         const K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
             0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
             0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
@@ -502,8 +507,8 @@
                 { key: 'prazo', kind: 'days', def: 7, min: 1 }
             ],
             sentence: {
-                pt: 'Quem pagou {alvo} poderá desistir em até {prazo} dias contados do pagamento, com a devolução integral do valor; até o fim desse prazo, o valor fica retido no contrato.',
-                en: 'Whoever paid {alvo} may withdraw within {prazo} days of payment, with a full refund; until that period ends, the amount is held in the contract.'
+                pt: 'Quem pagou {alvo} poderá desistir do contrato em até {prazo} dias contados do pagamento, com a devolução integral do valor e o encerramento do contrato; até o fim desse prazo, o valor fica retido.',
+                en: 'Whoever paid {alvo} may withdraw from the contract within {prazo} days of payment, with a full refund and the closing of the contract; until that period ends, the amount is held.'
             }
         },
         notificacoes: {
@@ -619,6 +624,20 @@
         return blk;
     }
 
+    /** Partes contratantes: quem figura como devedor, credor, depositante, beneficiário etc. (não árbitro, fonte, verificador terceiro nem testemunha). */
+    const PARTY_KEYS = ['devedor', 'credor', 'depositante', 'beneficiario', 'contratante', 'contratado', 'garantidor'];
+    function partyIds(model) {
+        const ids = new Set();
+        for (const b of (model.blocks || [])) for (const k of PARTY_KEYS) if (b && b.params && b.params[k]) ids.add(b.params[k]);
+        if (ids.size < 2) {
+            // Contrato sem cláusulas de partes (ex.: só cláusulas formais): todos, exceto árbitro, fontes e testemunhas.
+            const others = new Set();
+            for (const b of (model.blocks || [])) if (b && b.params) { if (b.params.arbitro) others.add(b.params.arbitro); if (b.params.fonte) others.add(b.params.fonte); if (b.params.testemunha) others.add(b.params.testemunha); }
+            for (const r of (model.roles || [])) if (!others.has(r.id)) ids.add(r.id);
+        }
+        return ids;
+    }
+
     /** Completa campos ausentes com o valor padrão (contratos salvos em versões anteriores). */
     function normalize(model) {
         for (const b of (model && model.blocks) || []) {
@@ -730,6 +749,8 @@
             const usedElsewhere = blocks.some(x => x !== wb && x.type !== 'testemunha' && BLOCKS[x.type] && BLOCKS[x.type].params.some(p => (p.kind === 'role' || p.kind === 'roleOrAny') && x.params[p.key] === r));
             if (usedElsewhere) add('A testemunha não pode ser parte, árbitro, fonte de informação nem ter outro papel no contrato.', 'A witness cannot be a party, arbitrator, data source or have any other role in the contract.', wb.uid);
         }
+        if (blocks.some(b => b.type === 'vigencia' || b.type === 'notificacoes' || (b.type === 'rescisao' && b.params.quem === '*')) && [...partyIds({ roles, blocks })].filter(id => roleIds.has(id)).length < 2)
+            add('O contrato precisa de ao menos duas partes contratantes (além de árbitro, fontes de informação e testemunhas).', 'The contract needs at least two contracting parties (besides arbitrator, data sources and witnesses).');
         const vig = blocks.some(b => b.type === 'vigencia');
         const resc0 = blocks.find(b => b.type === 'rescisao');
         for (const b of blocks.filter(x => x.type === 'caucao' || x.type === 'etapas')) {
@@ -746,6 +767,22 @@
                 if ([b.params.devedor, b.params.credor, b.params.contratante, b.params.contratado].includes(a)) add('O árbitro não pode ser parte de "' + b.label + '".', 'The arbitrator cannot be a party to "' + b.label + '".', b.uid);
             }
         }
+        // Rótulos diferentes que geram o mesmo identificador no código (ex.: "Entrega" + garantia e "Entrega Garantia").
+        if (!errs.length) {
+            for (const lg of ['pt', 'en']) {
+                let code = '';
+                try { code = build(model, lg); } catch (_) { continue; }
+                const seen = new Map();
+                const re = /^ {4}(?:(?:function|event|modifier|error|enum)\s+(\w+)|(?!function|event|modifier|error|enum|constructor|emit\b)(?:mapping\([^)]*\)|[\w.]+)\s+(?:(?:public|private|internal|immutable|constant)\s+)*(\w+)\s*(?:=|;))/gm;
+                let m;
+                const dups = new Set();
+                while ((m = re.exec(code)) !== null) {
+                    const id = m[1] || m[2];
+                    if (seen.has(id)) dups.add(id); else seen.set(id, true);
+                }
+                if (dups.size) { add('Dois nomes de cláusulas ou partes geram o mesmo identificador no código (' + [...dups].join(', ') + '): renomeie uma delas.', 'Two clause or party names produce the same identifier in the code (' + [...dups].join(', ') + '): rename one of them.'); break; }
+            }
+        }
         return errs;
     }
 
@@ -757,14 +794,15 @@
         const en = lang === 'en';
         const out = [];
         const add = (tipo, pt, enT, ref) => out.push({ tipo, texto: en ? enT : pt, ref });
-        const blocks = model.blocks || [];
+        const blocks = (model.blocks || []).filter(b => b && Object.prototype.hasOwnProperty.call(BLOCKS, b.type) && b.params);
         const has = t => blocks.some(b => b.type === t);
+        for (const b of blocks.filter(x => x.type === 'arrependimento')) if (Number(b.params.prazo) < 7) add('aviso', 'Prazo de arrependimento inferior a 7 dias: nas contratações de consumo fora do estabelecimento comercial, a lei assegura 7 dias.', 'Withdrawal period under 7 days: in Brazilian consumer contracts made outside a business establishment, the law grants 7 days.', en ? 'Brazilian Consumer Code, art. 49' : 'CDC, art. 49');
         const allText = blocks.map(b => String(b.texto || (BLOCKS[b.type] ? BLOCKS[b.type].sentence[en ? 'en' : 'pt'] : ''))).join(' ') + ' ' + (model.name || '');
         const roles = model.roles || [];
         if (!roles.every(r => r.nome && r.documento)) add('lembrete', 'Qualifique as partes (nome ou razão social e documento) em "Dados das partes": a carteira não identifica a pessoa, e a capacidade do agente é requisito de validade.', 'Identify the parties (name and ID or company number) under "Party details": a wallet does not identify a person, and legal capacity is a validity requirement.', en ? 'Brazilian Civil Code, art. 104, I' : 'CC, art. 104, I');
         if (!has('objeto')) add('lembrete', 'Descreva o objeto do contrato (bloco "Objeto do contrato"): o objeto deve ser lícito, possível, determinado ou determinável.', 'Describe the subject matter (block "Subject matter"): it must be lawful, possible and determined or determinable.', en ? 'Brazilian Civil Code, art. 104, II' : 'CC, art. 104, II');
         if (/\[[^\]]{3,}\]/.test(allText)) add('aviso', 'Há trechos entre colchetes a completar (ex.: "[descreva…]", "[cidade/UF]").', 'There are bracketed passages to complete (e.g. "[describe…]", "[city]").', '');
-        const lease = /(loca[çc][ãa]o|aluguel|locat[áa]rio|lease|rent\b|tenant)/i.test(allText + ' ' + blocks.map(b => b.label).join(' '));
+        const lease = /(^|[^a-zà-ú])(loca[çc][ãa]o|aluguel|locat[áa]rio|locador)([^a-zà-ú]|$)|\b(lease|rent|tenant|landlord)\b/i.test(allText + ' ' + blocks.map(b => b.label).join(' '));
         if (/(im[óo]vel|terreno|apartamento|real estate|land\b|property)/i.test(allText) && /(compra|venda|aliena|doa[çc][ãa]o|hipoteca|usufruto|escritura|sale|purchase|mortgage|deed)/i.test(allText + ' ' + (model.name || ''))) add('aviso', 'Negócios sobre direitos reais imobiliários acima de 30 salários mínimos exigem escritura pública, e a transferência da propriedade depende de registro: o "smart contract" não os substitui.', 'Brazilian law requires a public deed for real-estate rights above 30 minimum wages, and transfer of title depends on registration: the smart contract does not replace them.', en ? 'Brazilian Civil Code, arts. 108 and 1,245' : 'CC, arts. 108 e 1.245');
         if (!has('assinaturas')) add('lembrete', 'Para a força executiva do documento particular, prevê-se a assinatura do devedor e de duas testemunhas; considere o bloco "Assinaturas digitais" e, se for o caso, testemunhas.', 'For a private document to be directly enforceable, the debtor\'s signature and two witnesses are required; consider the "Digital signatures" block and, if applicable, witnesses.', en ? 'Brazilian Code of Civil Procedure, art. 784, III' : 'CPC, art. 784, III');
         else if (blocks.filter(b => b.type === 'testemunha').length < 2) add('lembrete', 'O documento particular assinado pelo devedor e por duas testemunhas é título executivo extrajudicial.', 'A private document signed by the debtor and two witnesses is an extrajudicial enforceable title.', en ? 'Brazilian Code of Civil Procedure, art. 784, III' : 'CPC, art. 784, III');
@@ -839,8 +877,7 @@
         const byUid = uid => blocks.find(b => b.uid === uid);
         const arb = blocks.find(b => b.type === 'arbitro');
         const arbRole = arb ? roleById(arb.params.arbitro) : null;
-        const witnessIds = new Set((model.blocks || []).filter(b => b.type === 'testemunha').map(b => b.params.testemunha));
-        const partyRoles = roles.filter(r => (!arbRole || r.id !== arbRole.id) && !witnessIds.has(r.id));
+        const partyRoles = roles.filter(r => partyIds(model).has(r.id));
         const N = {
             Situacao: w('Situacao', 'Status'), situacao: w('situacao', 'status'), Ativo: w('Ativo', 'Active'), Encerrado: w('Encerrado', 'Closed'),
             EstadoGarantia: w('EstadoGarantia', 'HoldState'), Aguardando: w('AguardandoDeposito', 'AwaitingDeposit'), Depositado: w('Depositado', 'Deposited'),
@@ -860,8 +897,10 @@
             ContratoEncerrado: w('ContratoEncerrado', 'AgreementClosed'), Saque: w('Saque', 'Withdrawal'),
             devido: w('devido', 'due'), enviado: w('enviado', 'sent'), limite: w('limite', 'limit'), valor: w('valor', 'amount'), credor: w('credor', 'payee'), quando: w('quando', 'when')
         };
-        const mod = role => N.apenas + role.P;
-        const modPair = (a, b) => N.apenas + a.P + N.Ou + b.P;
+        // Modificadores por parte levam sublinhado (rótulos nunca o produzem), e os de grupo não:
+        // assim, uma parte chamada "Partes" ou "Signatários" não colide com os modificadores de grupo.
+        const mod = role => N.apenas + '_' + role.v;
+        const modPair = (a, b) => N.apenas + '_' + a.v + '_' + N.Ou.toLowerCase() + '_' + b.v;
         const allMoney = blocks.filter(b => ['pagamentoUnico', 'pagamentoPeriodico', 'custodia', 'etapas', 'caucao', 'clausulaPenal'].includes(b.type));
         const usesToken = blocks.some(b => b.type === 'pagamentoToken');
         return { lang, en, w, roles, roleById, blocks, byUid, arb, arbRole, partyRoles, N, mod, modPair, scale: model.scale || 1000, name: pascal(model.name || w('Contrato Montado', 'Composed Agreement')), allMoney, usesToken };
@@ -917,7 +956,8 @@
         ctx.blocks.forEach((b, i) => out.push({ numero: ordinal(i + 2, lang), titulo: clauseTitle(b, ctx), texto: fillSentence(b, ctx), uid: b.uid }));
         const n = ctx.blocks.length + 2;
         const q = model.cotacao && Number(model.cotacao.brl) === Number(ctx.scale) ? model.cotacao : null;
-        const when = q ? new Date(q.data).toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+        // Data em UTC, para que a impressão digital do texto não dependa do fuso de quem o abre.
+        const when = q ? (() => { const d = new Date(q.data); return isNaN(d) ? String(q.data) : d.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC'; })() : '';
         out.push({
             numero: ordinal(n, lang), titulo: ctx.w('Pagamentos e saques', 'Payments and withdrawals'),
             texto: q
@@ -1102,7 +1142,8 @@
                     const pm = usePair(dev, cre);
                     code.push(`${subHeader(arr)}
     /// @notice ${w('Desistência do pagamento dentro do prazo de arrependimento, com devolução integral.', 'Withdrawal from the payment within the withdrawal period, with a full refund.')}
-    function ${w('arrepender', 'withdrawFrom')}${b.I}() external ${dm} {
+    /// @dev ${w('A desistência desfaz o negócio: o contrato é encerrado, e os demais valores retidos seguem as regras do encerramento.', 'Withdrawal undoes the deal: the contract is closed, and other held amounts follow the closing rules.')}
+    function ${w('arrepender', 'withdrawFrom')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
         if (${arrHeld} == 0) revert ${N.NaoDisponivel}();
         uint256 ${N.limite} = ${arrAt} + ${AP};
         if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
@@ -1110,7 +1151,7 @@
         ${arrHeld} = 0;
         ${N.saldos}[${dev.v}] += ${N.valor};
         emit ${w('Arrependimento', 'Withdrawal')}${b.I}(${dev.v}, ${N.valor});
-        ${N.verificar}();
+        ${N.encerrar}();
     }
 
     /// @notice ${w('Esgotado o prazo de arrependimento, qualquer das partes confirma o pagamento, que passa ao credor.', 'After the withdrawal period, either party confirms the payment, which goes to the payee.')}
@@ -1332,11 +1373,14 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 }
                 if (carr) code.push(`${subHeader(carr)}
     /// @notice ${w('Desistência do depositante dentro do prazo de arrependimento, com devolução integral.', 'Withdrawal by the depositor within the withdrawal period, with a full refund.')}
+    /// @dev ${w('A desistência prevalece sobre disputa em curso, mas não cabe depois de ocorrido o evento que libera o valor; ela encerra o contrato.', 'Withdrawal prevails over a pending dispute, but is not available once the releasing event has occurred; it closes the contract.')}
     function ${w('arrepender', 'withdrawFrom')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
+        if (${st} != ${N.EstadoGarantia}.${N.Depositado} && ${st} != ${N.EstadoGarantia}.${N.EmDisputa}) revert ${N.NaoDisponivel}();${evB ? `
+        if (${evReleased}) revert ${N.NaoDisponivel}();` : ''}
         uint256 ${N.limite} = ${b.i}${w('DepositadoEm', 'DepositedAt')} + ${P}_${w('PRAZO_ARREPENDIMENTO', 'WITHDRAWAL_PERIOD')};
         if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
         _${w('destinar', 'allocate')}${b.I}(${dep.v});
+        if (${N.situacao} == ${N.Situacao}.${N.Ativo}) ${N.encerrar}();
     }`);
                 code.push(`
     function _${w('destinar', 'allocate')}${b.I}(address ${w('destino', 'to')}) private {
@@ -1801,6 +1845,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     /// @dev ${w('Só a impressão digital vai para a "blockchain"; o documento, com os dados pessoais das partes, fica fora dela.', 'Only the fingerprint goes on-chain; the document, with the parties\' personal data, stays off-chain.')}
     function ${w('registrarDocumento', 'recordDocument')}(bytes32 ${w('hashDoDocumento', 'documentHash')}) external ${sm} ${N.naSituacao}(${AG}) {
         if (${count} != 0) revert ${N.NaoDisponivel}();
+        if (${doc} != bytes32(0)) revert ${N.JaConcluido}(); // ${w('registro único: evita troca do documento antes das assinaturas', 'recorded once: prevents swapping the document before signing')}
         if (${w('hashDoDocumento', 'documentHash')} == bytes32(0)) revert ${N.ParametroInvalido}();
         ${doc} = ${w('hashDoDocumento', 'documentHash')};
         emit ${w('DocumentoRegistrado', 'DocumentRecorded')}(msg.sender, ${w('hashDoDocumento', 'documentHash')});
@@ -1839,7 +1884,8 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 const isParty = x => ctx.partyRoles.map(r => `${x} != ${r.v}`).join(' && ');
                 code.push(`    /// @notice ${w('Registra notificação de uma parte à outra; o registro prova o conteúdo e a data.', 'Records a notice from one party to the other; the record proves its content and date.')}
     /// @dev ${w('O texto fica público na "blockchain": não inclua dados pessoais.', 'The text is public on the blockchain: do not include personal data.')}
-    function ${w('notificar', 'notify')}(address ${w('destinatario', 'recipient')}, string calldata ${w('texto', 'text')}) external ${nm} {
+    function ${w('notificar', 'notify')}(address ${w('destinatario', 'recipient')}, string calldata ${w('texto', 'text')}) external ${nm} {${sig ? `
+        if (${N.situacao} == ${N.Situacao}.${N.Aguardando_}) revert ${N.SituacaoInvalida}();` : ''}
         if (${isParty(w('destinatario', 'recipient'))}) revert ${N.ParametroInvalido}();
         if (${w('destinatario', 'recipient')} == msg.sender || bytes(${w('texto', 'text')}).length == 0) revert ${N.ParametroInvalido}();
         ${cnt} += 1;
@@ -1963,6 +2009,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         if (sig) {
             lines.push(`        ${N.situacao} = ${N.Situacao}.${N.Aguardando_};`);
             lines.push(`        ${N.criadoEm} = block.timestamp;`);
+            lines.push(`        ${N.inicio} = block.timestamp; // ${L('provisório: substituído pela data da última assinatura', 'provisional: replaced by the date of the last signature')}`);
         } else lines.push(`        ${N.inicio} = block.timestamp;`);
         lines.push('    }');
         lines.push('');

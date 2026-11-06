@@ -152,9 +152,13 @@ The debtor can never attest their own obligation, and the arbitrator cannot be a
 4. compute, on the page itself, the fingerprint of the signed PDF (the file never leaves the browser);
 5. before the first signature, record it in the contract with `recordDocument`.
 
+![Signatures clause, with the text fingerprint and the computation of the signed PDF's fingerprint](docs/img/en/signatures.png)
+
 **Witnesses.** The "Witness" block adds a signatory who cannot have any other role in the contract.
 
 **Legal check.** Below the document, the **"Legal check"** lists indicative reminders and warnings, with the legal reference (Brazilian law). It flags, for example, missing party details or subject matter, a penalty above the contract payments, late fees and interest above usual limits, a lease deposit above three months of rent, the need for a public deed and registration in real-estate deals, and personal data in the clause text. It does not block code generation and does not replace professional advice.
+
+![Issues, warnings and legal check of the contract](docs/img/en/legal-check.png)
 
 **Other useful clauses.** "Right of withdrawal" holds the amount during the withdrawal period; "Recorded notices" keeps proof of a communication in the contract; and the formal clauses (subject matter, jurisdiction, place and date, notices, confidentiality, data protection and general provisions) complete the document.
 
@@ -179,6 +183,8 @@ The panel also fetches the **current gas price** on Ethereum mainnet (PublicNode
 ## 10. Artificial intelligence (optional)
 
 With a free key from [Google AI Studio](https://aistudio.google.com/app/apikey), the **"Assistant (AI)"** panel at the top of the page chats in plain language: it answers questions about using the tool, explains the test results and what is missing for legal validity and, given a contract text, **builds it by itself**, with parties, clauses, links and wording. The proposal is checked against the tool's own rules (and fixed by the AI if needed); one click on **"Apply to the contract, generate the code and test"** loads the contract, generates the code and runs the tests. Party details (names, IDs, addresses and wallets) are not sent to the assistant.
+
+![Chat assistant answering about the contract's enforceability](docs/img/en/assistant.png)
 
 Besides the assistant, AI can help to:
 

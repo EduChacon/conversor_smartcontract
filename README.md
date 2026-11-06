@@ -152,9 +152,13 @@ O devedor nunca pode atestar a própria obrigação, e o árbitro não pode ser 
 4. calcule, na própria página, a impressão digital do PDF assinado (o arquivo não sai do navegador);
 5. antes da primeira assinatura, registre-a no contrato com `registrarDocumento`.
 
+![Cláusula de assinaturas, com a impressão digital do texto e o cálculo da impressão digital do PDF assinado](docs/img/pt/assinaturas.png)
+
 **Testemunhas.** O bloco "Testemunha" acrescenta um signatário que não pode ter nenhum outro papel no contrato.
 
 **Conferência jurídica.** Abaixo do documento, a **"Conferência jurídica"** reúne lembretes e avisos indicativos, com a referência legal (direito brasileiro). Ela aponta, por exemplo, a falta de qualificação das partes ou de descrição do objeto, a cláusula penal superior ao valor das prestações, a multa e os juros acima dos limites usuais, a caução de locação acima de três aluguéis, a necessidade de escritura e registro em negócios imobiliários e dados pessoais no texto das cláusulas. A conferência não impede a geração do código e não substitui a análise de um profissional.
+
+![Pendências, avisos e conferência jurídica do contrato](docs/img/pt/conferencia.png)
 
 **Outras cláusulas úteis.** "Direito de arrependimento" retém o valor pelo prazo de desistência; "Notificações registradas" deixa no contrato a prova de uma comunicação; e as cláusulas formais (objeto, foro, local e data, comunicações, confidencialidade, proteção de dados e disposições gerais) completam o documento.
 
@@ -179,6 +183,8 @@ O painel também consulta o **preço atual do "gás"** na rede principal do Ethe
 ## 10. Inteligência artificial (opcional)
 
 Com uma chave gratuita do [Google AI Studio](https://aistudio.google.com/app/apikey), o painel **"Assistente (IA)"**, no topo da página, conversa em linguagem comum: responde dúvidas sobre o uso da ferramenta, explica os resultados dos testes e o que falta para a validade jurídica e, ao receber o texto de um contrato, **monta-o sozinho**, com as partes, as cláusulas, as ligações e a redação. A proposta é conferida pelas regras da própria ferramenta (e corrigida pela IA, se preciso); com um clique em **"Aplicar ao contrato, gerar o código e testar"**, o contrato é carregado, o código é gerado e os testes são executados. Os dados das partes (nomes, documentos, endereços e carteiras) não são enviados ao assistente.
+
+![Assistente de conversa respondendo sobre a força executiva do contrato](docs/img/pt/assistente.png)
 
 Além do assistente, a IA ajuda a:
 

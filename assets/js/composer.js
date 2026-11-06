@@ -361,7 +361,7 @@
             ? [el('span', { class: 'clause-title', text: typeName + (target ? ' (' + target.label + ')' : '') })]
             : [el('input', { class: 'clause-name', type: 'text', value: block.label, 'aria-label': t('clauseName'),
                 size: String(Math.max(6, block.label.length + 1)),
-                oninput: e => { e.target.size = Math.max(6, e.target.value.length + 1); block.label = e.target.value; changed(false); },
+                oninput: e => { e.target.size = Math.max(6, e.target.value.length + 1); block.label = B().safe(e.target.value); changed(false); },
                 onchange: scheduleRender }),
             B().names.pascal(block.label) === B().names.pascal(typeName) ? null : el('span', { class: 'clause-kind', text: '(' + typeName.toLowerCase() + ')' })];
         const tools = el('span', { class: 'clause-tools' }, [
@@ -519,23 +519,27 @@
     }
     function sanitizeModel(m) {
         if (!m || !Array.isArray(m.roles) || !Array.isArray(m.blocks)) throw new Error('format');
-        const str = (v, n) => String(v == null ? '' : v).slice(0, n);
+        // Rótulos e nomes: sem caracteres de controle nem de direção de texto (vão para o código).
+        const str = (v, n) => B().names ? B().safe(String(v == null ? '' : v)).slice(0, n) : String(v == null ? '' : v).slice(0, n);
+        // Redação: mantém quebras de linha, remove os demais caracteres de controle.
+        const txt = (v, n) => String(v == null ? '' : v).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, ' ').slice(0, n);
         const roles = m.roles.slice(0, 8).map((r, i) => ({ id: str(r.id || 'p' + (i + 1), 40), label: str(r.label, 60), carteira: r.carteira ? str(r.carteira, 42) : undefined,
             nome: r.nome ? str(r.nome, 120) : undefined, documento: r.documento ? str(r.documento, 40) : undefined, endereco: r.endereco ? str(r.endereco, 200) : undefined }));
-        const blocks = m.blocks.slice(0, 60).filter(b => b && B().BLOCKS[b.type]).map(b => {
+        const blocks = m.blocks.slice(0, 60).filter(b => b && typeof b.type === 'string' && B().isBlockType(b.type) && b.params && typeof b.params === 'object').map(b => {
             const out = { uid: str(b.uid, 60), type: b.type, label: str(b.label, 80), params: {} };
             for (const p of B().BLOCKS[b.type].params) out.params[p.key] = typeof b.params[p.key] === 'number' ? b.params[p.key] : str(b.params[p.key], 80);
-            if (b.texto) out.texto = str(b.texto, 4000);
+            if (b.texto) out.texto = txt(b.texto, 4000);
             if (Array.isArray(b.serie)) out.serie = b.serie.slice(0, 1000).map(x => ({ dia: Number(x.dia) || 0, valor: Math.max(0, Math.round(Number(x.valor) || 0)) }));
             return out;
         });
-        const model = { name: str(m.name, 80), scale: Number(m.scale) > 0 ? Number(m.scale) : 1000, roles, blocks };
+        const sc = Number(m.scale);
+        const model = { name: str(m.name, 80), scale: Number.isFinite(sc) && sc >= 0.01 && sc <= 1e9 ? sc : 1000, roles, blocks };
         B().normalize(model);
         if (m.cotacao && Number(m.cotacao.brl) > 0) model.cotacao = { brl: Number(m.cotacao.brl), fonte: str(m.cotacao.fonte, 30), data: str(m.cotacao.data, 40) };
         return model;
     }
     function importContract(file) {
-        if (!file) return;
+        if (!file || tooBig(file)) return;
         const reader = new FileReader();
         reader.onload = () => {
             try {
@@ -558,7 +562,7 @@
         roles.forEach((r, i) => {
             if (i > 0) chips.push(document.createTextNode(i === roles.length - 1 ? (CSC.lang === 'en' ? ' and ' : ' e ') : ', '));
             const input = el('input', { class: 'blank blank-party', type: 'text', value: r.label, 'aria-label': t('partyName'), size: String(Math.max(4, r.label.length + 1)),
-                oninput: e => { e.target.size = Math.max(4, e.target.value.length + 1); r.label = e.target.value; changed(false); },
+                oninput: e => { e.target.size = Math.max(4, e.target.value.length + 1); r.label = B().safe(e.target.value); changed(false); },
                 onchange: scheduleRender });
             const rm = roles.length > 2 && !used(r.id)
                 ? el('button', { type: 'button', class: 'icon-btn', title: t('removeParty'), 'aria-label': t('removeParty'), text: '×', onclick: () => { roles.splice(roles.indexOf(r), 1); changed(true); } })
@@ -758,7 +762,7 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
     function importModels(file) {
-        if (!file) return;
+        if (!file || tooBig(file)) return;
         const reader = new FileReader();
         reader.onload = () => {
             try {
@@ -821,15 +825,39 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    /** Bloco salvo vindo de arquivo: só campos do catálogo, com valores do tipo esperado. */
+    function cleanMine(m, withLinked) {
+        const def = B().BLOCKS[m.type];
+        const params = {};
+        const src = m.params && typeof m.params === 'object' ? m.params : {};
+        for (const p of def.params) {
+            const v = src[p.key];
+            if (p.kind === 'role') params[p.key] = { roleIndex: Math.max(0, Math.min(7, Math.round(Number(v && v.roleIndex) || 0))) };
+            else if (p.kind === 'ref') params[p.key] = v === '@principal' ? '@principal' : null;
+            else if (p.kind === 'roleOrAny') params[p.key] = v === '*' ? '*' : (v && typeof v === 'object' ? { roleIndex: Math.max(0, Math.min(7, Math.round(Number(v.roleIndex) || 0))) } : '*');
+            else params[p.key] = Number.isFinite(Number(v)) ? Number(v) : p.def;
+        }
+        const clean = s => String(s == null ? '' : s).replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, ' ');
+        const out = { type: m.type, label: B().safe(String(m.label || '')).slice(0, 60), texto: m.texto ? clean(m.texto).slice(0, 2000) : null, params };
+        if (withLinked && Array.isArray(m.ligadas)) out.ligadas = m.ligadas.filter(d => d && typeof d.type === 'string' && B().isBlockType(d.type)).slice(0, 10).map(d => cleanMine(d, false));
+        return out;
+    }
+
+    const MAX_FILE = 2 * 1024 * 1024;
+    function tooBig(file) {
+        if (file && file.size > MAX_FILE) { if (state.dom.notice) state.dom.notice(t('importFailed')); return true; }
+        return false;
+    }
+
     function importMine(file) {
+        if (tooBig(file)) return;
         if (!file) return;
         const reader = new FileReader();
         reader.onload = () => {
             try {
                 const data = JSON.parse(reader.result);
-                const list = (Array.isArray(data) ? data : data.blocos || []).filter(m => m && B().BLOCKS[m.type] && typeof m.label === 'string')
-                    .map(m => ({ type: m.type, label: String(m.label).slice(0, 60), texto: m.texto ? String(m.texto).slice(0, 2000) : null, params: m.params || {},
-                        ligadas: Array.isArray(m.ligadas) ? m.ligadas.filter(d => d && B().BLOCKS[d.type]).slice(0, 10).map(d => ({ type: d.type, label: String(d.label || '').slice(0, 60), texto: d.texto ? String(d.texto).slice(0, 2000) : null, params: d.params || {} })) : undefined }));
+                const list = (Array.isArray(data) ? data : data.blocos || []).filter(m => m && typeof m.type === 'string' && B().isBlockType(m.type) && typeof m.label === 'string')
+                    .map(m => cleanMine(m, true));
                 store.set(store.get().concat(list));
                 if (state.dom.notice) state.dom.notice(t('importDone', { n: list.length }));
                 render();

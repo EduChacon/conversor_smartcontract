@@ -10,6 +10,23 @@ let compileFn = null;
 let versionFn = null;
 let loading = null;
 
+// Impressão digital (SHA-256) do compilador oficial publicado no npm (solc@0.8.28). O arquivo
+// baixado da CDN só é executado se for idêntico; um arquivo adulterado é recusado.
+const PINNED_SHA256 = { '0.8.28': '9ef37cc1d2597ed6d2f706a960f449e33eb9eee920936cea77b11e6f43861970' };
+
+async function importVerified(url, version) {
+    const r = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const buf = await r.arrayBuffer();
+    const pinned = PINNED_SHA256[version];
+    if (!pinned) throw new Error('no pinned hash for ' + version);
+    const dig = await crypto.subtle.digest('SHA-256', buf);
+    const hex = Array.from(new Uint8Array(dig)).map(x => x.toString(16).padStart(2, '0')).join('');
+    if (hex !== pinned) throw new Error('integrity check failed');
+    const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/javascript' }));
+    try { importScripts(blobUrl); } finally { URL.revokeObjectURL(blobUrl); }
+}
+
 function sourcesFor(version) {
     return [
         `https://cdn.jsdelivr.net/npm/solc@${version}/soljson.js`,
@@ -35,7 +52,7 @@ function load(version) {
         for (const url of sourcesFor(version)) {
             try {
                 self.Module = self.Module || {};
-                importScripts(url);
+                await importVerified(url, version);
                 await waitRuntime();
                 versionFn = self.Module.cwrap('solidity_version', 'string', []);
                 compileFn = self.Module.cwrap('solidity_compile', 'string', ['string', 'number', 'number']);

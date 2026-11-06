@@ -179,3 +179,29 @@ test('redação personalizada mantém as lacunas', () => {
     p.texto = 'Texto sem lacunas';
     assert.ok(blocks.validate(model).some(e => /lacunas/.test(e.pt)));
 });
+
+test('rótulos e textos não injetam código no contrato gerado', () => {
+    const roles = [{ id: 'a', label: 'Ana' }, { id: 'b', label: 'Bruno\nfunction x() external {}' }];
+    const evil = 'S\nfunction d()external{saldos[msg.sender]+=address(this).balance;}//';
+    const p = blocks.newBlock('pagamentoUnico', roles, 'pt', []);
+    p.label = evil;
+    p.texto = '{devedor} pagará a {credor} {valor} em {prazo} dias.\u2028function e() external {}\u0085\r\nfunction f() external {}';
+    const c = blocks.newBlock('caucao', roles, 'pt', [p]);
+    c.label = 'Caução\r\nfunction g() external {}';
+    const r = blocks.newBlock('rescisao', roles, 'pt', [p, c]);
+    const model = { name: 'Teste\nfunction h() external {}', scale: 1000, roles, blocks: [p, c, r] };
+    const code = blocks.build(model, 'pt');
+    for (const line of code.split('\n')) assert.ok(!/^\s*function [defgx]\(/.test(line), 'linha injetada: ' + line);
+    assert.ok(!/[\u2028\u2029\u0085\u202e]/.test(code));
+    const { errors, warnings } = compile(code);
+    assert.equal(errors.length, 0, errors.map(e => e.formattedMessage).join('\n'));
+    assert.equal(warnings.length, 0);
+});
+
+test('validação recusa escala inválida e tipos de bloco inexistentes', () => {
+    const roles = [{ id: 'a', label: 'Ana' }, { id: 'b', label: 'Bruno' }];
+    const p = blocks.newBlock('pagamentoUnico', roles, 'pt', []);
+    assert.ok(blocks.validate({ roles, blocks: [p], scale: Infinity }).some(e => /escala/.test(e.pt)));
+    assert.ok(blocks.validate({ roles, blocks: [p], scale: 1e-300 }).some(e => /escala/.test(e.pt)));
+    assert.ok(blocks.validate({ roles, blocks: [p, { uid: 'z', type: 'constructor', label: 'x', params: {} }], scale: 1000 }).some(e => /desconhecido/.test(e.pt)));
+});

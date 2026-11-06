@@ -221,6 +221,10 @@ Blocks, templates and AI instructions follow, among others:
 - no dangerous features (`tx.origin`, `selfdestruct`, `delegatecall`, `assembly`);
 - explicit notes on on-chain limitations.
 
+In "Free text" mode, the code itself is written by the AI; always check the checker and the Lab tests, especially the scenario in which an unauthorized account tries every function.
+
+The page also protects itself: typed or imported text and names never reach the code outside comments; imported files are sanitized and size-limited; the official compiler only runs after its fingerprint is checked; and the page does not work inside frames of other sites.
+
 In every contract, the predefined tests include an unauthorized account trying each function, a reentrancy attack by a real malicious contract (when there is an Ether payment) and a solvency check at the end of each scenario. The project's automated tests compile every block, template and example, plus 60 random block combinations, and require all of them to pass functional, attack and solvency scenarios.
 
 ## 13. Glossary

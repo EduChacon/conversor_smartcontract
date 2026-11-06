@@ -221,6 +221,10 @@ Os blocos, os modelos e as instruções da IA seguem, entre outros requisitos:
 - proibição de recursos perigosos (`tx.origin`, `selfdestruct`, `delegatecall`, `assembly`);
 - registro das limitações do "on-chain".
 
+No modo "Texto livre", o próprio código é escrito pela IA; confira sempre o verificador e os testes do Laboratório, em especial o cenário em que uma conta não autorizada tenta executar cada função.
+
+A página também se protege: textos e nomes digitados ou importados nunca entram no código fora dos comentários; os arquivos importados são saneados e limitados em tamanho; o compilador oficial só é executado depois de conferida a sua impressão digital; e a página não funciona dentro de molduras de outros sites.
+
 Os testes predefinidos incluem, em todo contrato, a tentativa de uma conta não autorizada executar cada função, um ataque de reentrância por contrato malicioso real (quando há pagamento em Ether) e a conferência de solvência ao fim de cada cenário. Os testes automatizados do projeto compilam cada bloco, modelo e exemplo, além de 60 combinações aleatórias de blocos, e exigem que todos passem nos cenários de funcionalidade, ataque e solvência.
 
 ## 13. Glossário

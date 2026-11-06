@@ -54,6 +54,11 @@
         'assinaturas', 'signaturecount', 'documentoassinado', 'signeddocument', 'notificacoesregistradas', 'recordednotices',
         'texto', 'text', 'destinatario', 'recipient', 'numero', 'number', 'remetente', 'sender', 'hashdotexto', 'texthash', 'hashdodocumento', 'documenthash']);
 
+    // Caracteres de controle, separadores de linha e de direção de texto: nunca entram no código
+    // (impedem que um rótulo ou texto escape do comentário e injete código Solidity).
+    const UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
+    function safe(text) { return String(text == null ? '' : text).replace(UNSAFE_CHARS, ' '); }
+
     function words(label) {
         return String(label || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
             .replace(/[^A-Za-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
@@ -630,7 +635,9 @@
         const errs = [];
         const add = (pt, en, uid) => errs.push({ pt, en, uid });
         const roles = model.roles || [];
-        const blocks = model.blocks || [];
+        const own = t => Object.prototype.hasOwnProperty.call(BLOCKS, t);
+        for (const b of (model.blocks || []).filter(x => !x || !own(x.type))) add('Bloco desconhecido.', 'Unknown block.', b && b.uid);
+        const blocks = (model.blocks || []).filter(x => x && own(x.type));
         const roleIds = new Set(roles.map(r => r.id));
         if (roles.length < 2) add('Defina ao menos duas partes.', 'Define at least two parties.');
         const seenRole = new Set();
@@ -641,10 +648,12 @@
             seenRole.add(k);
         }
         if (!blocks.length) add('Acrescente ao menos um bloco.', 'Add at least one block.');
+        const sc = model.scale == null ? 1000 : Number(model.scale);
+        if (!Number.isFinite(sc) || sc < 0.01 || sc > 1e9) add('A escala (reais por 1 ETH) deve estar entre 0,01 e 1.000.000.000.', 'The scale (BRL per 1 ETH) must be between 0.01 and 1,000,000,000.');
         const names = new Set();
         const counts = {};
         for (const b of blocks) {
-            const def = BLOCKS[b.type];
+            const def = Object.prototype.hasOwnProperty.call(BLOCKS, b.type) ? BLOCKS[b.type] : null;
             if (!def) { add('Bloco desconhecido.', 'Unknown block.', b.uid); continue; }
             counts[b.type] = (counts[b.type] || 0) + 1;
             if (def.single && counts[b.type] > 1) add('O bloco "' + def.name.pt + '" só pode aparecer uma vez.', 'The "' + def.name.en + '" block can appear only once.', b.uid);
@@ -823,10 +832,10 @@
             const clash = blockPrefixes.some(pr => v !== pr && v.startsWith(pr)) || /^(apenas|only|na|in)[A-Z]/.test(v) || /^(saldo|valor|vencimento|proximo|prazo|ler|informar|atestar|pagar|depositar|liberar|reaver|sacar)[A-Z]/.test(v);
             return clash && !v.endsWith('Parte') ? v + 'Parte' : v;
         };
-        const roles = (model.roles || []).map(r => ({ id: r.id, label: r.label, v: roleVar(r.label), P: pascal(r.label) }));
+        const roles = (model.roles || []).map(r => ({ id: r.id, label: safe(r.label), v: roleVar(r.label), P: pascal(r.label) }));
         const roleById = id => roles.find(r => r.id === id);
         // I: sufixo dos nomes de função e evento, separado do ato por sublinhado (pagar_Aluguel).
-        const blocks = (model.blocks || []).map(b => Object.assign({}, b, { I: '_' + pascal(b.label), i: camel(b.label), U: upper(b.label) }));
+        const blocks = (model.blocks || []).map(b => Object.assign({}, b, { label: safe(b.label), texto: b.texto == null ? b.texto : safe(b.texto), I: '_' + pascal(b.label), i: camel(b.label), U: upper(b.label) }));
         const byUid = uid => blocks.find(b => b.uid === uid);
         const arb = blocks.find(b => b.type === 'arbitro');
         const arbRole = arb ? roleById(arb.params.arbitro) : null;
@@ -881,6 +890,9 @@
     }
 
     function clauseTitle(block, ctx) {
+        return safe(clauseTitleRaw(block, ctx));
+    }
+    function clauseTitleRaw(block, ctx) {
         const def = BLOCKS[block.type];
         if (def.attached) {
             const target = ctx.byUid(block.params.alvo);
@@ -944,6 +956,7 @@
 
     function commentBlock(text, indent) {
         // Quebra o texto em linhas de até ~96 colunas, como comentário NatSpec.
+        text = safe(text);
         const max = 96;
         const lines = [];
         let cur = '';
@@ -2859,6 +2872,6 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     return {
         BLOCKS, CATEGORIES, PRESETS, SOLC_VERSION, slots, missingSlots,
         newBlock, validate, warnings, normalize, legalCheck, qualificacao, textoParaAssinatura, hashDoTexto: (model, lang) => '0x' + sha256Hex(textoParaAssinatura(model, lang)), sha256Hex, minuta, build, plan, preset, emptyModel, legend, colorOf, linksOf, COLORS, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
-        names: { pascal, camel, upper }, toWei, fieldLabel
+        names: { pascal, camel, upper }, toWei, fieldLabel, safe, isBlockType: t => Object.prototype.hasOwnProperty.call(BLOCKS, t)
     };
 }));

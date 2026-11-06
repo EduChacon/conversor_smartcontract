@@ -2,6 +2,13 @@
 /* Controlador da página: interface, chave, parâmetros da IA e fluxos. */
 (function () {
     'use strict';
+
+    // Proteção contra "clickjacking": a página não funciona dentro de moldura de outro site.
+    if (window.top !== window.self) {
+        try { window.top.location.href = window.self.location.href; } catch (_) { /* moldura de outra origem */ }
+        document.documentElement.style.visibility = 'hidden';
+        return;
+    }
     const CSC = window.CSC;
     const t = (k, v) => CSC.t(k, v);
     const $ = id => document.getElementById(id);

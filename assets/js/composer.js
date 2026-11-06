@@ -73,6 +73,7 @@
         finalClauseTitle: 'Pagamentos e saques',
         declarative: 'não executada pelo código',
         linkedTo: 'ligada a: {name}',
+        replaceConfirm: 'Substituir o contrato atual? As alterações que não foram salvas (em "Salvar contrato" ou "Salvar como meu modelo") serão perdidas.',
         linkedToTitle: 'Ir para a cláusula {name}',
         linkMap: 'Mapa das ligações entre cláusulas',
         linkMapHint: 'Cada cláusula tem uma cor, repetida no código, no Laboratório e nos testes. As cláusulas recuadas dependem da cláusula acima delas.',
@@ -156,6 +157,7 @@
         finalClauseTitle: 'Payments and withdrawals',
         declarative: 'not executed by the code',
         linkedTo: 'linked to: {name}',
+        replaceConfirm: 'Replace the current contract? Changes not saved (with "Save contract" or "Save as my template") will be lost.',
         linkedToTitle: 'Go to clause {name}',
         linkMap: 'Map of links between clauses',
         linkMapHint: 'Each clause has a color, repeated in the code, the Lab and the tests. Indented clauses depend on the clause above them.',
@@ -200,6 +202,7 @@
     };
 
     function changed(structural) {
+        state.dirty = true;
         if (structural) render();
         else renderIssues();
         if (state.onChange) state.onChange(state.model);
@@ -325,7 +328,7 @@
             : [el('input', { class: 'clause-name', type: 'text', value: block.label, 'aria-label': t('clauseName'),
                 size: String(Math.max(6, block.label.length + 1)),
                 oninput: e => { e.target.size = Math.max(6, e.target.value.length + 1); block.label = e.target.value; changed(false); },
-                onchange: () => changed(true) }),
+                onchange: scheduleRender }),
             B().names.pascal(block.label) === B().names.pascal(typeName) ? null : el('span', { class: 'clause-kind', text: '(' + typeName.toLowerCase() + ')' })];
         const tools = el('span', { class: 'clause-tools' }, [
             block.texto && !def.declarative ? el('button', { type: 'button', class: 'link-btn', text: t('restoreWording'), onclick: () => { delete block.texto; changed(true); } }) : null,
@@ -431,6 +434,7 @@
 
     // ---------- Arquivo do contrato (.json) ----------
     function exportContract() {
+        state.dirty = false;
         const data = { formato: 'conversor-contratual/contrato', versao: 1, criadoEm: new Date().toISOString(), idioma: CSC.lang, modelo: state.model };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -451,6 +455,7 @@
             return out;
         });
         const model = { name: str(m.name, 80), scale: Number(m.scale) > 0 ? Number(m.scale) : 1000, roles, blocks };
+        B().normalize(model);
         if (m.cotacao && Number(m.cotacao.brl) > 0) model.cotacao = { brl: Number(m.cotacao.brl), fonte: str(m.cotacao.fonte, 30), data: str(m.cotacao.data, 40) };
         return model;
     }
@@ -479,7 +484,7 @@
             if (i > 0) chips.push(document.createTextNode(i === roles.length - 1 ? (CSC.lang === 'en' ? ' and ' : ' e ') : ', '));
             const input = el('input', { class: 'blank blank-party', type: 'text', value: r.label, 'aria-label': t('partyName'), size: String(Math.max(4, r.label.length + 1)),
                 oninput: e => { e.target.size = Math.max(4, e.target.value.length + 1); r.label = e.target.value; changed(false); },
-                onchange: () => changed(true) });
+                onchange: scheduleRender });
             const rm = roles.length > 2 && !used(r.id)
                 ? el('button', { type: 'button', class: 'icon-btn', title: t('removeParty'), 'aria-label': t('removeParty'), text: '×', onclick: () => { roles.splice(roles.indexOf(r), 1); changed(true); } })
                 : null;
@@ -643,6 +648,7 @@
         return m;
     }
     function saveModel() {
+        state.dirty = false;
         const name = String(state.model.name || '').trim() || t('docBlank');
         const all = models.get();
         const i = all.findIndex(x => x.nome.toLowerCase() === name.toLowerCase());
@@ -775,6 +781,7 @@
         }
         const warnings = [];
         for (const r of state.model.roles) if (r.carteira && !/^0x[0-9a-fA-F]{40}$/.test(r.carteira)) warnings.push(t('walletInvalid', { name: r.label }));
+        for (const x of B().warnings(state.model)) warnings.push(x[CSC.lang === 'en' ? 'en' : 'pt']);
         for (const b of state.model.blocks) {
             const vals = looseValues(b);
             if (vals.length) warnings.push(t('looseValues', { clause: b.label, values: vals.map(v => '"' + v.trim() + '"').join(', ') }));
@@ -830,7 +837,42 @@
         ]);
     }
 
+    /** Posição do elemento em foco dentro do documento, para restaurá-lo após redesenhar. */
+    const FOCUSABLE = 'input, select, textarea, button, [contenteditable="true"]';
+    function focusSnapshot() {
+        const a = document.activeElement;
+        if (!a || !state.dom.doc.contains(a)) return null;
+        const all = Array.from(state.dom.doc.querySelectorAll(FOCUSABLE));
+        const snap = { index: all.indexOf(a), tag: a.tagName };
+        if (a.tagName === 'INPUT' && a.type === 'text') { snap.start = a.selectionStart; snap.end = a.selectionEnd; }
+        return snap.index < 0 ? null : snap;
+    }
+    function focusRestore(snap) {
+        if (!snap) return;
+        const n = Array.from(state.dom.doc.querySelectorAll(FOCUSABLE))[snap.index];
+        if (!n || n.tagName !== snap.tag) return;
+        n.focus({ preventScroll: true });
+        if (snap.start != null && n.setSelectionRange) try { n.setSelectionRange(snap.start, snap.end); } catch (_) { /* tipo sem seleção */ }
+    }
+
+    /**
+     * Renomear uma parte ou cláusula muda rótulos em outros pontos do documento, mas redesenhá-lo
+     * enquanto a pessoa digita em outro campo perderia o que ela digitou. O redesenho espera o foco
+     * sair do documento (ou outra alteração estrutural).
+     */
+    function scheduleRender() {
+        state.pendingRender = true;
+        setTimeout(() => { if (state.pendingRender && !state.dom.doc.contains(document.activeElement)) render(); }, 0);
+    }
+
     function render() {
+        state.pendingRender = false;
+        const snap = focusSnapshot();
+        renderNow();
+        focusRestore(snap);
+    }
+
+    function renderNow() {
         const d = state.dom;
         const m = state.model;
         d.title.value = m.name || '';
@@ -869,6 +911,10 @@
             state.dom = dom;
             state.onChange = onChange;
             dom.title.addEventListener('input', () => { state.model.name = dom.title.value; changed(false); });
+            dom.doc.addEventListener('focusout', e => {
+                if (!state.pendingRender || (e.relatedTarget && dom.doc.contains(e.relatedTarget))) return;
+                setTimeout(() => { if (state.pendingRender && !dom.doc.contains(document.activeElement)) render(); }, 0);
+            });
             if (dom.save) dom.save.addEventListener('click', exportContract);
             if (dom.open && dom.openFile) {
                 dom.open.addEventListener('click', () => dom.openFile.click());
@@ -877,13 +923,15 @@
             dom.presets.addEventListener('change', () => {
                 const v = dom.presets.value;
                 if (!v) return;
-                if (v.startsWith('mine:')) { useModel(v.slice(5)); return; }
+                if (state.dirty && state.model.blocks.length && !window.confirm(t('replaceConfirm'))) { dom.presets.value = ''; return; }
+                if (v.startsWith('mine:')) { useModel(v.slice(5)); state.dirty = false; return; }
                 state.model = v === '__blank' ? B().emptyModel(CSC.lang) : B().preset(v, CSC.lang);
                 state.openWording.clear();
                 changed(true);
+                state.dirty = false;
             });
         },
-        load(model) { state.model = model; render(); },
+        load(model) { state.model = B().normalize(model); render(); },
         model: () => state.model,
         _parseSeries: parseSeries,
         render,

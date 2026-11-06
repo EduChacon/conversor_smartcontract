@@ -588,3 +588,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .my-models-panel .inline-row { margin: .5rem 0; }
 .my-models { list-style: none; margin: .3rem 0; padding: 0; }
 .my-models li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; padding: .3rem 0; border-bottom: 1px solid var(--rule); }
+
+.fn-card .fn-name { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+.fn-card { min-width: 0; }

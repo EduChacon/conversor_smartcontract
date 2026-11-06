@@ -1103,7 +1103,7 @@
     function openRemix() {
         const code = currentCode();
         copyCode(true);
-        let url = 'https://remix.ethereum.org/#code=' + encodeURIComponent(toBase64Utf8(code)) + '&autoCompile=true';
+        let url = 'https://remix.ethereum.org/#code=' + encodeURIComponent(toBase64Utf8(code)) + '&autoCompile=true&optimize=true&runs=200&evmVersion=cancun';
         const v = CSC.compiler.version();
         const m = v && /^(\d+\.\d+\.\d+\+commit\.[0-9a-f]+)/.exec(v);
         if (m) url += '&version=soljson-v' + m[1] + '.js';

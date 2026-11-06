@@ -34,7 +34,20 @@
         'mapping', 'return', 'returns', 'public', 'private', 'external', 'internal', 'view', 'pure', 'payable', 'memory', 'storage',
         'calldata', 'if', 'else', 'for', 'while', 'do', 'new', 'delete', 'true', 'false', 'this', 'super', 'emit', 'revert', 'require',
         'assert', 'constant', 'immutable', 'enum', 'struct', 'library', 'interface', 'import', 'pragma', 'is', 'override', 'virtual',
-        'abstract', 'constructor', 'fallback', 'receive', 'type', 'try', 'catch', 'using', 'assembly', 'unchecked', 'days', 'ether', 'wei']);
+        'abstract', 'constructor', 'fallback', 'receive', 'type', 'try', 'catch', 'using', 'assembly', 'unchecked', 'days', 'ether', 'wei',
+        // palavras reservadas e globais do Solidity
+        'msg', 'block', 'tx', 'abi', 'now', 'default', 'final', 'gwei', 'seconds', 'minutes', 'hours', 'weeks', 'years', 'after', 'alias',
+        'apply', 'auto', 'byte', 'case', 'copyof', 'define', 'implements', 'in', 'inline', 'let', 'macro', 'match', 'mutable', 'null', 'of',
+        'partial', 'promise', 'reference', 'relocatable', 'sealed', 'sizeof', 'static', 'supports', 'switch', 'typedef', 'typeof', 'var',
+        'selfdestruct', 'keccak256', 'sha256', 'gasleft', 'blockhash', 'addmod', 'mulmod', 'ecrecover', 'ripemd160', 'transient', 'layout', 'at',
+        // nomes gerados pelo próprio contrato (português e inglês)
+        'inicio', 'start', 'saldos', 'balances', 'situacao', 'status', 'sacar', 'withdraw', 'travado', 'locked', 'token', 'encerradoem', 'closedat',
+        'saldoretido', 'heldbalance', 'saldostoken', 'tokenbalances', 'sacartoken', 'withdrawtoken', 'bps', 'nonreentrant', 'ok', 'valor', 'amount',
+        // variáveis locais e parâmetros de função gerados (evitam sombreamento)
+        'total', 'base', 'v', 'livre', 'free', 'destino', 'to', 'motivo', 'reason', 'limite', 'limit', 'saldo', 'balance', 'multa', 'fee',
+        'juros', 'interest', 'encargos', 'charges', 'vencimento', 'duedate', 'diasatraso', 'dayslate', 'restante', 'rest', 'aobeneficiario',
+        'tobeneficiary', 'descricao', 'description', 'cumprida', 'fulfilled', 'indice', 'index', 'favorbeneficiario', 'favorbeneficiary',
+        'valoraobeneficiario', 'amounttobeneficiary', 'ato', 'act', 'novo', 'next', 'original', 'novoprazo', 'newdeadline']);
 
     function words(label) {
         return String(label || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -48,7 +61,7 @@
     function camel(label) {
         const p = pascal(label);
         const c = p.charAt(0).toLowerCase() + p.slice(1);
-        return RESERVED.has(c) ? c + 'Parte' : c;
+        return RESERVED.has(c.toLowerCase()) ? c + 'Parte' : c;
     }
     function upper(label) { return words(label).map(x => x.toUpperCase()).join('_').replace(/^([0-9])/, 'X$1') || 'ITEM'; }
 
@@ -166,11 +179,12 @@
                 { key: 'devedor', kind: 'role', role: 1 },
                 { key: 'credor', kind: 'role', role: 0 },
                 { key: 'prazo', kind: 'days', def: 30, min: 1 },
-                { key: 'verificador', kind: 'role', role: 0 }
+                { key: 'verificador', kind: 'role', role: 0 },
+                { key: 'atestacao', kind: 'days', def: 10, min: 1 }
             ],
             sentence: {
-                pt: '{devedor} entregará a {credor} o bem descrito neste contrato até {prazo} dias após a implantação. O recebimento será atestado por {verificador}; vencido o prazo sem atestação, o credor poderá declarar o inadimplemento.',
-                en: '{devedor} shall deliver to {credor} the item described in this contract within {prazo} days of deployment. Receipt shall be attested by {verificador}; if the deadline passes without attestation, the creditor may declare default.'
+                pt: '{devedor} entregará a {credor} o seguinte bem: [descreva o bem], até {prazo} dias após a implantação. Informada a entrega, {verificador} terá {atestacao} dias para atestar o recebimento ou recusá-lo fundamentadamente; o silêncio importará atestação, e a recusa reabrirá ao devedor igual prazo para cumprir. Vencido o prazo sem cumprimento informado, qualquer das partes poderá declarar o inadimplemento.',
+                en: '{devedor} shall deliver to {credor} the following item: [describe the item], within {prazo} days of deployment. Once delivery is reported, {verificador} has {atestacao} days to attest receipt or reject it with reasons; silence counts as attestation, and a rejection gives the debtor the same period again to perform. If the deadline passes with no performance reported, either party may declare default.'
             }
         },
         obrigacaoFazer: {
@@ -182,11 +196,12 @@
                 { key: 'devedor', kind: 'role', role: 1 },
                 { key: 'credor', kind: 'role', role: 0 },
                 { key: 'prazo', kind: 'days', def: 30, min: 1 },
-                { key: 'verificador', kind: 'role', role: 0 }
+                { key: 'verificador', kind: 'role', role: 0 },
+                { key: 'atestacao', kind: 'days', def: 10, min: 1 }
             ],
             sentence: {
-                pt: '{devedor} realizará em favor de {credor} a prestação descrita neste contrato até {prazo} dias após a implantação. O cumprimento será atestado por {verificador}; vencido o prazo sem atestação, o credor poderá declarar o inadimplemento.',
-                en: '{devedor} shall perform for {credor} the service described in this contract within {prazo} days of deployment. Performance shall be attested by {verificador}; if the deadline passes without attestation, the creditor may declare default.'
+                pt: '{devedor} realizará em favor de {credor} a seguinte prestação: [descreva o serviço], até {prazo} dias após a implantação. Informado o cumprimento, {verificador} terá {atestacao} dias para atestá-lo ou recusá-lo fundamentadamente; o silêncio importará atestação, e a recusa reabrirá ao devedor igual prazo para cumprir. Vencido o prazo sem cumprimento informado, qualquer das partes poderá declarar o inadimplemento.',
+                en: '{devedor} shall perform for {credor} the following service: [describe the service], within {prazo} days of deployment. Once performance is reported, {verificador} has {atestacao} days to attest or reject it with reasons; silence counts as attestation, and a rejection gives the debtor the same period again to perform. If the deadline passes with no performance reported, either party may declare default.'
             }
         },
         obrigacaoNaoFazer: {
@@ -201,8 +216,8 @@
                 { key: 'verificador', kind: 'role', role: 0 }
             ],
             sentence: {
-                pt: '{devedor} abster-se-á, em favor de {credor}, da conduta descrita neste contrato durante {duracao} dias contados da implantação. Eventual violação será registrada por {verificador}; findo o prazo sem violação, a obrigação considera-se cumprida.',
-                en: '{devedor} shall refrain, for the benefit of {credor}, from the conduct described in this contract for {duracao} days from deployment. Any breach shall be recorded by {verificador}; if the period ends without breach, the obligation is deemed fulfilled.'
+                pt: '{devedor} abster-se-á, em favor de {credor}, da seguinte conduta: [descreva a conduta vedada], durante {duracao} dias contados da implantação. Eventual violação será registrada por {verificador}, com a descrição do fato, e, havendo árbitro, dependerá de sua confirmação; findo o prazo sem violação, a obrigação considera-se cumprida.',
+                en: '{devedor} shall refrain, for the benefit of {credor}, from the following conduct: [describe the prohibited conduct], for {duracao} days from deployment. Any breach shall be recorded by {verificador}, describing the fact, and, if there is an arbitrator, is subject to their confirmation; if the period ends without breach, the obligation is deemed fulfilled.'
             }
         },
         clausulaPenal: {
@@ -214,8 +229,8 @@
                 { key: 'valor', kind: 'money', def: 5000 }
             ],
             sentence: {
-                pt: 'Para garantir {alvo}, o devedor depositará {valor} no contrato. Havendo inadimplemento ou violação, esse valor será entregue ao credor a título de cláusula penal; cumprida a obrigação, ou encerrado o contrato sem descumprimento, será devolvido ao devedor.',
-                en: 'To secure {alvo}, the debtor shall deposit {valor} in the contract. In case of default or breach, this amount goes to the creditor as a penalty; once the obligation is fulfilled, or the contract ends without breach, it is returned to the debtor.'
+                pt: 'Em garantia da obrigação {alvo}, o respectivo devedor depositará {valor} no contrato. Havendo inadimplemento ou violação, esse valor será entregue ao credor a título de cláusula penal; cumprida a obrigação, ou encerrado o contrato antes de seu vencimento, será devolvido ao devedor.',
+                en: 'To secure the obligation {alvo}, its debtor shall deposit {valor} in the contract. In case of default or breach, this amount goes to the creditor as a penalty; if the obligation is fulfilled, or the contract ends before it falls due, it is returned to the debtor.'
             }
         },
         custodia: {
@@ -229,7 +244,7 @@
                 { key: 'prazo', kind: 'days', def: 30, min: 1 }
             ],
             sentence: {
-                pt: '{depositante} depositará {valor}, que ficará retido no contrato até que confirme o cumprimento da obrigação, quando o valor será liberado a {beneficiario}. Não havendo confirmação em {prazo} dias contados do depósito, {depositante} poderá reaver o valor.',
+                pt: '{depositante} depositará {valor}, que ficará retido no contrato até que o próprio depositante confirme o cumprimento da obrigação, quando o valor será liberado a {beneficiario}. Não havendo confirmação em {prazo} dias contados do depósito, {depositante} poderá reaver o valor.',
                 en: '{depositante} shall deposit {valor}, held in the contract until they confirm performance, when it is released to {beneficiario}. Absent confirmation within {prazo} days of the deposit, {depositante} may recover the amount.'
             }
         },
@@ -268,10 +283,10 @@
             category: 'disputas',
             name: { pt: 'Árbitro', en: 'Arbitrator' },
             single: true,
-            params: [{ key: 'arbitro', kind: 'role', role: 2 }],
+            params: [{ key: 'arbitro', kind: 'role', role: 2 }, { key: 'prazo', kind: 'days', def: 30, min: 1 }],
             sentence: {
-                pt: 'As divergências sobre a liberação de valores retidos e sobre o cumprimento informado de obrigações serão decididas por {arbitro}, cuja decisão o contrato executará.',
-                en: 'Disputes about the release of held amounts and about reported performance of obligations shall be decided by {arbitro}, whose decision the contract will execute.'
+                pt: 'As divergências sobre a liberação de valores retidos e sobre o cumprimento de obrigações serão decididas por {arbitro} em até {prazo} dias contados da abertura da disputa, e o contrato executará a decisão. Sem decisão nesse prazo, os valores em disputa voltam a quem os depositou.',
+                en: 'Disputes about the release of held amounts and about the performance of obligations shall be decided by {arbitro} within {prazo} days of the dispute being opened, and the contract will execute the decision. Absent a decision within that period, the disputed amounts return to whoever deposited them.'
             }
         },
         rescisao: {
@@ -381,7 +396,7 @@
         garantidor: { pt: 'quem presta a garantia', en: 'guarantor' }, arbitro: { pt: 'árbitro', en: 'arbitrator' }, quem: { pt: 'quem pode rescindir', en: 'who may terminate' },
         duracao: { pt: 'duração (dias)', en: 'duration (days)' },
         fonte: { pt: 'fonte da informação', en: 'data source' }, validade: { pt: 'validade (dias)', en: 'validity (days)' },
-        verificador: { pt: 'quem atesta', en: 'who attests' },
+        verificador: { pt: 'quem atesta', en: 'who attests' }, atestacao: { pt: 'prazo para atestar (dias)', en: 'attestation period (days)' },
         indice: { pt: 'índice', en: 'index' }, cotacao: { pt: 'cotação', en: 'price' }, evento: { pt: 'evento', en: 'event' }
     };
     function fieldLabel(key, lang) { const f = FIELD_LABELS[key]; return f ? f[lang === 'en' ? 'en' : 'pt'] : key; }
@@ -426,6 +441,17 @@
         const blk = { uid: 'b' + (++uidSeq) + Date.now().toString(36).slice(-3), type, label: candidate, params };
         if (def.declarative) blk.texto = def.sentence[lang === 'en' ? 'en' : 'pt'];
         return blk;
+    }
+
+    /** Completa campos ausentes com o valor padrão (contratos salvos em versões anteriores). */
+    function normalize(model) {
+        for (const b of (model && model.blocks) || []) {
+            const def = BLOCKS[b.type];
+            if (!def) continue;
+            b.params = b.params || {};
+            for (const p of def.params) if (b.params[p.key] === undefined && p.def !== undefined) b.params[p.key] = p.def;
+        }
+        return model;
     }
 
     /** Valida a montagem; devolve lista de mensagens { pt, en, uid? }. */
@@ -509,14 +535,46 @@
             for (const b of blocks.filter(x => x.type === 'custodia' || x.type === 'caucao')) {
                 if ([b.params.depositante, b.params.beneficiario, b.params.garantidor].includes(arb.params.arbitro)) add('O árbitro não pode ser parte de "' + b.label + '".', 'The arbitrator cannot be a party to "' + b.label + '".', b.uid);
             }
-            for (const b of blocks.filter(x => x.type === 'obrigacaoDar' || x.type === 'obrigacaoFazer')) {
+            for (const b of blocks.filter(x => BLOCKS[x.type] && BLOCKS[x.type].obligation)) {
                 if ([b.params.devedor, b.params.credor].includes(arb.params.arbitro)) add('O árbitro não pode ser parte de "' + b.label + '".', 'The arbitrator cannot be a party to "' + b.label + '".', b.uid);
             }
         }
-        if (blocks.some(b => b.type === 'caucao') && !blocks.some(b => b.type === 'rescisao' || b.type === 'vigencia' || b.type === 'pagamentoPeriodico' || b.type === 'pagamentoUnico' || b.type === 'etapas' || b.type === 'custodia' || (BLOCKS[b.type] && BLOCKS[b.type].obligation))) {
-            add('A caução só é devolvida após o término: acrescente um bloco que encerre o contrato (obrigação, rescisão ou vigência).', 'The security deposit is returned after the end: add a block that ends the contract (obligation, termination or term).');
+        const ends = blocks.some(b => b.type === 'rescisao' || b.type === 'vigencia');
+        for (const b of blocks.filter(x => x.type === 'caucao' || x.type === 'etapas')) {
+            if (!ends) add('Os valores retidos em "' + b.label + '" precisam de uma forma de encerramento do contrato: acrescente "Rescisão" ou "Prazo de vigência".',
+                'Amounts held in "' + b.label + '" need a way to close the contract: add "Termination" or "Term".', b.uid);
+        }
+        if (arb) {
+            const a = arb.params.arbitro;
+            const resc = blocks.find(b => b.type === 'rescisao');
+            if (resc && resc.params.quem === a) add('O árbitro não pode ser quem rescinde o contrato.', 'The arbitrator cannot be the one who terminates the contract.', resc.uid);
+            for (const b of blocks.filter(x => ['pagamentoUnico', 'pagamentoPeriodico', 'pagamentoToken', 'etapas'].includes(x.type))) {
+                if ([b.params.devedor, b.params.credor, b.params.contratante, b.params.contratado].includes(a)) add('O árbitro não pode ser parte de "' + b.label + '".', 'The arbitrator cannot be a party to "' + b.label + '".', b.uid);
+            }
         }
         return errs;
+    }
+
+    /** Avisos que não impedem a geração: riscos de equilíbrio entre as partes. */
+    function warnings(model) {
+        const out = [];
+        const blocks = model.blocks || [];
+        const hasArb = blocks.some(b => b.type === 'arbitro');
+        for (const b of blocks.filter(x => BLOCKS[x.type] && BLOCKS[x.type].obligation)) {
+            const pen = blocks.some(x => x.type === 'clausulaPenal' && x.params.alvo === b.uid);
+            if (!hasArb && b.params.verificador === b.params.credor) {
+                out.push({ uid: b.uid,
+                    pt: 'Em "' + b.label + '", quem atesta é o próprio credor e não há árbitro: ' + (pen ? 'a cláusula penal depende' : 'o resultado depende') + ' da boa-fé do credor. Considere designar um terceiro para atestar ou acrescentar um árbitro.',
+                    en: 'In "' + b.label + '", the attesting party is the creditor and there is no arbitrator: ' + (pen ? 'the penalty depends' : 'the outcome depends') + ' on the creditor\'s good faith. Consider a third party to attest, or add an arbitrator.' });
+            }
+            if (BLOCKS[b.type].obligation !== 'naoFazer' && /\[descreva|\[describe/.test(String(b.texto || BLOCKS[b.type].sentence.pt))) {
+                out.push({ uid: b.uid, pt: 'Em "' + b.label + '", descreva o bem ou a prestação no lugar de "[descreva…]".', en: 'In "' + b.label + '", describe the item or service in place of "[describe…]".' });
+            }
+            if (BLOCKS[b.type].obligation === 'naoFazer' && /\[descreva|\[describe/.test(String(b.texto || BLOCKS[b.type].sentence.pt))) {
+                out.push({ uid: b.uid, pt: 'Em "' + b.label + '", descreva a conduta vedada no lugar de "[descreva…]".', en: 'In "' + b.label + '", describe the prohibited conduct in place of "[describe…]".' });
+            }
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------
@@ -545,7 +603,8 @@
             PrazoNaoEncerrado: w('PrazoNaoEncerrado', 'DeadlineNotReached'), PrazoEncerrado: w('PrazoEncerrado', 'DeadlinePassed'), SemAtraso: w('SemAtrasoSuficiente', 'NotLateEnough'),
             DadoIndisponivel: w('DadoIndisponivel', 'DataUnavailable'),
             EstadoObrigacao: w('EstadoObrigacao', 'ObligationState'), Pendente: w('Pendente', 'Pending'), Informado: w('CumprimentoInformado', 'PerformanceReported'),
-            Cumprida: w('Cumprida', 'Fulfilled'), Descumprida: w('Descumprida', 'Breached'),
+            Cumprida: w('Cumprida', 'Fulfilled'), Descumprida: w('Descumprida', 'Breached'), EmDisputaObr: w('EmDisputa', 'Disputed'), SemDecisao: w('SemDecisao', 'Unresolved'),
+            PRAZO_ARB: w('PRAZO_ARBITRO', 'ARBITRATION_PERIOD'),
             SemSaldo: w('SemSaldo', 'NothingToWithdraw'), FalhaNoEnvio: w('FalhaNoEnvio', 'TransferFailed'), Reentrada: w('Reentrada', 'Reentrancy'),
             ContratoEncerrado: w('ContratoEncerrado', 'AgreementClosed'), Saque: w('Saque', 'Withdrawal'),
             devido: w('devido', 'due'), enviado: w('enviado', 'sent'), limite: w('limite', 'limit'), valor: w('valor', 'amount'), credor: w('credor', 'payee'), quando: w('quando', 'when')
@@ -674,6 +733,7 @@
         const adjOf = b => blocks.find(x => x.type === 'reajuste' && x.params.alvo === b.uid);
         const fxOf = b => blocks.find(x => x.type === 'conversaoCambial' && x.params.alvo === b.uid);
         const relOf = b => blocks.find(x => x.type === 'liberacaoPorEvento' && x.params.alvo === b.uid);
+        const penOf = b => blocks.find(x => x.type === 'clausulaPenal' && x.params.alvo === b.uid);
 
         /** Valor-base de um pagamento: constante, reajustada por índice e/ou convertida pela cotação. */
         function baseOf(b, P) {
@@ -817,9 +877,11 @@
 ${commentBlock(fillSentence(acc, ctx), '    ')}
     // ${'-'.repeat(70)}
 
-    /// @notice ${w('Saldo devedor: parcelas ainda não pagas.', 'Outstanding balance: unpaid installments.')}
+    /// @notice ${w('Saldo devedor: parcelas ainda não pagas, mais os encargos da parcela em atraso.', 'Outstanding balance: unpaid installments, plus charges on the overdue installment.')}
     function ${w('saldoDevedor', 'outstanding')}${b.I}() public view returns (uint256) {
-        return (${P}_${w('PARCELAS', 'INSTALLMENTS')} - ${pagas}) * ${base.expr};
+        if (${pagas} == ${P}_${w('PARCELAS', 'INSTALLMENTS')}) return 0;
+        (, uint256 ${w('encargos', 'charges')}) = ${w('valorDevido', 'amountDue')}${b.I}();
+        return (${P}_${w('PARCELAS', 'INSTALLMENTS')} - ${pagas}) * ${base.expr} + ${w('encargos', 'charges')};
     }
 
     /// @notice ${w('Vencimento antecipado, se a parcela em aberto estiver atrasada além do limite.', 'Acceleration, if the open installment is late beyond the limit.')}
@@ -852,6 +914,12 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                 constants.push(`    uint256 public constant ${P}_${w('VALOR', 'AMOUNT')} = ${weiLiteral(toWei(b.params.valor, scale))}; // ${money(b.params.valor, lang)}`);
                 constants.push(`    uint256 public constant ${P}_${w('PRAZO', 'DEADLINE')} = ${Math.round(b.params.prazo)} days;`);
                 state.push(`    ${N.EstadoGarantia} public ${st};`, `    uint256 public ${held};`, `    uint256 public ${dl};`);
+                const cdisp = b.i + w('DisputaEm', 'DisputedAt');
+                if (ctx.arbRole) state.push(`    uint256 public ${cdisp};`);
+                const relB = relOf(b), evB = relB ? ctx.byUid(relB.params.evento) : null;
+                // Com liberação por evento, o depositante não reaver o valor se o evento já foi atestado ou está pendente de atestação ou decisão.
+                const evBlock = evB ? (evB.type === 'oraculoEvento' ? `${evB.i}${w('Confirmado', 'Confirmed')}`
+                    : `(${evB.i}${w('Estado', 'State')} == ${N.EstadoObrigacao}.${N.Cumprida} || ${evB.i}${w('Estado', 'State')} == ${N.EstadoObrigacao}.${N.Informado} || ${evB.i}${w('Estado', 'State')} == ${N.EstadoObrigacao}.${N.EmDisputaObr})`) : null;
                 events.push(`    event ${w('Deposito', 'Deposit')}${b.I}(address indexed ${w('depositante', 'depositor')}, uint256 ${N.valor}, uint256 ${w('prazoFinal', 'deadline')});`);
                 events.push(`    event ${w('Destinacao', 'Allocation')}${b.I}(address indexed ${w('beneficiario', 'beneficiary')}, uint256 ${N.valor});`);
                 const dm = useMod(dep);
@@ -875,7 +943,8 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
     /// @notice ${w('Devolução ao depositante, esgotado o prazo sem confirmação nem disputa.', 'Refund to the depositor after the deadline without confirmation or dispute.')}
     function ${w('reaver', 'refund')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
         if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
-        if (block.timestamp <= ${dl}) revert ${N.PrazoNaoEncerrado}(${dl});
+        if (block.timestamp <= ${dl}) revert ${N.PrazoNaoEncerrado}(${dl});${evBlock ? `
+        if (${evBlock}) revert ${N.NaoDisponivel}(); // ${w('o evento que libera o valor já ocorreu ou aguarda atestação', 'the releasing event has occurred or awaits attestation')}` : ''}
         _${w('destinar', 'allocate')}${b.I}(${dep.v});
     }`);
                 if (ctx.arbRole) {
@@ -886,16 +955,25 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
     function ${w('abrirDisputa', 'openDispute')}${b.I}() external ${pm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
         if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
         ${st} = ${N.EstadoGarantia}.${N.EmDisputa};
+        ${cdisp} = block.timestamp;
     }
 
     /// @notice ${w('Decisão do árbitro sobre a destinação do valor.', 'Arbitrator\'s decision on where the amount goes.')}
     function ${w('decidirDisputa', 'resolveDispute')}${b.I}(bool ${w('favorBeneficiario', 'favorBeneficiary')}) external ${am} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
         if (${st} != ${N.EstadoGarantia}.${N.EmDisputa}) revert ${N.NaoDisponivel}();
         _${w('destinar', 'allocate')}${b.I}(${w('favorBeneficiario', 'favorBeneficiary')} ? ${ben.v} : ${dep.v});
+    }
+
+    /// @notice ${w('Sem decisão do árbitro no prazo, qualquer das partes encerra a disputa e o valor volta ao depositante.', 'Without the arbitrator\'s decision in time, either party ends the dispute and the amount returns to the depositor.')}
+    function ${w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision')}${b.I}() external ${pm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+        if (${st} != ${N.EstadoGarantia}.${N.EmDisputa}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${cdisp} + ${N.PRAZO_ARB};
+        if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
+        _${w('destinar', 'allocate')}${b.I}(${dep.v});
     }`);
                 }
-                const rel = relOf(b);
-                const evb = rel ? ctx.byUid(rel.params.evento) : null;
+                const rel = relB;
+                const evb = evB;
                 if (evb) {
                     const bm = useMod(ben);
                     code.push(`
@@ -995,7 +1073,15 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     }`);
                 retained.push(held);
                 concluded.push(`${apr} == ${E}`);
-                onClose.push(`        if (${held} > 0) {
+                onClose.push(`        if (${at} != 0 && block.timestamp > ${at} + ${A} && ${apr} < ${E}) {
+            // ${w('etapa entregue cujo prazo de aprovação já se esgotou: aprovada tacitamente', 'delivered milestone whose approval period has passed: tacitly approved')}
+            uint256 ${b.i}${w('Etapa', 'Milestone')} = ${w('valorDaEtapa', 'milestoneAmount')}${b.I}(${apr});
+            ${apr} += 1;
+            ${at} = 0;
+            ${held} -= ${b.i}${w('Etapa', 'Milestone')};
+            ${N.saldos}[${cd.v}] += ${b.i}${w('Etapa', 'Milestone')};
+        }
+        if (${held} > 0) {
             ${N.saldos}[${ct.v}] += ${held}; // ${w('etapas não aprovadas voltam ao contratante', 'unapproved milestones return to the client')}
             ${held} = 0;
         }`);
@@ -1008,7 +1094,8 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 constants.push(`    uint256 public constant ${P}_${w('VALOR', 'AMOUNT')} = ${weiLiteral(toWei(b.params.valor, scale))}; // ${money(b.params.valor, lang)}`);
                 constants.push(`    uint256 public constant ${P}_${w('PRAZO_DEVOLUCAO', 'RETURN_PERIOD')} = ${Math.round(b.params.prazo)} days;`);
                 state.push(`    ${N.EstadoGarantia} public ${st};`, `    uint256 public ${held};`);
-                if (ctx.arbRole) state.push(`    uint256 public ${claim};`);
+                const gdisp = b.i + w('DisputaEm', 'DisputedAt');
+                if (ctx.arbRole) state.push(`    uint256 public ${claim};`, `    uint256 public ${gdisp};`);
                 events.push(`    event ${w('Movimento', 'Movement')}${b.I}(string ${w('ato', 'act')}, address indexed ${w('destino', 'to')}, uint256 ${N.valor});`);
                 const gm = useMod(gar), bm = useMod(ben);
                 const PR = `${P}_${w('PRAZO_DEVOLUCAO', 'RETURN_PERIOD')}`;
@@ -1042,6 +1129,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         if (${N.valor} == 0 || ${N.valor} > ${held} || bytes(${w('motivo', 'reason')}).length == 0) revert ${N.ParametroInvalido}();
         ${claim} = ${N.valor};
         ${st} = ${N.EstadoGarantia}.${N.EmDisputa};
+        ${gdisp} = block.timestamp;
         emit ${w('Movimento', 'Movement')}${b.I}(${w('motivo', 'reason')}, ${ben.v}, ${N.valor});
     }
 
@@ -1050,6 +1138,14 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         if (${st} != ${N.EstadoGarantia}.${N.EmDisputa}) revert ${N.NaoDisponivel}();
         if (${w('valorAoBeneficiario', 'amountToBeneficiary')} > ${claim}) revert ${N.ParametroInvalido}();
         _${w('repartir', 'split')}${b.I}(${w('valorAoBeneficiario', 'amountToBeneficiary')});
+    }
+
+    /// @notice ${w('Sem decisão do árbitro no prazo, qualquer das partes encerra a disputa e a caução volta integralmente ao garantidor.', 'Without the arbitrator\'s decision in time, either party ends the dispute and the full deposit returns to the guarantor.')}
+    function ${w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision')}${b.I}() external ${usePair(gar, ben)} ${N.naSituacao}(${N.Situacao}.${N.Encerrado}) {
+        if (${st} != ${N.EstadoGarantia}.${N.EmDisputa}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${gdisp} + ${N.PRAZO_ARB};
+        if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
+        _${w('repartir', 'split')}${b.I}(0);
     }`);
                 } else {
                     code.push(`
@@ -1105,147 +1201,202 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     }`);
             }
 
-            if (b.type === 'obrigacaoDar' || b.type === 'obrigacaoFazer') {
+            if (BLOCKS[b.type].obligation) {
                 needsObligation = true;
-                const dar = b.type === 'obrigacaoDar';
+                const nao = b.type === 'obrigacaoNaoFazer', dar = b.type === 'obrigacaoDar';
                 const dev = roleById(b.params.devedor), cre = roleById(b.params.credor), ver = roleById(b.params.verificador);
-                const st = b.i + w('Estado', 'State');
-                const PZ = `${P}_${w('PRAZO', 'DEADLINE')}`;
-                const fnInf = dar ? w('informarEntrega', 'reportDelivery') : w('informarCumprimento', 'reportPerformance');
-                const fnAt = dar ? w('atestarRecebimento', 'attestReceipt') : w('atestarCumprimento', 'attestPerformance');
-                const fnRec = dar ? w('recusarEntrega', 'rejectDelivery') : w('recusarCumprimento', 'rejectPerformance');
+                const E = N.EstadoObrigacao, st = b.i + w('Estado', 'State');
+                const S = x => `${E}.${N[x]}`;
                 const ev = `${w('Obrigacao', 'Obligation')}${b.I}`;
-                constants.push(`    uint256 public constant ${PZ} = ${Math.round(b.params.prazo)} days;`);
-                state.push(`    ${N.EstadoObrigacao} public ${st};`);
+                const pen = penOf(b);
+                const held = b.i + w('GarantiaRetida', 'BondHeld');
+                const penEv = `${w('ClausulaPenal', 'Penalty')}${b.I}`;
+                const disp = b.i + w('DisputaEm', 'DisputedAt');
+                const arb = ctx.arbRole;
+                const dm = useMod(dev), vm = useMod(ver), pm = usePair(dev, cre);
+                const fin = w('prazoFinal', 'finalDeadline') + b.I;
+                state.push(`    ${E} public ${st};`);
+                if (arb) state.push(`    uint256 public ${disp};`);
                 events.push(`    event ${ev}(string ${w('ato', 'act')}, uint256 ${N.quando});`);
-                const dm = useMod(dev), vm = useMod(ver), cm = useMod(cre);
-                const open = `${st} != ${N.EstadoObrigacao}.${N.Pendente} && ${st} != ${N.EstadoObrigacao}.${N.Informado}`;
-                code.push(`    /// @notice ${dar ? w('O devedor informa que entregou o bem, dentro do prazo.', 'The debtor reports that the item was delivered, within the deadline.') : w('O devedor informa que realizou a prestação, dentro do prazo.', 'The debtor reports that the service was performed, within the deadline.')}
+                let PZ, AT, inf, reab, rec;
+                if (nao) {
+                    PZ = `${P}_${w('DURACAO', 'DURATION')}`;
+                    constants.push(`    uint256 public constant ${PZ} = ${Math.round(b.params.duracao)} days;`);
+                } else {
+                    PZ = `${P}_${w('PRAZO', 'DEADLINE')}`;
+                    AT = `${P}_${w('PRAZO_ATESTACAO', 'ATTESTATION_PERIOD')}`;
+                    inf = b.i + w('InformadoEm', 'ReportedAt');
+                    reab = b.i + w('PrazoReaberto', 'ReopenedDeadline');
+                    rec = b.i + w('Recusado', 'Rejected');
+                    constants.push(`    uint256 public constant ${PZ} = ${Math.round(b.params.prazo)} days;`);
+                    constants.push(`    uint256 public constant ${AT} = ${Math.round(b.params.atestacao)} days;`);
+                    state.push(`    uint256 public ${inf};`, `    uint256 public ${reab}; // ${w('novo prazo após recusa (0 enquanto não houver)', 'new deadline after a rejection (0 if none)')}`);
+                    if (arb) state.push(`    bool public ${rec};`);
+                }
+                // Transição para estado final: destina a garantia da cláusula penal, se houver.
+                code.push(`    /// @dev ${w('Define o estado final da obrigação e destina a garantia da cláusula penal, se houver.', 'Sets the final state of the obligation and allocates the penalty bond, if any.')}
+    function _${w('definir', 'settle')}${b.I}(${E} ${w('novo', 'next')}, string memory ${w('ato', 'act')}) private {
+        ${st} = ${w('novo', 'next')};
+        emit ${ev}(${w('ato', 'act')}, block.timestamp);${pen ? `
+        if (${held} > 0) {
+            uint256 ${N.valor} = ${held};
+            ${held} = 0;
+            address ${w('destino', 'to')} = ${w('novo', 'next')} == ${S('Descumprida')} ? ${cre.v} : ${dev.v};
+            ${N.saldos}[${w('destino', 'to')}] += ${N.valor};
+            emit ${penEv}(${w('novo', 'next')} == ${S('Descumprida')} ? "${w('clausula penal ao credor', 'penalty to the creditor')}" : "${w('garantia devolvida ao devedor', 'bond returned to the debtor')}", ${w('destino', 'to')}, ${N.valor});
+        }` : ''}
+        ${N.verificar}();
+    }
+`);
+                if (!nao) {
+                    const fnInf = dar ? w('informarEntrega', 'reportDelivery') : w('informarCumprimento', 'reportPerformance');
+                    const fnAt = dar ? w('atestarRecebimento', 'attestReceipt') : w('atestarCumprimento', 'attestPerformance');
+                    const fnRec = dar ? w('recusarEntrega', 'rejectDelivery') : w('recusarCumprimento', 'rejectPerformance');
+                    code.push(`    /// @notice ${w('Prazo final para cumprir: o original ou, após uma recusa, o prazo reaberto.', 'Final deadline to perform: the original one or, after a rejection, the reopened one.')}
+    function ${fin}() public view returns (uint256) {
+        uint256 ${w('original', 'original')} = ${N.inicio} + ${PZ};
+        return ${reab} > ${w('original', 'original')} ? ${reab} : ${w('original', 'original')};
+    }
+
+    /// @notice ${dar ? w('O devedor informa que entregou o bem, dentro do prazo.', 'The debtor reports that the item was delivered, within the deadline.') : w('O devedor informa que realizou a prestação, dentro do prazo.', 'The debtor reports that the service was performed, within the deadline.')}
     function ${fnInf}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoObrigacao}.${N.Pendente}) revert ${N.NaoDisponivel}();
-        if (block.timestamp > ${N.inicio} + ${PZ}) revert ${N.PrazoEncerrado}(${N.inicio} + ${PZ});
-        ${st} = ${N.EstadoObrigacao}.${N.Informado};
+        if (${st} != ${S('Pendente')}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${fin}();
+        if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
+        ${st} = ${S('Informado')};
+        ${inf} = block.timestamp;${arb ? `\n        ${rec} = false;` : ''}
         emit ${ev}("${w('cumprimento informado', 'performance reported')}", block.timestamp);
     }
 
-    /// @notice ${w('Quem atesta confirma o cumprimento; a obrigação fica cumprida.', 'The attesting party confirms performance; the obligation is fulfilled.')}
+    /// @notice ${w('Quem atesta confirma o cumprimento (também durante disputa, encerrando-a).', 'The attesting party confirms performance (also during a dispute, ending it).')}
     /// @dev ${w('LIMITAÇÃO: o contrato não verifica fatos do mundo real; depende da atestação de quem foi designado.', 'LIMITATION: the contract cannot verify real-world facts; it depends on the designated party\'s attestation.')}
-    function ${fnAt}${b.I}() external ${vm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${open}) revert ${N.NaoDisponivel}();
-        ${st} = ${N.EstadoObrigacao}.${N.Cumprida};
-        emit ${ev}("${w('cumprimento atestado', 'performance attested')}", block.timestamp);
-        ${N.verificar}();
+    function ${fnAt}${b.I}() external ${vm} {
+        if (${st} != ${S('Pendente')} && ${st} != ${S('Informado')} && ${st} != ${S('EmDisputaObr')}) revert ${N.NaoDisponivel}();
+        if (${st} != ${S('EmDisputaObr')} && ${N.situacao} != ${N.Situacao}.${N.Ativo}) revert ${N.SituacaoInvalida}();
+        _${w('definir', 'settle')}${b.I}(${S('Cumprida')}, "${w('cumprimento atestado', 'performance attested')}");
     }
 
-    /// @notice ${w('Recusa fundamentada do cumprimento informado; a obrigação volta a ficar pendente.', 'Reasoned rejection of the reported performance; the obligation returns to pending.')}
+    /// @notice ${w('Recusa fundamentada, dentro do prazo de atestação; reabre ao devedor igual prazo para cumprir.', 'Reasoned rejection within the attestation period; gives the debtor the same period again to perform.')}
     function ${fnRec}${b.I}(string calldata ${w('motivo', 'reason')}) external ${vm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoObrigacao}.${N.Informado}) revert ${N.NaoDisponivel}();
+        if (${st} != ${S('Informado')}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${inf} + ${AT};
+        if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
         if (bytes(${w('motivo', 'reason')}).length == 0) revert ${N.ParametroInvalido}();
-        ${st} = ${N.EstadoObrigacao}.${N.Pendente};
+        uint256 ${w('novoPrazo', 'newDeadline')} = block.timestamp + ${AT};
+        if (${w('novoPrazo', 'newDeadline')} > ${fin}()) ${reab} = ${w('novoPrazo', 'newDeadline')};
+        ${st} = ${S('Pendente')};${arb ? `\n        ${rec} = true;` : ''}
         emit ${ev}(${w('motivo', 'reason')}, block.timestamp);
     }
 
-    /// @notice ${w('Vencido o prazo sem cumprimento informado nem atestado, o credor declara o inadimplemento.', 'After the deadline, with no performance reported or attested, the creditor declares default.')}
-    function ${w('declararInadimplemento', 'declareDefault')}${b.I}() external ${cm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoObrigacao}.${N.Pendente}) revert ${N.NaoDisponivel}();
-        uint256 ${N.limite} = ${N.inicio} + ${PZ};
+    /// @notice ${w('Atestação tácita: sem atestação nem recusa no prazo, o cumprimento informado vale como atestado.', 'Tacit attestation: without attestation or rejection in time, the reported performance counts as attested.')}
+    function ${w('atestarTacitamente', 'attestByTimeout')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+        if (${st} != ${S('Informado')}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${inf} + ${AT};
         if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
-        ${st} = ${N.EstadoObrigacao}.${N.Descumprida};
-        emit ${ev}("${w('inadimplemento', 'default')}", block.timestamp);
-        ${N.verificar}();
-    }`);
-                if (ctx.arbRole) {
-                    const am = useMod(ctx.arbRole);
-                    code.push(`
-    /// @notice ${w('Divergência sobre o cumprimento informado: o árbitro decide se a obrigação foi cumprida.', 'Dispute over the reported performance: the arbitrator decides whether the obligation was fulfilled.')}
-    function ${w('decidirCumprimento', 'resolvePerformance')}${b.I}(bool ${w('cumprida', 'fulfilled')}) external ${am} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoObrigacao}.${N.Informado}) revert ${N.NaoDisponivel}();
-        ${st} = ${w('cumprida', 'fulfilled')} ? ${N.EstadoObrigacao}.${N.Cumprida} : ${N.EstadoObrigacao}.${N.Descumprida};
-        emit ${ev}(${w('cumprida', 'fulfilled')} ? "${w('cumprimento reconhecido pelo arbitro', 'performance upheld by the arbitrator')}" : "${w('inadimplemento reconhecido pelo arbitro', 'default upheld by the arbitrator')}", block.timestamp);
-        ${N.verificar}();
-    }`);
-                } else {
-                    code.push(`
-    // ${w('LIMITAÇÃO: sem bloco de árbitro, a divergência sobre um cumprimento informado e não atestado deve ser resolvida fora do contrato.', 'LIMITATION: without an arbitrator block, a dispute over reported but unattested performance must be resolved off-chain.')}`);
-                }
-                concluded.push(`(${st} == ${N.EstadoObrigacao}.${N.Cumprida} || ${st} == ${N.EstadoObrigacao}.${N.Descumprida})`);
-            }
+        _${w('definir', 'settle')}${b.I}(${S('Cumprida')}, "${w('atestacao tacita', 'tacit attestation')}");
+    }
 
-            if (b.type === 'obrigacaoNaoFazer') {
-                needsObligation = true;
-                const dev = roleById(b.params.devedor), cre = roleById(b.params.credor), ver = roleById(b.params.verificador);
-                const st = b.i + w('Estado', 'State');
-                const DU = `${P}_${w('DURACAO', 'DURATION')}`;
-                const ev = `${w('Obrigacao', 'Obligation')}${b.I}`;
-                constants.push(`    uint256 public constant ${DU} = ${Math.round(b.params.duracao)} days;`);
-                state.push(`    ${N.EstadoObrigacao} public ${st};`);
-                events.push(`    event ${ev}(string ${w('ato', 'act')}, uint256 ${N.quando});`);
-                const vm = useMod(ver), pm = usePair(dev, cre);
-                code.push(`    /// @notice ${w('Registro de violação durante o prazo da abstenção, com a descrição do fato.', 'Records a breach during the abstention period, describing the fact.')}
+    /// @notice ${w('Vencido o prazo sem cumprimento informado, qualquer das partes declara o inadimplemento.', 'After the deadline with no performance reported, either party declares default.')}
+    function ${w('declararInadimplemento', 'declareDefault')}${b.I}() external ${pm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+        if (${st} != ${S('Pendente')}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${fin}();
+        if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
+        _${w('definir', 'settle')}${b.I}(${S('Descumprida')}, "${w('inadimplemento', 'default')}");
+    }`);
+                    if (arb) code.push(`
+    /// @notice ${w('Recusado o cumprimento, o devedor pode, em vez de cumprir de novo, submeter a recusa ao árbitro.', 'After a rejection, instead of performing again, the debtor may refer the rejection to the arbitrator.')}
+    function ${w('contestarRecusa', 'contestRejection')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+        if (${st} != ${S('Pendente')} || !${rec}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${fin}();
+        if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
+        ${rec} = false;
+        ${st} = ${S('EmDisputaObr')};
+        ${disp} = block.timestamp;
+        emit ${ev}("${w('recusa submetida ao arbitro', 'rejection referred to the arbitrator')}", block.timestamp);
+    }`);
+                    else code.push(`
+    // ${w('LIMITAÇÃO: sem árbitro, a recusa depende da boa-fé de quem atesta; o devedor dispõe apenas do prazo reaberto para cumprir de novo.', 'LIMITATION: without an arbitrator, rejection depends on the attesting party\'s good faith; the debtor only gets the reopened period to perform again.')}`);
+                    concluded.push(`(${st} == ${S('Cumprida')} || ${st} == ${S('Descumprida')} || ${st} == ${S('SemDecisao')})`);
+                    if (pen) onClose.push(`        if (${held} > 0 && ${st} != ${S('EmDisputaObr')}) {
+            uint256 ${b.i}${w('Garantia', 'Bond')} = ${held};
+            ${held} = 0;
+            if (${st} == ${S('Pendente')} && block.timestamp > ${fin}()) {
+                ${st} = ${S('Descumprida')}; // ${w('prazo vencido sem cumprimento: inadimplemento', 'deadline passed without performance: default')}
+                ${N.saldos}[${cre.v}] += ${b.i}${w('Garantia', 'Bond')};
+            } else {
+                ${N.saldos}[${dev.v}] += ${b.i}${w('Garantia', 'Bond')}; // ${w('obrigação ainda não vencida ou cumprimento informado', 'obligation not yet due or performance reported')}
+            }
+        }`);
+                } else {
+                    code.push(`    /// @notice ${w('Registro de violação durante o prazo da abstenção, com a descrição do fato.', 'Records a breach during the abstention period, describing the fact.')}${arb ? ' ' + w('Havendo árbitro, a violação depende de sua confirmação.', 'With an arbitrator, the breach depends on their confirmation.') : ''}
     /// @dev ${w('LIMITAÇÃO: o contrato não observa condutas no mundo real; depende do registro de quem foi designado.', 'LIMITATION: the contract cannot observe real-world conduct; it depends on the designated party\'s record.')}
     function ${w('registrarViolacao', 'recordBreach')}${b.I}(string calldata ${w('descricao', 'description')}) external ${vm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoObrigacao}.${N.Pendente}) revert ${N.NaoDisponivel}();
-        if (block.timestamp > ${N.inicio} + ${DU}) revert ${N.PrazoEncerrado}(${N.inicio} + ${DU});
+        if (${st} != ${S('Pendente')}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${N.inicio} + ${PZ};
+        if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
         if (bytes(${w('descricao', 'description')}).length == 0) revert ${N.ParametroInvalido}();
-        ${st} = ${N.EstadoObrigacao}.${N.Descumprida};
-        emit ${ev}(${w('descricao', 'description')}, block.timestamp);
-        ${N.verificar}();
+        ${arb ? `${st} = ${S('EmDisputaObr')};
+        ${disp} = block.timestamp;
+        emit ${ev}(${w('descricao', 'description')}, block.timestamp);` : `_${w('definir', 'settle')}${b.I}(${S('Descumprida')}, ${w('descricao', 'description')});`}
     }
 
     /// @notice ${w('Findo o prazo sem violação registrada, qualquer das partes declara a obrigação cumprida.', 'Once the period ends without a recorded breach, either party declares the obligation fulfilled.')}
     function ${w('declararCumprimento', 'declareFulfilled')}${b.I}() external ${pm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoObrigacao}.${N.Pendente}) revert ${N.NaoDisponivel}();
-        uint256 ${N.limite} = ${N.inicio} + ${DU};
+        if (${st} != ${S('Pendente')}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${N.inicio} + ${PZ};
         if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
-        ${st} = ${N.EstadoObrigacao}.${N.Cumprida};
-        emit ${ev}("${w('cumprimento', 'fulfilled')}", block.timestamp);
-        ${N.verificar}();
+        _${w('definir', 'settle')}${b.I}(${S('Cumprida')}, "${w('cumprimento', 'fulfilled')}");
     }`);
-                concluded.push(`${st} != ${N.EstadoObrigacao}.${N.Pendente}`);
+                    concluded.push(`(${st} == ${S('Cumprida')} || ${st} == ${S('Descumprida')} || ${st} == ${S('SemDecisao')})`);
+                    if (pen) onClose.push(`        if (${held} > 0 && ${st} != ${S('EmDisputaObr')}) {
+            uint256 ${b.i}${w('Garantia', 'Bond')} = ${held};
+            ${held} = 0;
+            ${N.saldos}[${dev.v}] += ${b.i}${w('Garantia', 'Bond')}; // ${w('sem violação confirmada, a garantia volta ao devedor', 'without a confirmed breach, the bond returns to the debtor')}
+        }`);
+                }
+                if (arb) {
+                    const am = useMod(arb);
+                    code.push(`
+    /// @notice ${w('O árbitro decide a disputa sobre o cumprimento (também após o encerramento do contrato).', 'The arbitrator decides the dispute over performance (also after the contract is closed).')}
+    function ${w('decidirCumprimento', 'resolvePerformance')}${b.I}(bool ${w('cumprida', 'fulfilled')}) external ${am} {
+        if (${st} != ${S('EmDisputaObr')}) revert ${N.NaoDisponivel}();
+        _${w('definir', 'settle')}${b.I}(${w('cumprida', 'fulfilled')} ? ${S('Cumprida')} : ${S('Descumprida')}, ${w('cumprida', 'fulfilled')} ? "${w('cumprimento reconhecido pelo arbitro', 'performance upheld by the arbitrator')}" : "${w('descumprimento reconhecido pelo arbitro', 'breach upheld by the arbitrator')}");
+    }
+
+    /// @notice ${w('Sem decisão do árbitro no prazo, qualquer das partes encerra a disputa; a garantia volta a quem a depositou.', 'Without the arbitrator\'s decision in time, either party ends the dispute; the bond returns to whoever deposited it.')}
+    function ${w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision')}${b.I}() external ${pm} {
+        if (${st} != ${S('EmDisputaObr')}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${disp} + ${N.PRAZO_ARB};
+        if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
+        _${w('definir', 'settle')}${b.I}(${S('SemDecisao')}, "${w('disputa sem decisao do arbitro', 'dispute without arbitrator decision')}");
+    }`);
+                }
             }
 
             if (b.type === 'clausulaPenal') {
                 const t = ctx.byUid(b.params.alvo);
-                const dev = roleById(t.params.devedor), cre = roleById(t.params.credor);
-                const tst = t.i + w('Estado', 'State');
-                const held = t.i + w('GarantiaRetida', 'BondHeld'), done = t.i + w('GarantiaDepositada', 'BondDeposited');
-                const V = `${t.U}_${w('CLAUSULA_PENAL', 'PENALTY')}`;
-                const ev = `${w('ClausulaPenal', 'Penalty')}${t.I}`;
-                constants.push(`    uint256 public constant ${V} = ${weiLiteral(toWei(b.params.valor, scale))}; // ${money(b.params.valor, lang)}`);
-                state.push(`    bool public ${done};`, `    uint256 public ${held};`);
-                events.push(`    event ${ev}(string ${w('ato', 'act')}, address indexed ${w('destino', 'to')}, uint256 ${N.valor});`);
-                const dm = useMod(dev), cm = useMod(cre);
-                code.push(`    /// @notice ${w('Depósito da garantia pelo devedor, enquanto a obrigação estiver em aberto.', 'The debtor deposits the bond while the obligation is open.')}
-    /// @dev ${w('LIMITAÇÃO: o contrato não obriga o depósito; a cláusula penal só é executável sobre o valor efetivamente depositado.', 'LIMITATION: the contract cannot force the deposit; the penalty can only be enforced on the amount actually deposited.')}
+                if (t) {
+                    const dev = roleById(t.params.devedor);
+                    const tst = t.i + w('Estado', 'State');
+                    const held = t.i + w('GarantiaRetida', 'BondHeld'), done = t.i + w('GarantiaDepositada', 'BondDeposited');
+                    const V = `${t.U}_${w('CLAUSULA_PENAL', 'PENALTY')}`;
+                    const ev = `${w('ClausulaPenal', 'Penalty')}${t.I}`;
+                    constants.push(`    uint256 public constant ${V} = ${weiLiteral(toWei(b.params.valor, scale))}; // ${money(b.params.valor, lang)}`);
+                    state.push(`    bool public ${done};`, `    uint256 public ${held};`);
+                    events.push(`    event ${ev}(string ${w('ato', 'act')}, address indexed ${w('destino', 'to')}, uint256 ${N.valor});`);
+                    const dm = useMod(dev);
+                    code.push(`    /// @notice ${w('Depósito da garantia pelo devedor, enquanto a obrigação estiver em aberto.', 'The debtor deposits the bond while the obligation is open.')}
+    /// @dev ${w('A garantia é destinada automaticamente: ao credor no descumprimento, ao devedor no cumprimento ou no encerramento antes do vencimento. LIMITAÇÃO: o contrato não obriga o depósito; a cláusula penal só alcança o valor efetivamente depositado.', 'The bond is allocated automatically: to the creditor on breach, to the debtor on performance or on closing before the due date. LIMITATION: the contract cannot force the deposit; the penalty only reaches the amount actually deposited.')}
     function ${w('depositarGarantia', 'depositBond')}${t.I}() external payable ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
         if (${done}) revert ${N.JaConcluido}();
-        if (${tst} == ${N.EstadoObrigacao}.${N.Cumprida} || ${tst} == ${N.EstadoObrigacao}.${N.Descumprida}) revert ${N.NaoDisponivel}();
+        if (${tst} != ${N.EstadoObrigacao}.${N.Pendente} && ${tst} != ${N.EstadoObrigacao}.${N.Informado}) revert ${N.NaoDisponivel}();
         if (msg.value != ${V}) revert ${N.ValorIncorreto}(${V}, msg.value);
         ${done} = true;
         ${held} = msg.value;
         emit ${ev}("${w('deposito', 'deposit')}", address(this), msg.value);
-    }
-
-    /// @notice ${w('Descumprida a obrigação, o credor recebe a garantia a título de cláusula penal.', 'Once the obligation is breached, the creditor receives the bond as a penalty.')}
-    function ${w('executarClausulaPenal', 'enforcePenalty')}${t.I}() external ${cm} {
-        if (${tst} != ${N.EstadoObrigacao}.${N.Descumprida} || ${held} == 0) revert ${N.NaoDisponivel}();
-        uint256 ${N.valor} = ${held};
-        ${held} = 0;
-        ${credit(cre, N.valor)}
-        emit ${ev}("${w('execucao', 'enforcement')}", ${cre.v}, ${N.valor});
-    }
-
-    /// @notice ${w('Cumprida a obrigação, ou encerrado o contrato sem descumprimento, o devedor recupera a garantia.', 'Once the obligation is fulfilled, or the contract ends without breach, the debtor recovers the bond.')}
-    function ${w('liberarGarantia', 'releaseBond')}${t.I}() external ${dm} {
-        if (${held} == 0) revert ${N.NaoDisponivel}();
-        bool ${w('livre', 'free')} = ${tst} == ${N.EstadoObrigacao}.${N.Cumprida} || (${N.situacao} == ${N.Situacao}.${N.Encerrado} && ${tst} != ${N.EstadoObrigacao}.${N.Descumprida});
-        if (!${w('livre', 'free')}) revert ${N.NaoDisponivel}();
-        uint256 ${N.valor} = ${held};
-        ${held} = 0;
-        ${credit(dev, N.valor)}
-        emit ${ev}("${w('devolucao', 'return')}", ${dev.v}, ${N.valor});
     }`);
-                retained.push(held);
+                    retained.push(held);
+                }
             }
 
             if (b.type === 'reajuste' || b.type === 'conversaoCambial') {
@@ -1257,6 +1408,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
             }
 
             if (b.type === 'arbitro') {
+                constants.push(`    uint256 public constant ${N.PRAZO_ARB} = ${Math.round(Number(b.params.prazo) || 30)} days; // ${w('prazo para o árbitro decidir cada disputa', 'period for the arbitrator to decide each dispute')}`);
                 code.push(`    // ${w('O árbitro atua nas funções de disputa das garantias acima e abaixo.', 'The arbitrator acts in the dispute functions of the guarantees.')}`);
             }
 
@@ -1311,7 +1463,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         lines.push(`contract ${ctx.name} {`);
         lines.push(`    enum ${N.Situacao} { ${N.Ativo}, ${N.Encerrado} }`);
         if (needsHold) lines.push(`    enum ${N.EstadoGarantia} { ${N.Aguardando}, ${N.Depositado}, ${N.EmDisputa}, ${N.Concluido} }`);
-        if (needsObligation) lines.push(`    enum ${N.EstadoObrigacao} { ${N.Pendente}, ${N.Informado}, ${N.Cumprida}, ${N.Descumprida} }`);
+        if (needsObligation) lines.push(`    enum ${N.EstadoObrigacao} { ${N.Pendente}, ${N.Informado}, ${N.Cumprida}, ${N.Descumprida}, ${N.EmDisputaObr}, ${N.SemDecisao} }`);
         lines.push('');
         lines.push(`    error ${N.NaoAutorizado}();`);
         lines.push(`    error ${N.ParametroInvalido}();`);
@@ -1527,9 +1679,10 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                     const P = Math.round(b.params.periodo), A = Math.round(acc.params.atraso);
                     scenarios.push(Object.assign(sc(w(`${b.label}: vencimento antecipado`, `${b.label}: acceleration`), 'funcionalidade',
                         w('Antes do atraso previsto a antecipação é recusada; depois, o credor antecipa e o devedor quita o saldo.', 'Before the contractual delay acceleration is rejected; afterwards the creditor accelerates and the debtor repays the balance.'), [
-                            wait(P + Math.max(1, Math.floor(A / 2)), w('Atraso menor que o limite.', 'Delay below the limit.')),
-                            call(R(cre), w('declararVencimentoAntecipado', 'declareAcceleration') + I, [], null, 'reverter', N.SemAtraso, w('Ainda não cabe antecipar.', 'Too early to accelerate.')),
-                            wait(A, w('O atraso supera o limite.', 'The delay exceeds the limit.')),
+                            ...(A >= 2 ? [wait(P + Math.floor(A / 2), w('Atraso menor que o limite.', 'Delay below the limit.')),
+                                call(R(cre), w('declararVencimentoAntecipado', 'declareAcceleration') + I, [], null, 'reverter', N.SemAtraso, w('Ainda não cabe antecipar.', 'Too early to accelerate.')),
+                                wait(A - Math.floor(A / 2) + 1, w('O atraso supera o limite.', 'The delay exceeds the limit.'))]
+                                : [wait(P + A + 1, w('O atraso supera o limite.', 'The delay exceeds the limit.'))]),
                             call(R(cre), w('declararVencimentoAntecipado', 'declareAcceleration') + I, [], null, 'sucesso', null, w('Vencimento antecipado declarado.', 'Acceleration declared.')),
                             call(R(dev), pay, [], amount(b.params.valor), 'reverter', N.NaoDisponivel + '|' + N.ValorIncorreto, w('Parcelas avulsas deixam de ser aceitas.', 'Single installments are no longer accepted.')),
                             call(R(dev), w('quitar', 'repay') + I, [], '=' + w('saldoDevedor', 'outstanding') + I, 'sucesso', null, w('Quitação do saldo devedor.', 'Repayment of the balance.'))
@@ -1571,6 +1724,16 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                             call(R(ctx.arbRole), w('decidirDisputa', 'resolveDispute') + I, ['true'], null, 'sucesso', null, w('O árbitro decide a favor do beneficiário.', 'The arbitrator decides for the beneficiary.')),
                             call(R(ben), N.sacar, [], null, 'sucesso', null, w('O beneficiário saca.', 'The beneficiary withdraws.'))
                         ]));
+                    const arbB = blocks.find(x => x.type === 'arbitro');
+                    scenarios.push(sc(w(`${b.label}: árbitro em silêncio`, `${b.label}: silent arbitrator`), 'funcionalidade',
+                        w('Sem decisão do árbitro no prazo, qualquer das partes encerra a disputa e o valor volta ao depositante.', 'Without the arbitrator\'s decision in time, either party ends the dispute and the amount returns to the depositor.'), [
+                            call(R(dep), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito.', 'Deposit.')),
+                            call(R(ben), w('abrirDisputa', 'openDispute') + I, [], null, 'sucesso', null, w('Disputa aberta.', 'Dispute opened.')),
+                            call(R(dep), w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision') + I, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo do árbitro.', 'Still within the arbitrator\'s period.')),
+                            wait(Math.round(Number(arbB.params.prazo) || 30) + 1, w('O árbitro não decide no prazo.', 'The arbitrator does not decide in time.')),
+                            call(R(dep), w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision') + I, [], null, 'sucesso', null, w('Disputa encerrada; o valor volta ao depositante.', 'Dispute ended; the amount returns to the depositor.')),
+                            call(R(dep), N.sacar, [], null, 'sucesso', null, w('O depositante saca.', 'The depositor withdraws.'))
+                        ]));
                 }
             }
 
@@ -1600,6 +1763,19 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                         call(R(ct), w('recusar', 'reject') + I, [w('Entrega incompleta', 'Incomplete delivery')], null, 'sucesso', null, w('Recusa com motivo.', 'Rejection with reason.')),
                         call(R(ct), w('aprovar', 'approve') + I, [], null, 'reverter', N.NaoDisponivel, w('Sem nova entrega não há o que aprovar.', 'Without a new delivery there is nothing to approve.'))
                     ]));
+                const closeE = closeSteps();
+                if (closeE) {
+                    const steps = [
+                        call(R(ct), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito.', 'Deposit.')),
+                        call(R(cd), E, [], null, 'sucesso', null, w('Entrega.', 'Delivery.')),
+                        wait(Math.round(b.params.prazo) + 1, w('O prazo de aprovação se esgota em silêncio.', 'The approval period passes in silence.')),
+                        ...closeE.map(x => x.acao === 'avancarTempo' ? x : x),
+                        call(R(cd), N.sacar, [], null, 'sucesso', null, w('O contratado recebe a etapa aprovada tacitamente.', 'The contractor receives the tacitly approved milestone.'))
+                    ];
+                    if (Math.round(b.params.etapas) > 1) steps.push(call(R(ct), N.sacar, [], null, 'sucesso', null, w('O contratante recupera as etapas restantes.', 'The client recovers the remaining milestones.')));
+                    scenarios.push(sc(w(`${b.label}: encerramento com etapa aprovada tacitamente`, `${b.label}: closing with a tacitly approved milestone`), 'funcionalidade',
+                        w('Encerrado o contrato depois de esgotado o prazo de aprovação, a etapa entregue é paga ao contratado, e só o restante volta ao contratante.', 'If the contract closes after the approval period, the delivered milestone is paid to the contractor, and only the rest returns to the client.'), steps));
+                }
             }
 
             if (b.type === 'caucao') {
@@ -1638,6 +1814,16 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                                 call(R(ben), N.sacar, [], null, 'sucesso', null, w('O beneficiário saca a parte retida.', 'The beneficiary withdraws the retained part.')),
                                 call(R(gar), N.sacar, [], null, 'sucesso', null, w('O garantidor saca o restante.', 'The guarantor withdraws the rest.'))
                             ]));
+                        const arbB = blocks.find(x => x.type === 'arbitro');
+                        scenarios.push(sc(w(`${b.label}: árbitro em silêncio`, `${b.label}: silent arbitrator`), 'funcionalidade',
+                            w('Pedida a retenção e sem decisão do árbitro no prazo, a caução volta integralmente ao garantidor.', 'After a retention claim with no arbitrator decision in time, the full deposit returns to the guarantor.'), [
+                                call(R(gar), D, [], amount(b.params.valor), 'sucesso', null, w('Prestação da caução.', 'Deposit provided.')),
+                                ...close,
+                                call(R(ben), w('reter', 'claim') + I, [half(b.params.valor), w('Danos no imóvel', 'Property damage')], null, 'sucesso', null, w('Pedido de retenção.', 'Retention claim.')),
+                                wait(Math.round(Number(arbB.params.prazo) || 30) + 1, w('O árbitro não decide no prazo.', 'The arbitrator does not decide in time.')),
+                                call(R(gar), w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision') + I, [], null, 'sucesso', null, w('Disputa encerrada sem decisão.', 'Dispute ended without decision.')),
+                                call(R(gar), N.sacar, [], null, 'sucesso', null, w('O garantidor saca a caução.', 'The guarantor withdraws the deposit.'))
+                            ]));
                     }
                 }
             }
@@ -1674,65 +1860,106 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         }
 
         // Obrigações de dar, fazer e não fazer, e cláusula penal.
+        // Estados: 0 pendente, 1 cumprimento informado, 2 cumprida, 3 descumprida, 4 em disputa, 5 sem decisão.
+        const arbBlock = blocks.find(x => x.type === 'arbitro');
+        const arbDays = arbBlock ? Math.round(Number(arbBlock.params.prazo) || 30) : 0;
         const oblNames = b => b.type === 'obrigacaoDar'
             ? { inf: w('informarEntrega', 'reportDelivery'), at: w('atestarRecebimento', 'attestReceipt'), rec: w('recusarEntrega', 'rejectDelivery') }
             : { inf: w('informarCumprimento', 'reportPerformance'), at: w('atestarCumprimento', 'attestPerformance'), rec: w('recusarCumprimento', 'rejectPerformance') };
-        const breachSteps = t => t.type === 'obrigacaoNaoFazer'
-            ? [call(R(roleById(t.params.verificador)), w('registrarViolacao', 'recordBreach') + t.I, [w('Conduta vedada praticada', 'Prohibited conduct')], null, 'sucesso', null, w('Violação registrada.', 'Breach recorded.'))]
-            : [wait(Math.round(t.params.prazo) + 1, w('O prazo se esgota sem cumprimento.', 'The deadline passes without performance.')),
-                call(R(roleById(t.params.credor)), w('declararInadimplemento', 'declareDefault') + t.I, [], null, 'sucesso', null, w('O credor declara o inadimplemento.', 'The creditor declares default.'))];
+        const ST = b => b.i + w('Estado', 'State');
+        const breachSteps = t => {
+            if (t.type === 'obrigacaoNaoFazer') {
+                const steps = [call(R(roleById(t.params.verificador)), w('registrarViolacao', 'recordBreach') + t.I, [w('Conduta vedada praticada', 'Prohibited conduct')], null, 'sucesso', null, w('Violação registrada.', 'Breach recorded.'))];
+                if (ctx.arbRole) steps.push(call(R(ctx.arbRole), w('decidirCumprimento', 'resolvePerformance') + t.I, ['false'], null, 'sucesso', null, w('O árbitro confirma a violação.', 'The arbitrator confirms the breach.')));
+                return steps;
+            }
+            return [wait(Math.round(t.params.prazo) + 1, w('O prazo se esgota sem cumprimento.', 'The deadline passes without performance.')),
+                call(R(roleById(t.params.credor)), w('declararInadimplemento', 'declareDefault') + t.I, [], null, 'sucesso', null, w('Declarado o inadimplemento.', 'Default declared.'))];
+        };
         const fulfilSteps = t => t.type === 'obrigacaoNaoFazer'
             ? [wait(Math.round(t.params.duracao) + 1, w('O prazo da abstenção termina sem violação.', 'The abstention period ends without breach.')),
                 call(R(roleById(t.params.devedor)), w('declararCumprimento', 'declareFulfilled') + t.I, [], null, 'sucesso', null, w('Obrigação declarada cumprida.', 'Obligation declared fulfilled.'))]
             : [call(R(roleById(t.params.verificador)), oblNames(t).at + t.I, [], null, 'sucesso', null, w('Cumprimento atestado.', 'Performance attested.'))];
-        const ST = b => b.i + w('Estado', 'State');
         for (const b of blocks) {
             const I = b.I;
             if (b.type === 'obrigacaoDar' || b.type === 'obrigacaoFazer') {
                 const dev = roleById(b.params.devedor), cre = roleById(b.params.credor), ver = roleById(b.params.verificador);
                 const n = oblNames(b);
+                const AT = Math.round(b.params.atestacao);
+                const DECL = w('declararInadimplemento', 'declareDefault') + I, TAC = w('atestarTacitamente', 'attestByTimeout') + I;
                 scenarios.push(sc(w(`${b.label}: cumprimento atestado`, `${b.label}: performance attested`), 'funcionalidade',
                     w(`${dev.label} informa o cumprimento e ${ver.label} o atesta; o devedor não pode atestar a própria prestação.`, `${dev.label} reports performance and ${ver.label} attests it; the debtor cannot attest its own performance.`), [
                         call(R(dev), n.inf + I, [], null, 'sucesso', null, w('O devedor informa o cumprimento.', 'The debtor reports performance.')),
                         call(R(dev), n.at + I, [], null, 'reverter', N.NaoAutorizado, w('O devedor não atesta a si mesmo.', 'The debtor cannot attest itself.')),
                         call(R(ver), n.at + I, [], null, 'sucesso', null, w('Cumprimento atestado.', 'Performance attested.')),
                         query(R(cre), ST(b), [], '2', w('A obrigação consta como cumprida.', 'The obligation is recorded as fulfilled.')),
-                        call(R(cre), w('declararInadimplemento', 'declareDefault') + I, [], null, 'reverter', N.NaoDisponivel + '|' + N.SituacaoInvalida, w('Obrigação cumprida não admite inadimplemento.', 'A fulfilled obligation cannot be declared in default.'))
+                        call(R(cre), DECL, [], null, 'reverter', N.NaoDisponivel + '|' + N.SituacaoInvalida, w('Obrigação cumprida não admite inadimplemento.', 'A fulfilled obligation cannot be declared in default.'))
                     ]));
                 scenarios.push(sc(w(`${b.label}: inadimplemento após o prazo`, `${b.label}: default after the deadline`), 'funcionalidade',
-                    w('Antes do prazo o inadimplemento é recusado; depois dele, o devedor já não pode informar o cumprimento e o credor declara o inadimplemento.', 'Before the deadline default is rejected; afterwards the debtor can no longer report performance and the creditor declares default.'), [
-                        call(R(cre), w('declararInadimplemento', 'declareDefault') + I, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo.', 'Still within the deadline.')),
+                    w('Antes do prazo o inadimplemento é recusado; depois dele, o devedor já não pode informar o cumprimento e o inadimplemento é declarado.', 'Before the deadline default is rejected; afterwards the debtor can no longer report performance and default is declared.'), [
+                        call(R(cre), DECL, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo.', 'Still within the deadline.')),
                         wait(Math.round(b.params.prazo) + 1, w('O prazo se esgota.', 'The deadline passes.')),
                         call(R(dev), n.inf + I, [], null, 'reverter', N.PrazoEncerrado, w('Fora do prazo, o devedor não informa o cumprimento.', 'After the deadline, the debtor cannot report performance.')),
-                        call(R(cre), w('declararInadimplemento', 'declareDefault') + I, [], null, 'sucesso', null, w('Inadimplemento declarado.', 'Default declared.')),
+                        call(R(cre), DECL, [], null, 'sucesso', null, w('Inadimplemento declarado.', 'Default declared.')),
                         query(R(cre), ST(b), [], '3', w('A obrigação consta como descumprida.', 'The obligation is recorded as breached.'))
                     ]));
-                scenarios.push(sc(w(`${b.label}: recusa fundamentada`, `${b.label}: reasoned rejection`), 'funcionalidade',
-                    w('Quem atesta pode recusar, com motivo, o cumprimento informado; a obrigação volta a ficar pendente.', 'The attesting party may reject the reported performance with a reason; the obligation returns to pending.'), [
+                scenarios.push(sc(w(`${b.label}: recusa reabre o prazo e silêncio vale como atestação`, `${b.label}: rejection reopens the deadline and silence counts as attestation`), 'funcionalidade',
+                    w('A recusa precisa de motivo e reabre ao devedor o prazo para cumprir; sem nova manifestação de quem atesta, o novo cumprimento vale como atestado.', 'A rejection needs a reason and reopens the deadline for the debtor; without a new response from the attesting party, the new performance counts as attested.'), [
                         call(R(dev), n.inf + I, [], null, 'sucesso', null, w('O devedor informa o cumprimento.', 'The debtor reports performance.')),
                         call(R(ver), n.rec + I, [''], null, 'reverter', N.ParametroInvalido, w('Recusa sem motivo não é aceita.', 'A rejection without reason is not accepted.')),
                         call(R(ver), n.rec + I, [w('Bem entregue com defeito', 'Item delivered with a defect')], null, 'sucesso', null, w('Recusa fundamentada.', 'Reasoned rejection.')),
-                        query(R(cre), ST(b), [], '0', w('A obrigação volta a ficar pendente.', 'The obligation returns to pending.'))
+                        call(R(cre), DECL, [], null, 'reverter', N.PrazoNaoEncerrado, w('Com o prazo reaberto, ainda não há inadimplemento.', 'With the deadline reopened, there is no default yet.')),
+                        call(R(dev), n.inf + I, [], null, 'sucesso', null, w('O devedor cumpre de novo e informa.', 'The debtor performs again and reports it.')),
+                        call(R(dev), TAC, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo de quem atesta.', 'Still within the attesting party\'s period.')),
+                        wait(AT + 1, w('Quem atesta permanece em silêncio.', 'The attesting party stays silent.')),
+                        call(R(dev), TAC, [], null, 'sucesso', null, w('Atestação tácita.', 'Tacit attestation.')),
+                        query(R(cre), ST(b), [], '2', w('A obrigação consta como cumprida.', 'The obligation is recorded as fulfilled.'))
+                    ]));
+                scenarios.push(sc(w(`${b.label}: recusa tardia não abre inadimplemento`, `${b.label}: late rejection cannot create a default`), 'seguranca',
+                    w('Esgotado o prazo para atestar, quem atesta já não pode recusar o cumprimento informado para depois declarar o inadimplemento.', 'Once the attestation period has passed, the attesting party can no longer reject the reported performance in order to declare default.'), [
+                        call(R(dev), n.inf + I, [], null, 'sucesso', null, w('O devedor informa o cumprimento.', 'The debtor reports performance.')),
+                        wait(Math.max(AT, Math.round(b.params.prazo)) + 1, w('Esgotam-se o prazo para atestar e o prazo da obrigação.', 'The attestation period and the deadline pass.')),
+                        call(R(ver), n.rec + I, [w('Recusa tardia', 'Late rejection')], null, 'reverter', N.PrazoEncerrado, w('A recusa fora do prazo é recusada.', 'The late rejection is refused.')),
+                        call(R(cre), DECL, [], null, 'reverter', N.NaoDisponivel, w('Com o cumprimento informado, não há inadimplemento.', 'With performance reported, there is no default.')),
+                        call(R(dev), TAC, [], null, 'sucesso', null, w('Atestação tácita.', 'Tacit attestation.'))
                     ]));
                 if (ctx.arbRole) {
-                    scenarios.push(sc(w(`${b.label}: divergência decidida pelo árbitro`, `${b.label}: dispute decided by the arbitrator`), 'funcionalidade',
-                        w('Informado o cumprimento sem atestação, o árbitro decide se a obrigação foi cumprida.', 'When performance is reported but not attested, the arbitrator decides whether the obligation was fulfilled.'), [
+                    scenarios.push(sc(w(`${b.label}: recusa contestada e decidida pelo árbitro`, `${b.label}: rejection contested and decided by the arbitrator`), 'funcionalidade',
+                        w('O devedor submete a recusa ao árbitro; durante a disputa não há inadimplemento, e só o árbitro decide.', 'The debtor refers the rejection to the arbitrator; during the dispute there is no default, and only the arbitrator decides.'), [
                             call(R(dev), n.inf + I, [], null, 'sucesso', null, w('O devedor informa o cumprimento.', 'The debtor reports performance.')),
-                            call(R(cre), w('decidirCumprimento', 'resolvePerformance') + I, ['true'], null, 'reverter', N.NaoAutorizado, w('Só o árbitro decide.', 'Only the arbitrator decides.')),
+                            call(R(ver), n.rec + I, [w('Serviço incompleto', 'Incomplete service')], null, 'sucesso', null, w('Recusa.', 'Rejection.')),
+                            call(R(dev), w('contestarRecusa', 'contestRejection') + I, [], null, 'sucesso', null, w('O devedor contesta a recusa.', 'The debtor contests the rejection.')),
+                            query(R(cre), ST(b), [], '4', w('A obrigação está em disputa.', 'The obligation is in dispute.')),
+                            call(R(cre), w('decidirCumprimento', 'resolvePerformance') + I, ['false'], null, 'reverter', N.NaoAutorizado, w('Só o árbitro decide.', 'Only the arbitrator decides.')),
                             call(R(ctx.arbRole), w('decidirCumprimento', 'resolvePerformance') + I, ['true'], null, 'sucesso', null, w('O árbitro reconhece o cumprimento.', 'The arbitrator upholds performance.')),
                             query(R(cre), ST(b), [], '2', w('A obrigação consta como cumprida.', 'The obligation is recorded as fulfilled.'))
+                        ]));
+                    scenarios.push(sc(w(`${b.label}: árbitro em silêncio`, `${b.label}: silent arbitrator`), 'funcionalidade',
+                        w('Sem decisão do árbitro no prazo, qualquer das partes encerra a disputa, e a garantia volta a quem a depositou.', 'Without the arbitrator\'s decision in time, either party ends the dispute, and the bond returns to whoever deposited it.'), [
+                            call(R(dev), n.inf + I, [], null, 'sucesso', null, w('O devedor informa o cumprimento.', 'The debtor reports performance.')),
+                            call(R(ver), n.rec + I, [w('Serviço incompleto', 'Incomplete service')], null, 'sucesso', null, w('Recusa.', 'Rejection.')),
+                            call(R(dev), w('contestarRecusa', 'contestRejection') + I, [], null, 'sucesso', null, w('O devedor contesta a recusa.', 'The debtor contests the rejection.')),
+                            call(R(dev), w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision') + I, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo do árbitro.', 'Still within the arbitrator\'s period.')),
+                            wait(arbDays + 1, w('O árbitro não decide no prazo.', 'The arbitrator does not decide in time.')),
+                            call(R(dev), w('encerrarDisputaSemDecisao', 'endDisputeWithoutDecision') + I, [], null, 'sucesso', null, w('Disputa encerrada sem decisão.', 'Dispute ended without decision.')),
+                            query(R(cre), ST(b), [], '5', w('A obrigação consta como sem decisão.', 'The obligation is recorded as unresolved.'))
                         ]));
                 }
             }
             if (b.type === 'obrigacaoNaoFazer') {
                 const dev = roleById(b.params.devedor), cre = roleById(b.params.credor), ver = roleById(b.params.verificador);
+                const viol = [
+                    call(R(dev), w('registrarViolacao', 'recordBreach') + I, [w('Teste', 'Test')], null, 'reverter', N.NaoAutorizado, w('O devedor não registra violação.', 'The debtor cannot record a breach.')),
+                    call(R(ver), w('registrarViolacao', 'recordBreach') + I, [''], null, 'reverter', N.ParametroInvalido, w('Registro sem descrição não é aceito.', 'A record without description is not accepted.')),
+                    call(R(ver), w('registrarViolacao', 'recordBreach') + I, [w('Conduta vedada praticada', 'Prohibited conduct')], null, 'sucesso', null, w('Violação registrada.', 'Breach recorded.'))
+                ];
+                if (ctx.arbRole) viol.push(
+                    query(R(cre), ST(b), [], '4', w('A violação aguarda a decisão do árbitro.', 'The breach awaits the arbitrator\'s decision.')),
+                    call(R(ctx.arbRole), w('decidirCumprimento', 'resolvePerformance') + I, ['false'], null, 'sucesso', null, w('O árbitro confirma a violação.', 'The arbitrator confirms the breach.')));
+                viol.push(query(R(cre), ST(b), [], '3', w('A obrigação consta como descumprida.', 'The obligation is recorded as breached.')),
+                    call(R(ver), w('registrarViolacao', 'recordBreach') + I, [w('Nova conduta', 'New conduct')], null, 'reverter', N.NaoDisponivel + '|' + N.SituacaoInvalida, w('O registro não se repete.', 'The record cannot be repeated.')));
                 scenarios.push(sc(w(`${b.label}: violação registrada`, `${b.label}: breach recorded`), 'funcionalidade',
-                    w(`Durante o prazo, só ${ver.label} registra a violação, que é definitiva.`, `During the period, only ${ver.label} records a breach, which is final.`), [
-                        call(R(dev), w('registrarViolacao', 'recordBreach') + I, [w('Teste', 'Test')], null, 'reverter', N.NaoAutorizado, w('O devedor não registra violação.', 'The debtor cannot record a breach.')),
-                        call(R(ver), w('registrarViolacao', 'recordBreach') + I, [w('Conduta vedada praticada', 'Prohibited conduct')], null, 'sucesso', null, w('Violação registrada.', 'Breach recorded.')),
-                        query(R(cre), ST(b), [], '3', w('A obrigação consta como descumprida.', 'The obligation is recorded as breached.')),
-                        call(R(ver), w('registrarViolacao', 'recordBreach') + I, [w('Nova conduta', 'New conduct')], null, 'reverter', N.NaoDisponivel + '|' + N.SituacaoInvalida, w('O registro não se repete.', 'The record cannot be repeated.'))
-                    ]));
+                    w(`Durante o prazo, só ${ver.label} registra a violação${ctx.arbRole ? ', que depende da confirmação do árbitro' : ''}.`, `During the period, only ${ver.label} records a breach${ctx.arbRole ? ', which depends on the arbitrator\'s confirmation' : ''}.`), viol));
                 scenarios.push(sc(w(`${b.label}: cumprimento ao fim do prazo`, `${b.label}: fulfilled at the end of the period`), 'funcionalidade',
                     w('Antes do fim do prazo a obrigação não pode ser declarada cumprida; depois dele, não se registra mais violação e a obrigação é declarada cumprida.', 'Before the period ends the obligation cannot be declared fulfilled; afterwards no breach can be recorded and it is declared fulfilled.'), [
                         call(R(dev), w('declararCumprimento', 'declareFulfilled') + I, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo.', 'Still within the period.')),
@@ -1746,26 +1973,36 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 const t = ctx.byUid(b.params.alvo);
                 if (!t) continue;
                 const dev = roleById(t.params.devedor), cre = roleById(t.params.credor);
-                const D = w('depositarGarantia', 'depositBond') + t.I, X = w('executarClausulaPenal', 'enforcePenalty') + t.I, L = w('liberarGarantia', 'releaseBond') + t.I;
-                scenarios.push(Object.assign(sc(w(`${t.label}: cláusula penal executada`, `${t.label}: penalty enforced`), 'funcionalidade',
-                    w('O devedor deposita a garantia; sem descumprimento o credor não a recebe; descumprida a obrigação, o credor a recebe e saca.', 'The debtor deposits the bond; without breach the creditor cannot take it; once breached, the creditor receives and withdraws it.'), [
+                const D = w('depositarGarantia', 'depositBond') + t.I;
+                const H = t.i + w('GarantiaRetida', 'BondHeld');
+                scenarios.push(Object.assign(sc(w(`${t.label}: cláusula penal ao credor`, `${t.label}: penalty to the creditor`), 'funcionalidade',
+                    w('O devedor deposita a garantia; descumprida a obrigação, o valor passa automaticamente ao credor, que o saca.', 'The debtor deposits the bond; once the obligation is breached, the amount goes automatically to the creditor, who withdraws it.'), [
                         call(R(dev), D, [], half(b.params.valor), 'reverter', N.ValorIncorreto, w('Depósito parcial é recusado.', 'A partial deposit is rejected.')),
                         call(R(dev), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito da garantia.', 'Bond deposited.')),
-                        call(R(cre), X, [], null, 'reverter', N.NaoDisponivel, w('Sem descumprimento, não há cláusula penal.', 'Without breach, there is no penalty.')),
+                        call(R(dev), D, [], amount(b.params.valor), 'reverter', N.JaConcluido, w('A garantia não é depositada duas vezes.', 'The bond cannot be deposited twice.')),
                         ...breachSteps(t),
-                        call(R(dev), L, [], null, 'reverter', N.NaoDisponivel, w('Descumprida a obrigação, o devedor não recupera a garantia.', 'Once breached, the debtor cannot recover the bond.')),
-                        call(R(cre), X, [], null, 'sucesso', null, w('Cláusula penal executada.', 'Penalty enforced.')),
-                        call(R(cre), N.sacar, [], null, 'sucesso', null, w('O credor saca.', 'The creditor withdraws.'))
+                        query(R(cre), H, [], '0', w('Nada mais fica retido.', 'Nothing remains held.')),
+                        call(R(cre), N.sacar, [], null, 'sucesso', null, w('O credor saca a cláusula penal.', 'The creditor withdraws the penalty.'))
                     ]), { bloco: b.uid }));
                 scenarios.push(Object.assign(sc(w(`${t.label}: garantia devolvida após o cumprimento`, `${t.label}: bond returned after performance`), 'funcionalidade',
-                    w('Enquanto a obrigação está em aberto, a garantia fica retida; cumprida a obrigação, volta ao devedor.', 'While the obligation is open, the bond is held; once fulfilled, it returns to the debtor.'), [
+                    w('Enquanto a obrigação está em aberto, a garantia fica retida; cumprida a obrigação, volta automaticamente ao devedor.', 'While the obligation is open, the bond is held; once fulfilled, it returns automatically to the debtor.'), [
                         call(R(dev), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito da garantia.', 'Bond deposited.')),
-                        call(R(dev), L, [], null, 'reverter', N.NaoDisponivel, w('Com a obrigação em aberto, a garantia fica retida.', 'While the obligation is open, the bond stays held.')),
+                        query(R(cre), N.saldoRetido, [], null, w('O valor está retido.', 'The amount is held.')),
                         ...fulfilSteps(t),
-                        call(R(cre), X, [], null, 'reverter', N.NaoDisponivel, w('Cumprida a obrigação, não há cláusula penal.', 'Once fulfilled, there is no penalty.')),
-                        call(R(dev), L, [], null, 'sucesso', null, w('Garantia devolvida.', 'Bond returned.')),
-                        call(R(dev), N.sacar, [], null, 'sucesso', null, w('O devedor saca.', 'The debtor withdraws.'))
+                        query(R(cre), H, [], '0', w('Nada mais fica retido.', 'Nothing remains held.')),
+                        call(R(dev), N.sacar, [], null, 'sucesso', null, w('O devedor saca a garantia.', 'The debtor withdraws the bond.'))
                     ]), { bloco: b.uid }));
+                if (rescisao && t.type !== 'obrigacaoNaoFazer') {
+                    const who = rescisao.params.quem === '*' ? dev : roleById(rescisao.params.quem);
+                    scenarios.push(Object.assign(sc(w(`${t.label}: rescisão após o prazo vencido`, `${t.label}: termination after the deadline`), 'seguranca',
+                        w('Quem descumpriu não escapa da cláusula penal rescindindo o contrato: vencido o prazo sem cumprimento, a rescisão entrega a garantia ao credor.', 'A defaulting debtor cannot escape the penalty by terminating: once the deadline has passed without performance, termination gives the bond to the creditor.'), [
+                            call(R(dev), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito da garantia.', 'Bond deposited.')),
+                            wait(Math.round(t.params.prazo) + 1, w('O prazo se esgota sem cumprimento.', 'The deadline passes without performance.')),
+                            call(R(who), w('rescindir', 'terminate'), [], null, 'sucesso', null, w('O contrato é rescindido.', 'The contract is terminated.')),
+                            query(R(cre), ST(t), [], '3', w('A obrigação consta como descumprida.', 'The obligation is recorded as breached.')),
+                            call(R(cre), N.sacar, [], null, 'sucesso', null, w('O credor saca a cláusula penal.', 'The creditor withdraws the penalty.'))
+                        ]), { bloco: b.uid }));
+                }
             }
         }
 
@@ -1830,6 +2067,8 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                             ev.type === 'oraculoEvento'
                                 ? call(R(roleById(ev.params.fonte)), w('atestar', 'attest') + ev.I, [], null, 'sucesso', null, w('A fonte atesta o evento.', 'The source attests the event.'))
                                 : call(R(roleById(ev.params.verificador)), oblNames(ev).at + ev.I, [], null, 'sucesso', null, w('Atestado o cumprimento da obrigação.', 'Performance of the obligation is attested.')),
+                            wait(Math.round(cus.params.prazo) + 1, w('O prazo do depósito se esgota.', 'The deposit deadline passes.')),
+                            call(R(dep), w('reaver', 'refund') + cus.I, [], null, 'reverter', N.NaoDisponivel, w('Atestado o evento, o depositante não pode reaver o valor.', 'Once the event is attested, the depositor cannot recover the amount.')),
                             call(R(ben), w('liberarPorEvento', 'releaseOnEvent') + cus.I, [], null, 'sucesso', null, w('Liberação ao beneficiário.', 'Release to the beneficiary.')),
                             call(R(ben), N.sacar, [], null, 'sucesso', null, w('O beneficiário saca.', 'The beneficiary withdraws.'))
                         ]), { bloco: b.uid }));
@@ -2037,7 +2276,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
             }
             if (!b.label) b.label = BLOCKS[b.type].name[en ? 'en' : 'pt'];
         }
-        return model;
+        return normalize(model);
     }
 
     const PRESETS = [
@@ -2055,12 +2294,12 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
 
     function emptyModel(lang) {
         const en = lang === 'en';
-        return { name: en ? 'Composed Agreement' : 'Contrato Montado', scale: 1000, roles: [{ id: 'parteA', label: en ? 'Creditor' : 'Credor' }, { id: 'parteB', label: en ? 'Debtor' : 'Devedor' }], blocks: [] };
+        return { name: en ? 'Composed Agreement' : 'Contrato Montado', scale: 1000, roles: [{ id: 'parteA', label: en ? 'Party A' : 'Parte A' }, { id: 'parteB', label: en ? 'Party B' : 'Parte B' }], blocks: [] };
     }
 
     return {
         BLOCKS, CATEGORIES, PRESETS, SOLC_VERSION, slots, missingSlots,
-        newBlock, validate, minuta, build, plan, preset, emptyModel, legend, colorOf, linksOf, COLORS, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
+        newBlock, validate, warnings, normalize, minuta, build, plan, preset, emptyModel, legend, colorOf, linksOf, COLORS, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
         names: { pascal, camel, upper }, toWei, fieldLabel
     };
 }));

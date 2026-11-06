@@ -51,8 +51,9 @@ async function check(model, lang, label) {
     const compiled = { name, abi: c.abi, bytecode: c.evm.bytecode.object, source: code };
     for (const scenario of plan.cenarios) {
         const result = await CSC.lab._internals.runScenario(plan, scenario, compiled);
+        // Recusa por motivo diferente do esperado ("warn") também reprova o cenário.
         const bad = result.steps.filter(s => s.status !== 'pass');
-        assert.equal(result.status, 'pass', `${label} — ${scenario.titulo}: ` + JSON.stringify(bad, (k, val) => typeof val === 'bigint' ? val.toString() : val));
+        assert.equal(result.status === 'pass' && !bad.length ? 'pass' : 'fail', 'pass', `${label} — ${scenario.titulo}: ` + JSON.stringify(bad, (k, val) => typeof val === 'bigint' ? val.toString() : val));
     }
     return plan.cenarios.length;
 }
@@ -100,7 +101,8 @@ test('combinações aleatórias de blocos (60 montagens)', async () => {
         if (ending < 0.4) { const r = add('rescisao'); r.params.quem = pick(['*', 'a', 'b']); }
         else if (ending < 0.7) { const v = add('vigencia'); v.params.duracao = 30 + Math.floor(rand() * 400); }
         if (rand() < 0.5) { const c = add('caucao'); c.params.garantidor = 'b'; c.params.beneficiario = 'a'; c.params.valor = 100 + Math.floor(rand() * 3000); c.params.prazo = 1 + Math.floor(rand() * 30); }
-        if (arb) { const a = add('arbitro'); a.params.arbitro = 'c'; }
+        if (model.blocks.some(b => b.type === 'caucao' || b.type === 'etapas') && !model.blocks.some(b => b.type === 'rescisao' || b.type === 'vigencia')) { const v = add('vigencia'); v.params.duracao = 30 + Math.floor(rand() * 400); }
+        if (arb) { const a = add('arbitro'); a.params.arbitro = 'c'; a.params.prazo = 1 + Math.floor(rand() * 40); }
         if (rand() < 0.3) add('clausulaLivre');
         // Obrigações de dar, fazer e não fazer, com cláusula penal.
         if (rand() < 0.5) {

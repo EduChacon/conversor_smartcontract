@@ -64,7 +64,7 @@ The page has a **"How to use: hands-on tutorials"** section with **guided walkth
 
 ![Lab: accounts, contract status, functions and transaction log](docs/img/en/lab.png)
 
-**Step 6 — Keep a record.** Use **"Report"** to download a file with the contract, code, checks and tests (or **"Print / PDF"**), **"Download .sol"** for the code, and **"Save contract (.json)"** to reopen the contract later with **"Open contract"**.
+**Step 6 — Keep a record.** Use **"Report"** to download a file with the contract, code, checks and tests (or **"Print / PDF"**), **"Download .sol"** for the code, **"Save contract (.json)"** to reopen the contract later with **"Open contract"**, and **"Print for signature (PDF)"** to produce the document the parties will sign (section 7).
 
 ## 3. How to read the results
 
@@ -103,6 +103,7 @@ Blocks are listed under **"+ Add clause"**, grouped by category. Some attach to 
 | | Penalty clause with bond | The debtor deposits an amount that goes to the creditor if the obligation is breached. |
 | Guarantees | Escrow deposit | Amount held until performance is confirmed; refunded if the deadline passes. |
 | | Security deposit | Returned after the contract ends; retention decided by the arbitrator. |
+| | Right of withdrawal | Holds the payment (or deposit) during the withdrawal period and refunds it if the payer withdraws. |
 | Performance | Milestone deliveries | Payment per approved milestone, with reasoned rejection and tacit approval. |
 | Dispute resolution | Arbitrator | Decides, within a set period, disputes over held amounts and over the performance of obligations. |
 | External data | External data: value | An index, price or other number reported by a designated source, with a validity period. |
@@ -110,14 +111,13 @@ Blocks are listed under **"+ Add clause"**, grouped by category. Some attach to 
 | | Index adjustment | Adjusts a payment amount by the external data. |
 | | BRL amount at market price | Converts a BRL amount into Ether at the time of payment. |
 | | Release on event | Releases the escrow deposit once the event is attested or the obligation is fulfilled. |
-| | Right of withdrawal | Holds the payment (or deposit) during the withdrawal period and refunds it if the payer withdraws. |
 | Formalities and signatures | Subject matter, Jurisdiction, Place and date, Notices, Confidentiality, Data protection, General provisions | Ready-made, editable formal clauses; part of the contract but not executed by the code. |
 | | Recorded notices | A party records in the contract a notice to the other, proving its content and date. |
 | | Digital signatures | The contract comes into force only when everyone signs with their wallet, checking the text fingerprint (see section 7). |
 | | Witness | A signatory who is not a party; signs like the others. |
 | Termination | Termination | Closes the contract and returns held amounts to whoever deposited them. |
 | | Term | Closes the contract after a period. |
-| Free wording | Free clause | Any text (jurisdiction, confidentiality, item description...). Part of the contract but not executed by the code. |
+| Free wording | Free clause | Any other text. Part of the contract but not executed by the code. |
 
 **Colors and links.** Each clause has a color, repeated in the document, in the legend above the code, in the Lab function cards and in the tests. Clauses that depend on another show a "linked to" tag, and the **"Map of links between clauses"**, at the end of the document, shows the whole picture. In function names, an underscore separates the act from the clause (e.g. `pay_Rent`), and the Lab also shows the full title ("Pay · Rent").
 
@@ -135,7 +135,9 @@ Code cannot see the real world: it does not know whether a car was delivered or 
 
 The debtor can never attest their own obligation, and the arbitrator cannot be a party to it; the page flags these situations before generating the code. When the attesting party is the creditor and there is no arbitrator, the page warns that the outcome depends on the creditor's good faith. In the clause text, replace "[describe the item]" (or the service, or the conduct) with the real description; the page warns until this is done.
 
-**Arbitrator with a deadline.** The arbitrator has a period to decide each dispute. Without a decision in that period, either party ends the dispute and the amounts return to whoever deposited them, so no amount is stuck in the contract because someone stays silent. An obligation to give or to do can also release an escrow deposit: for example, the price is held and released to the seller once the buyer attests receipt of the item.
+**Arbitrator with a deadline.** The arbitrator has a period to decide each dispute. Without a decision in that period, either party ends the dispute and the amounts return to whoever deposited them, so no amount is stuck in the contract because someone stays silent.
+
+**Price released on performance.** An obligation to give or to do can also release an escrow deposit: for example, the price is held and released to the seller once the buyer attests receipt of the item. While performance is reported or in dispute, the buyer cannot recover the price, not even by terminating the contract.
 
 ![Purchase with delivery attested by the buyer, price release and penalty clause](docs/img/en/obligations.png)
 
@@ -169,7 +171,7 @@ A contract may depend on data from outside the blockchain, such as an adjustment
 - **External data: value.** The source records a number with two decimal places (4.25% is entered as 425). Each record is valid for the validity period; afterwards, the contract refuses to use the data until it is updated.
 - **External data: event.** The source attests, once, that the fact occurred.
 - **Data series.** For value data, **"Load series (CSV or JSON)"** accepts a file with `date;value` lines (e.g. `01/02/2026;0.41`) or `day;value`. In the Lab, as time moves forward, the source automatically reports the value for each date. **"Download CSV template"** provides a ready-to-fill example.
-- **Party details.** Under **"Party details (optional)"**, enter each party's wallet address, for the report and for deployment on a testnet.
+- **Party details.** Under **"Party details (optional)"**, enter each party's identification (which goes only into the signed document; see section 7) and wallet address, for the report and for deployment on a testnet.
 - **Contract file.** **"Save contract (.json)"** stores the whole contract, including wording, parties and series; **"Open contract"** restores it in any browser.
 
 ## 9. Ether price and gas cost
@@ -239,6 +241,8 @@ In every contract, the predefined tests include an unauthorized account trying e
 | Oracle | A designated source that brings off-chain data into the contract (index, price, event). |
 | Stablecoin | A token with stable value, pegged to a currency (here, test tBRL, 1 unit = R$ 1.00). |
 | Reentrancy | An attack in which a malicious contract calls the withdrawal function again before the first call finishes. |
+| Fingerprint (hash) | A value computed from a text or file (here, with SHA-256); any change to the content changes the fingerprint. |
+| Electronic signature | Signing a document electronically, e.g. with gov.br, an ICP-Brasil certificate or a qualified eIDAS certificate. |
 | Audit | An independent security review, indispensable before real use. |
 
 ## 14. FAQ
@@ -249,7 +253,7 @@ In every contract, the predefined tests include an unauthorized account trying e
 
 **Can I use it with real money?** No. The code is educational and requires professional review and an audit.
 
-**Does my data go anywhere?** Without AI, the contract stays in your browser. With AI, the text goes to Google's API. The price lookup contacts CoinGecko or Coinbase, and the gas price lookup contacts public Ethereum nodes, only when you open the price panel or enable gas charging in the Lab.
+**Does my data go anywhere?** Without AI, the contract stays in your browser. With AI, the text goes to Google's API; party details (names, IDs, addresses and wallets) are not sent to the assistant. The price lookup contacts CoinGecko or Coinbase, and the gas price lookup contacts public Ethereum nodes, only when you open the price panel or enable gas charging in the Lab.
 
 **Why does the Ether amount change?** Because Ether's price varies. When the code is generated, the Ether amount is fixed by the chosen scale or price.
 
@@ -261,7 +265,7 @@ In every contract, the predefined tests include an unauthorized account trying e
 
 **How do I reuse a clause I wrote?** Use "Save as my block"; it becomes available under "+ Add clause" → "My blocks", with its linked clauses, and can be exported as a file.
 
-**How do I use the same contract as a basis for others?** Use "Save as my template". It is listed under "Start from an example" → "My templates". Wallet addresses are not stored in the template.
+**How do I use the same contract as a basis for others?** Use "Save as my template". It is listed under "Start from an example" → "My templates". Party details (identification and wallets) are not stored in the template.
 
 ## 15. Limitations
 
@@ -269,6 +273,8 @@ In every contract, the predefined tests include an unauthorized account trying e
 - The legal check is indicative, based on Brazilian law, and does not replace professional advice.
 - The blocks cover a broad family of payment and obligation contracts, but not every contract.
 - Real-world facts depend on whoever is designated to attest them (party, arbitrator or oracle); the contract trusts that source.
+- A wallet signature proves that the address accepted the text, but does not identify the person; identification depends on the document signed off-chain.
+- The AI assistant can make mistakes: check the proposed contract, the warnings and the tests before using it.
 - Calendar dates are approximated by fixed periods in days.
 - The simulated blockchain reproduces the EVM (Cancun) and estimates gas cost from the current network price, but it only interacts with the auxiliary test contracts (the tBRL stablecoin and the attacker contract), not with contracts deployed on a real network.
 - The price is a reference and varies over time.
@@ -289,7 +295,7 @@ npm test
 npm run build
 ```
 
-Main files: `assets/js/blocks.js` (blocks), `assets/js/composer.js` (contract builder), `assets/js/templates.js` (ready-made templates), `assets/js/lab.js` (Lab), `assets/js/security-scan.js` (checker), `assets/js/rates.js` (price and gas), `assets/js/prompts.js` (AI instructions), `src/evm-lab.mjs` (simulated EVM) and `contracts/` (auxiliary test contracts: attacker and stablecoin).
+Main files: `assets/js/blocks.js` (blocks), `assets/js/composer.js` (contract builder), `assets/js/templates.js` (ready-made templates), `assets/js/lab.js` (Lab), `assets/js/security-scan.js` (checker), `assets/js/rates.js` (price and gas), `assets/js/prompts.js` (AI instructions), `assets/js/assistant.js` (chat assistant), `src/evm-lab.mjs` (simulated EVM) and `contracts/` (auxiliary test contracts: attacker and stablecoin).
 
 ## 17. Authorship and license
 

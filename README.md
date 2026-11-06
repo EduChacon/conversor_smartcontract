@@ -64,11 +64,11 @@ A página traz a seção **"Como usar: tutoriais práticos"**, com **passo a pas
 
 ![Laboratório: contas, estado do contrato, funções e registro de transações](docs/img/pt/laboratorio.png)
 
-**Passo 6 — Guarde o resultado.** Use **"Relatório"** para baixar um arquivo com o contrato, o código, a verificação e os testes (ou **"Imprimir / PDF"**), **"Baixar .sol"** para o código e **"Salvar contrato (.json)"** para reabrir a montagem depois, com **"Abrir contrato"**.
+**Passo 6 — Guarde o resultado.** Use **"Relatório"** para baixar um arquivo com o contrato, o código, a verificação e os testes (ou **"Imprimir / PDF"**), **"Baixar .sol"** para o código, **"Salvar contrato (.json)"** para reabrir a montagem depois, com **"Abrir contrato"**, e **"Imprimir para assinatura (PDF)"** para gerar o documento a ser assinado pelas partes (seção 7).
 
 ## 3. Como ler os resultados
 
-| Onde | O que significa |
+| Item | O que significa |
 |---|---|
 | **Verificador automático** | Aponta padrões perigosos conhecidos, por gravidade (alta, média, baixa, informativa). Nos blocos e modelos revisados, não deve haver achados relevantes. |
 | **Compilação** | "Compilado sem erros" significa que o compilador oficial do Solidity aceitou o código. |
@@ -94,7 +94,7 @@ Os blocos aparecem em **"+ Acrescentar cláusula"**, agrupados por categoria. Al
 |---|---|---|
 | Obrigações de pagar | Pagamento único | Uma parte paga à outra um valor, em prazo definido. |
 | | Pagamento periódico | Parcelas a cada tantos dias (aluguel, prestações, mensalidades). |
-| | Pagamento em "stablecoin" | Pagamento em token lastreado em reais (tBRL de teste), com autorização prévia do devedor. |
+| | Pagamento em "stablecoin" | Pagamento em "token" lastreado em reais (tBRL de teste), com autorização prévia do devedor. |
 | | Multa e juros de mora | Encargos por atraso, ligados a um pagamento, com tolerância. |
 | | Vencimento antecipado | Após atraso prolongado, o credor antecipa o saldo devedor. |
 | Obrigações de dar, fazer e não fazer | Obrigação de dar | Entrega de coisa, atestada por quem foi designado (veja a seção 6). |
@@ -103,6 +103,7 @@ Os blocos aparecem em **"+ Acrescentar cláusula"**, agrupados por categoria. Al
 | | Cláusula penal com garantia | O devedor deposita um valor que vai ao credor se a obrigação for descumprida. |
 | Garantias | Depósito em garantia | Valor retido até a confirmação do cumprimento; devolução se o prazo vencer. |
 | | Caução | Garantia devolvida após o término; retenção decidida pelo árbitro. |
+| | Direito de arrependimento | Retém o pagamento (ou o depósito) pelo prazo de desistência e o devolve se o pagador desistir. |
 | Execução | Entregas por etapas | Pagamento por etapa aprovada, com recusa fundamentada e aprovação tácita. |
 | Solução de disputas | Árbitro | Decide, em prazo definido, as disputas sobre valores retidos e sobre o cumprimento de obrigações. |
 | Informações externas | Informação externa: valor | Índice, cotação ou outro número informado por uma fonte designada, com prazo de validade. |
@@ -110,14 +111,13 @@ Os blocos aparecem em **"+ Acrescentar cláusula"**, agrupados por categoria. Al
 | | Reajuste por índice | Corrige o valor de um pagamento pela informação externa. |
 | | Valor em reais pela cotação | Converte em Ether, no momento do pagamento, um valor fixado em reais. |
 | | Liberação por evento | Libera o depósito em garantia quando o evento é atestado ou a obrigação é cumprida. |
-| | Direito de arrependimento | Retém o pagamento (ou o depósito) pelo prazo de desistência e o devolve se o pagador desistir. |
 | Formalização e assinaturas | Objeto, Foro de eleição, Local e data, Comunicações, Confidencialidade, Proteção de dados, Disposições gerais | Cláusulas formais prontas e editáveis; integram o contrato, mas não são executadas pelo código. |
 | | Notificações registradas | Uma parte registra no contrato notificação à outra, com prova do conteúdo e da data. |
 | | Assinaturas digitais | O contrato só entra em vigor quando todos assinam com a carteira, conferindo a impressão digital do texto (veja a seção 7). |
 | | Testemunha | Signatário que não é parte; assina como os demais. |
 | Encerramento | Rescisão | Encerra o contrato e devolve os valores retidos a quem os depositou. |
 | | Prazo de vigência | Encerra o contrato após o prazo. |
-| Redação livre | Cláusula livre | Qualquer texto (foro, confidencialidade, descrição do bem...). Integra o contrato, mas não é executada pelo código. |
+| Redação livre | Cláusula livre | Qualquer outro texto. Integra o contrato, mas não é executada pelo código. |
 
 **Cores e ligações.** Cada cláusula tem uma cor, repetida no documento, na legenda acima do código, nos cartões de função do Laboratório e nos testes. As cláusulas que dependem de outra exibem a marca "ligada a", e o **"Mapa das ligações entre cláusulas"**, no fim do documento, mostra o conjunto. Nos nomes das funções, um sublinhado separa o ato da cláusula (por exemplo, `pagar_Aluguel`), e o Laboratório mostra também o título por extenso ("Pagar · Aluguel").
 
@@ -135,7 +135,9 @@ O código não enxerga o mundo real: não sabe se um carro foi entregue ou se um
 
 O devedor nunca pode atestar a própria obrigação, e o árbitro não pode ser parte dela; a página aponta essas situações antes de gerar o código. Quando quem atesta é o próprio credor e não há árbitro, a página avisa que o resultado depende da boa-fé do credor. No texto da cláusula, substitua "[descreva o bem]" (ou o serviço, ou a conduta) pela descrição real; a página avisa enquanto isso não for feito.
 
-**Árbitro com prazo.** O árbitro tem um prazo para decidir cada disputa. Sem decisão nesse prazo, qualquer das partes encerra a disputa e os valores voltam a quem os depositou, de modo que nenhum valor fica preso no contrato pelo silêncio de alguém. A obrigação de dar ou de fazer também pode liberar um depósito em garantia: por exemplo, o preço fica retido e é liberado ao vendedor quando o comprador atesta o recebimento do bem.
+**Árbitro com prazo.** O árbitro tem um prazo para decidir cada disputa. Sem decisão nesse prazo, qualquer das partes encerra a disputa e os valores voltam a quem os depositou, de modo que nenhum valor fica preso no contrato pelo silêncio de alguém.
+
+**Liberação do preço pelo cumprimento.** A obrigação de dar ou de fazer também pode liberar um depósito em garantia: por exemplo, o preço fica retido e é liberado ao vendedor quando o comprador atesta o recebimento do bem. Enquanto o cumprimento estiver informado ou em disputa, o comprador não pode reaver o preço, nem mesmo rescindindo o contrato.
 
 ![Compra com entrega do bem atestada pelo comprador, liberação do preço e cláusula penal](docs/img/pt/obrigacoes.png)
 
@@ -169,7 +171,7 @@ Um contrato pode depender de dados de fora da "blockchain", como um índice de r
 - **Informação externa: valor.** A fonte registra um número com duas casas decimais (4,25% é informado como 425). Cada registro vale pelo prazo de validade; depois dele, o contrato se recusa a usar o dado até nova atualização.
 - **Informação externa: evento.** A fonte atesta, uma única vez, que o fato ocorreu.
 - **Série de dados.** Numa informação de valor, **"Carregar série (CSV ou JSON)"** recebe um arquivo com linhas `data;valor` (ex.: `01/02/2026;0,41`) ou `dia;valor`. No Laboratório, ao avançar o tempo, a fonte informa automaticamente o valor de cada data. **"Baixar modelo de CSV"** fornece um exemplo pronto para preencher.
-- **Dados das partes.** Em **"Dados das partes (opcional)"**, informe o endereço de carteira de cada parte, para o relatório e para a implantação numa rede de teste.
+- **Dados das partes.** Em **"Dados das partes (opcional)"**, informe a qualificação de cada parte (que entra apenas no documento assinado; veja a seção 7) e o endereço de carteira, para o relatório e para a implantação numa rede de teste.
 - **Arquivo do contrato.** **"Salvar contrato (.json)"** guarda toda a montagem, inclusive redação, partes e séries; **"Abrir contrato"** a recupera em qualquer navegador.
 
 ## 9. Cotação do Ether e custo de "gás"
@@ -239,6 +241,8 @@ Os testes predefinidos incluem, em todo contrato, a tentativa de uma conta não 
 | Oráculo | Fonte designada que leva ao contrato uma informação de fora da "blockchain" (índice, cotação, evento). |
 | "Stablecoin" | Token de valor estável, atrelado a uma moeda (aqui, o tBRL de teste, 1 unidade = R$ 1,00). |
 | Reentrância | Ataque em que um contrato malicioso chama de novo a função de saque antes que a primeira chamada termine. |
+| Impressão digital ("hash") | Sequência calculada a partir de um texto ou arquivo (aqui, pelo algoritmo SHA-256); qualquer alteração no conteúdo muda a impressão digital. |
+| Assinatura eletrônica | Assinatura de documento por meio eletrônico, como a do gov.br ou a feita com certificado digital ICP-Brasil. |
 | Auditoria | Revisão independente de segurança, indispensável antes do uso real. |
 
 ## 14. Perguntas frequentes
@@ -249,7 +253,7 @@ Os testes predefinidos incluem, em todo contrato, a tentativa de uma conta não 
 
 **Posso usar com dinheiro real?** Não. O código é educacional e exige revisão profissional e auditoria.
 
-**Meus dados vão para algum lugar?** Sem IA, o contrato fica no seu navegador. Com IA, o texto vai à API do Google. A consulta de cotação acessa a CoinGecko ou a Coinbase, e a do preço do "gás", nós públicos do Ethereum, apenas quando você abre o painel de cotação ou marca a cobrança de "gás" no Laboratório.
+**Meus dados vão para algum lugar?** Sem IA, o contrato fica no seu navegador. Com IA, o texto vai à API do Google; os dados das partes (nomes, documentos, endereços e carteiras) não são enviados ao assistente. A consulta de cotação acessa a CoinGecko ou a Coinbase, e a do preço do "gás", nós públicos do Ethereum, apenas quando você abre o painel de cotação ou marca a cobrança de "gás" no Laboratório.
 
 **Por que o valor em Ether muda?** Porque o Ether tem cotação variável. Ao gerar o código, o valor em Ether fica fixado pela escala ou pela cotação escolhida.
 
@@ -261,7 +265,7 @@ Os testes predefinidos incluem, em todo contrato, a tentativa de uma conta não 
 
 **Como reaproveito uma cláusula que escrevi?** Use "Salvar como meu bloco"; ela fica disponível em "+ Acrescentar cláusula" → "Meus blocos", com as cláusulas ligadas, e pode ser exportada em arquivo.
 
-**Como uso o mesmo contrato como base de outros?** Use "Salvar como meu modelo". Ele aparece em "Começar de um exemplo" → "Meus modelos". Endereços de carteira não são guardados no modelo.
+**Como uso o mesmo contrato como base de outros?** Use "Salvar como meu modelo". Ele aparece em "Começar de um exemplo" → "Meus modelos". Os dados das partes (qualificação e carteiras) não são guardados no modelo.
 
 ## 15. Limitações
 
@@ -269,6 +273,8 @@ Os testes predefinidos incluem, em todo contrato, a tentativa de uma conta não 
 - A conferência jurídica é indicativa, baseada no direito brasileiro, e não substitui a análise de um profissional.
 - Os blocos cobrem uma família ampla de contratos de pagamento e obrigação, mas não todo contrato.
 - Fatos do mundo real dependem de quem foi designado para atestá-los (parte, árbitro ou oráculo); o contrato confia nessa fonte.
+- A assinatura pela carteira prova a aceitação do texto por aquele endereço, mas não identifica a pessoa; a identificação depende do documento assinado fora da "blockchain".
+- O assistente de IA pode errar: confira a proposta de montagem, os avisos e os testes antes de usar o contrato.
 - Datas de calendário são aproximadas por períodos fixos em dias.
 - A "blockchain" simulada reproduz a EVM (versão Cancun) e estima o custo de "gás" pelo preço atual da rede, mas interage apenas com os contratos auxiliares de teste (a "stablecoin" tBRL e o contrato atacante), não com contratos já implantados numa rede real.
 - A cotação é de referência e varia ao longo do tempo.
@@ -289,7 +295,7 @@ npm test
 npm run build
 ```
 
-Principais arquivos: `assets/js/blocks.js` (blocos), `assets/js/composer.js` (montador), `assets/js/templates.js` (modelos prontos), `assets/js/lab.js` (Laboratório), `assets/js/security-scan.js` (verificador), `assets/js/rates.js` (cotação e "gás"), `assets/js/prompts.js` (instruções da IA), `src/evm-lab.mjs` (EVM simulada) e `contracts/` (contratos auxiliares de teste: atacante e "stablecoin").
+Principais arquivos: `assets/js/blocks.js` (blocos), `assets/js/composer.js` (montador), `assets/js/templates.js` (modelos prontos), `assets/js/lab.js` (Laboratório), `assets/js/security-scan.js` (verificador), `assets/js/rates.js` (cotação e "gás"), `assets/js/prompts.js` (instruções da IA), `assets/js/assistant.js` (assistente de conversa), `src/evm-lab.mjs` (EVM simulada) e `contracts/` (contratos auxiliares de teste: atacante e "stablecoin").
 
 ## 17. Autoria e licença
 

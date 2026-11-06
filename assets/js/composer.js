@@ -56,6 +56,19 @@
         originBlocks: 'gerada pelo contrato montado',
         finalClauseTitle: 'Pagamentos e saques',
         declarative: 'não executada pelo código',
+        partiesData: 'Dados das partes (opcional)',
+        partiesDataHelp: 'Endereço de carteira de cada parte, para o relatório e para a implantação numa rede de teste. Não inclua dados pessoais sensíveis: o arquivo do contrato fica com quem o salvar.',
+        partyWallet: 'Endereço de carteira',
+        walletInvalid: 'O endereço de carteira de "{name}" não parece válido (deve começar com 0x e ter 42 caracteres).',
+        seriesNone: 'Opcional: carregue uma série de dados (por exemplo, o índice mês a mês) para o Laboratório atualizar esta informação automaticamente ao avançar o tempo.',
+        seriesSummary: 'Série carregada: {n} valores, do dia {d0} ao dia {d1} do contrato ({v0} a {v1}). No Laboratório, a fonte informa o valor de cada data automaticamente.',
+        seriesLoad: 'Carregar série (CSV ou JSON)',
+        seriesSample: 'Baixar modelo de CSV',
+        seriesRemove: 'Remover série',
+        seriesLoaded: 'Série carregada com {n} valores.',
+        seriesInvalid: 'Não foi possível ler a série. Use linhas "data;valor" (ex.: 01/02/2026;0,41) ou "dia;valor".',
+        contractOpened: 'Contrato aberto.',
+        contractInvalid: 'Arquivo de contrato inválido.',
         docWarnings: 'Atenção',
         looseValues: 'Na cláusula "{clause}", o texto menciona {values} fora das lacunas destacadas: esses valores constam da redação, mas não serão executados pelo código.',
         editHint: 'Clique no texto para editá-lo livremente. Os trechos destacados são executados pelo código; o restante é apenas redação.'
@@ -105,6 +118,19 @@
         originBlocks: 'generated from the composed contract',
         finalClauseTitle: 'Payments and withdrawals',
         declarative: 'not executed by the code',
+        partiesData: 'Party details (optional)',
+        partiesDataHelp: 'Each party\'s wallet address, for the report and for testnet deployment. Do not include sensitive personal data: the contract file stays with whoever saves it.',
+        partyWallet: 'Wallet address',
+        walletInvalid: 'The wallet address of "{name}" does not look valid (it must start with 0x and have 42 characters).',
+        seriesNone: 'Optional: load a data series (e.g. a monthly index) so the Lab updates this data automatically as time moves forward.',
+        seriesSummary: 'Series loaded: {n} values, from day {d0} to day {d1} of the contract ({v0} to {v1}). In the Lab, the source reports each date\'s value automatically.',
+        seriesLoad: 'Load series (CSV or JSON)',
+        seriesSample: 'Download CSV template',
+        seriesRemove: 'Remove series',
+        seriesLoaded: 'Series loaded with {n} values.',
+        seriesInvalid: 'Could not read the series. Use "date;value" lines (e.g. 02/01/2026;0.41) or "day;value".',
+        contractOpened: 'Contract opened.',
+        contractInvalid: 'Invalid contract file.',
         docWarnings: 'Attention',
         looseValues: 'In clause "{clause}", the text mentions {values} outside the highlighted blanks: these values are part of the wording but will not be executed by the code.',
         editHint: 'Click the text to edit it freely. Highlighted parts are executed by the code; the rest is wording only.'
@@ -274,7 +300,125 @@
             el('div', { class: 'clause-head' }, [el('span', { class: 'clause-num', text: ordinal(index + 2) }), ' — ', ...titleNodes, def.declarative ? el('span', { class: 'clause-note', text: t('declarative') }) : null, tools]),
             sentenceNode(block)
         ]);
+        if (block.type === 'oraculoValor') li.appendChild(seriesNode(block));
         return li;
+    }
+
+    // ---------- Série de dados para o oráculo (CSV ou JSON) ----------
+    function parseNumber(v) {
+        const s = String(v).trim().replace(/\s/g, '').replace(/^R\$/, '').replace(/%$/, '');
+        const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+        return Number(lc > ld ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, ''));
+    }
+    function parseDate(v) {
+        const s = String(v).trim();
+        let m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+        if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1]);
+        m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+        if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+        m = /^(\d{1,2})\/(\d{4})$/.exec(s); // mm/aaaa
+        if (m) return Date.UTC(+m[2], +m[1] - 1, 1);
+        return null;
+    }
+    /** Lê "dia;valor" ou "data;valor" (CSV) ou [{dia|data, valor}] (JSON). Devolve [{dia, valor×100}]. */
+    function parseSeries(text) {
+        let rows = [];
+        const trimmed = String(text).trim();
+        if (/^[\[{]/.test(trimmed)) {
+            const data = JSON.parse(trimmed);
+            rows = (Array.isArray(data) ? data : data.serie || data.series || []).map(r => [r.dia != null ? r.dia : (r.day != null ? r.day : r.data || r.date), r.valor != null ? r.valor : r.value]);
+        } else {
+            rows = trimmed.split(/\r?\n/).map(l => l.split(/[;\t]|,(?=\s*-?[\d.]+\s*$)/)).filter(r => r.length >= 2);
+        }
+        const out = [];
+        let first = null;
+        for (const [k, v] of rows) {
+            const val = parseNumber(v);
+            if (!Number.isFinite(val) || val < 0) continue;
+            let dia = null;
+            if (/^\s*\d+\s*$/.test(String(k))) dia = Number(k);
+            else {
+                const d = parseDate(k);
+                if (d == null) continue;
+                if (first == null) first = d;
+                dia = Math.round((d - first) / 86400000);
+            }
+            out.push({ dia, valor: Math.round(val * 100) });
+        }
+        out.sort((a, b) => a.dia - b.dia);
+        if (!out.length) throw new Error('empty');
+        return out.slice(0, 1000);
+    }
+
+    function seriesNode(block) {
+        const fileInput = el('input', { type: 'file', accept: '.csv,.txt,.json,text/csv,application/json', hidden: true, onchange: e => {
+            const f = e.target.files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try { block.serie = parseSeries(reader.result); if (state.dom.notice) state.dom.notice(t('seriesLoaded', { n: block.serie.length })); changed(true); }
+                catch (_) { if (state.dom.notice) state.dom.notice(t('seriesInvalid')); }
+            };
+            reader.readAsText(f);
+        } });
+        const sample = () => {
+            const csv = CSC.lang === 'en' ? 'date;value\n01/01/2026;0\n01/02/2026;0.41\n01/03/2026;0.95\n01/04/2026;1.32\n' : 'data;valor\n01/01/2026;0\n01/02/2026;0,41\n01/03/2026;0,95\n01/04/2026;1,32\n';
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            const a = el('a', { href: url, download: 'modelo-serie.csv' });
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        };
+        const serie = block.serie || [];
+        const fmt = v => (v / 100).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR');
+        return el('div', { class: 'series' }, [
+            el('p', { class: 'hint', text: serie.length ? t('seriesSummary', { n: serie.length, d0: serie[0].dia, d1: serie[serie.length - 1].dia, v0: fmt(serie[0].valor), v1: fmt(serie[serie.length - 1].valor) }) : t('seriesNone') }),
+            el('div', { class: 'inline-row' }, [
+                el('button', { type: 'button', class: 'link-btn', text: t('seriesLoad'), onclick: () => fileInput.click() }),
+                el('button', { type: 'button', class: 'link-btn', text: t('seriesSample'), onclick: sample }),
+                serie.length ? el('button', { type: 'button', class: 'link-btn', text: t('seriesRemove'), onclick: () => { delete block.serie; changed(true); } }) : null,
+                fileInput
+            ])
+        ]);
+    }
+
+    // ---------- Arquivo do contrato (.json) ----------
+    function exportContract() {
+        const data = { formato: 'conversor-contratual/contrato', versao: 1, criadoEm: new Date().toISOString(), idioma: CSC.lang, modelo: state.model };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const name = B().names.pascal(state.model.name || 'contrato');
+        const a = el('a', { href: url, download: name + '.contrato.json' });
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    function sanitizeModel(m) {
+        if (!m || !Array.isArray(m.roles) || !Array.isArray(m.blocks)) throw new Error('format');
+        const str = (v, n) => String(v == null ? '' : v).slice(0, n);
+        const roles = m.roles.slice(0, 8).map((r, i) => ({ id: str(r.id || 'p' + (i + 1), 40), label: str(r.label, 60), carteira: r.carteira ? str(r.carteira, 42) : undefined }));
+        const blocks = m.blocks.slice(0, 60).filter(b => b && B().BLOCKS[b.type]).map(b => {
+            const out = { uid: str(b.uid, 60), type: b.type, label: str(b.label, 80), params: {} };
+            for (const p of B().BLOCKS[b.type].params) out.params[p.key] = typeof b.params[p.key] === 'number' ? b.params[p.key] : str(b.params[p.key], 80);
+            if (b.texto) out.texto = str(b.texto, 4000);
+            if (Array.isArray(b.serie)) out.serie = b.serie.slice(0, 1000).map(x => ({ dia: Number(x.dia) || 0, valor: Math.max(0, Math.round(Number(x.valor) || 0)) }));
+            return out;
+        });
+        const model = { name: str(m.name, 80), scale: Number(m.scale) > 0 ? Number(m.scale) : 1000, roles, blocks };
+        if (m.cotacao && Number(m.cotacao.brl) > 0) model.cotacao = { brl: Number(m.cotacao.brl), fonte: str(m.cotacao.fonte, 30), data: str(m.cotacao.data, 40) };
+        return model;
+    }
+    function importContract(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const data = JSON.parse(reader.result);
+                state.model = sanitizeModel(data.modelo || data.model || data);
+                state.openWording.clear();
+                changed(true);
+                if (state.dom.notice) state.dom.notice(t('contractOpened'));
+            } catch (_) { if (state.dom.notice) state.dom.notice(t('contractInvalid')); }
+        };
+        reader.readAsText(file);
     }
 
     function ordinal(n) { return CSC.lang === 'en' ? 'Clause ' + n : 'Cláusula ' + n + 'ª'; }
@@ -297,9 +441,20 @@
             roles.push({ id: newPartyId(), label: t('newParty') + ' ' + (roles.length + 1) });
             changed(true);
         } }) : null;
+        const data = el('details', { class: 'parties-data' }, [
+            el('summary', { class: 'link-btn', text: t('partiesData') }),
+            el('p', { class: 'hint', text: t('partiesDataHelp') }),
+            ...roles.map(r => el('label', { class: 'party-row' }, [
+                el('span', { class: 'party-row-name', text: r.label }),
+                el('input', { type: 'text', class: 'party-wallet', placeholder: '0x…', spellcheck: 'false', value: r.carteira || '', 'aria-label': t('partyWallet') + ' — ' + r.label,
+                    oninput: e => { r.carteira = e.target.value.trim(); changed(false); } })
+            ]))
+        ]);
+        if (roles.some(r => r.carteira)) data.open = true;
         return el('li', { class: 'clause clause-parties' }, [
             el('div', { class: 'clause-head' }, [el('span', { class: 'clause-num', text: ordinal(1) }), ' — ', el('span', { class: 'clause-title', text: t('partiesTitle') })]),
-            el('p', { class: 'clause-text' }, [t('partiesIntro') + ' ', ...chips, t('partiesOutro').startsWith(',') ? t('partiesOutro') : ' ' + t('partiesOutro'), ' ', add])
+            el('p', { class: 'clause-text' }, [t('partiesIntro') + ' ', ...chips, t('partiesOutro').startsWith(',') ? t('partiesOutro') : ' ' + t('partiesOutro'), ' ', add]),
+            data
         ]);
     }
 
@@ -455,6 +610,7 @@
             box.appendChild(ul);
         }
         const warnings = [];
+        for (const r of state.model.roles) if (r.carteira && !/^0x[0-9a-fA-F]{40}$/.test(r.carteira)) warnings.push(t('walletInvalid', { name: r.label }));
         for (const b of state.model.blocks) {
             const vals = looseValues(b);
             if (vals.length) warnings.push(t('looseValues', { clause: b.label, values: vals.map(v => '"' + v.trim() + '"').join(', ') }));
@@ -502,6 +658,11 @@
             state.dom = dom;
             state.onChange = onChange;
             dom.title.addEventListener('input', () => { state.model.name = dom.title.value; changed(false); });
+            if (dom.save) dom.save.addEventListener('click', exportContract);
+            if (dom.open && dom.openFile) {
+                dom.open.addEventListener('click', () => dom.openFile.click());
+                dom.openFile.addEventListener('change', e => { importContract(e.target.files[0]); e.target.value = ''; });
+            }
             dom.presets.addEventListener('change', () => {
                 const v = dom.presets.value;
                 if (!v) return;
@@ -512,6 +673,7 @@
         },
         load(model) { state.model = model; render(); },
         model: () => state.model,
+        _parseSeries: parseSeries,
         render,
         issues: () => B().validate(state.model)
     };

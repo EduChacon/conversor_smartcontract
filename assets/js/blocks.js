@@ -114,6 +114,21 @@
                 en: '{devedor} shall pay {credor} {parcelas} installments of {valor}, every {periodo} days, the first due {periodo} days after deployment.'
             }
         },
+        pagamentoToken: {
+            category: 'pagamentos',
+            name: { pt: 'Pagamento em "stablecoin"', en: 'Stablecoin payment' },
+            defaultLabel: { pt: 'Pagamento tBRL', en: 'tBRL Payment' },
+            params: [
+                { key: 'devedor', kind: 'role', role: 1 },
+                { key: 'credor', kind: 'role', role: 0 },
+                { key: 'valor', kind: 'money', def: 3000 },
+                { key: 'prazo', kind: 'days', def: 10, min: 1 }
+            ],
+            sentence: {
+                pt: '{devedor} pagará a {credor} {valor} em "stablecoin" lastreada em reais (1 unidade = R$ 1,00), até {prazo} dias após a implantação, autorizando previamente o contrato a debitar o valor de sua carteira.',
+                en: '{devedor} shall pay {credor} {valor} in a BRL-pegged stablecoin (1 unit = R$ 1.00), within {prazo} days of deployment, by first authorizing the contract to debit the amount from their wallet.'
+            }
+        },
         encargos: {
             category: 'pagamentos',
             attached: true,
@@ -400,7 +415,7 @@
                     }
                 }
             }
-            const pairs = { pagamentoUnico: ['devedor', 'credor'], pagamentoPeriodico: ['devedor', 'credor'], custodia: ['depositante', 'beneficiario'], etapas: ['contratante', 'contratado'], caucao: ['garantidor', 'beneficiario'] }[b.type];
+            const pairs = { pagamentoToken: ['devedor', 'credor'], pagamentoUnico: ['devedor', 'credor'], pagamentoPeriodico: ['devedor', 'credor'], custodia: ['depositante', 'beneficiario'], etapas: ['contratante', 'contratado'], caucao: ['garantidor', 'beneficiario'] }[b.type];
             if (pairs && b.params[pairs[0]] && b.params[pairs[0]] === b.params[pairs[1]]) add('As partes de "' + b.label + '" devem ser diferentes.', 'The parties in "' + b.label + '" must differ.', b.uid);
             if (b.type === 'etapas' && Number(b.params.etapas) > 0 && toWei(b.params.valor, model.scale) < BigInt(Math.round(b.params.etapas))) add('Valor insuficiente para o número de etapas.', 'Amount too small for the number of milestones.', b.uid);
         }
@@ -453,7 +468,8 @@
         const mod = role => N.apenas + role.P;
         const modPair = (a, b) => N.apenas + a.P + N.Ou + b.P;
         const allMoney = blocks.filter(b => ['pagamentoUnico', 'pagamentoPeriodico', 'custodia', 'etapas', 'caucao'].includes(b.type));
-        return { lang, en, w, roles, roleById, blocks, byUid, arb, arbRole, partyRoles, N, mod, modPair, scale: model.scale || 1000, name: pascal(model.name || w('Contrato Montado', 'Composed Agreement')), allMoney };
+        const usesToken = blocks.some(b => b.type === 'pagamentoToken');
+        return { lang, en, w, roles, roleById, blocks, byUid, arb, arbRole, partyRoles, N, mod, modPair, scale: model.scale || 1000, name: pascal(model.name || w('Contrato Montado', 'Composed Agreement')), allMoney, usesToken };
     }
 
     // ------------------------------------------------------------------
@@ -646,6 +662,29 @@
         ${N.verificar}();
     }`);
                 if (!encOf(b)) code[0] = code[0].replace(`returns (uint256 total, uint256 ${w('encargos', 'charges')}) {\n        total = `, `returns (uint256 total, uint256 ${w('encargos', 'charges')}) {\n        ${w('encargos', 'charges')} = 0;\n        total = `);
+                concluded.push(paid);
+            }
+
+            if (b.type === 'pagamentoToken') {
+                const dev = roleById(b.params.devedor), cre = roleById(b.params.credor);
+                const paid = b.i + w('Pago', 'Paid');
+                const dm = useMod(dev);
+                constants.push(`    uint256 public constant ${P}_${w('VALOR_TOKEN', 'TOKEN_AMOUNT')} = ${Math.round(Number(b.params.valor) * 100) / 100} ether; // ${money(b.params.valor, lang)} ${w('em tBRL (18 casas decimais)', 'in tBRL (18 decimals)')}`);
+                constants.push(`    uint256 public constant ${P}_${w('PRAZO', 'DEADLINE')} = ${Math.round(b.params.prazo)} days;`);
+                state.push(`    bool public ${paid};`);
+                events.push(`    event ${w('Pagamento', 'Payment')}${b.I}(address indexed ${w('pagador', 'payer')}, uint256 ${N.valor});`);
+                code.push(`    /// @notice ${w('Pagamento em "stablecoin": antes, o devedor autoriza o contrato no próprio token (função approve).', 'Stablecoin payment: the debtor first authorizes the contract on the token itself (approve function).')}
+    /// @dev ${w('O crédito é registrado antes da chamada ao token (checks-effects-interactions) e a função é protegida contra reentrância.', 'The credit is recorded before calling the token (checks-effects-interactions) and the function is reentrancy-protected.')}
+    function ${w('pagar', 'pay')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) nonReentrant {
+        if (${paid}) revert ${N.JaConcluido}();
+        if (block.timestamp > ${N.inicio} + ${P}_${w('PRAZO', 'DEADLINE')}) revert ${N.PrazoEncerrado}(${N.inicio} + ${P}_${w('PRAZO', 'DEADLINE')});
+        ${paid} = true;
+        ${w('saldosToken', 'tokenBalances')}[${cre.v}] += ${P}_${w('VALOR_TOKEN', 'TOKEN_AMOUNT')};
+        bool ok = token.transferFrom(msg.sender, address(this), ${P}_${w('VALOR_TOKEN', 'TOKEN_AMOUNT')});
+        if (!ok) revert ${N.FalhaNoEnvio}();
+        emit ${w('Pagamento', 'Payment')}${b.I}(msg.sender, ${P}_${w('VALOR_TOKEN', 'TOKEN_AMOUNT')});
+        ${N.verificar}();
+    }`);
                 concluded.push(paid);
             }
 
@@ -1019,8 +1058,8 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         // ---------------- Montagem do arquivo ----------------
         const L = (pt, en) => w(pt, en);
         const minutaTxt = minuta(model, lang);
-        const roleParams = ctx.roles.map(r => `address _${r.v}`).join(', ');
-        const roleChecks = ctx.roles.map(r => `_${r.v} == address(0)`).join(' || ');
+        const roleParams = ctx.roles.map(r => `address _${r.v}`).concat(ctx.usesToken ? ['address _token'] : []).join(', ');
+        const roleChecks = ctx.roles.map(r => `_${r.v} == address(0)`).concat(ctx.usesToken ? ['_token == address(0)'] : []).join(' || ');
         const distinct = [];
         for (let a = 0; a < ctx.roles.length; a++) for (let c = a + 1; c < ctx.roles.length; c++) distinct.push(`_${ctx.roles[a].v} == _${ctx.roles[c].v}`);
         const lines = [];
@@ -1030,6 +1069,14 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         lines.push('// ' + L('ATENÇÃO: esqueleto montado a partir de blocos revisados (sem IA). Requer revisão profissional antes de qualquer uso.', 'WARNING: skeleton assembled from reviewed blocks (no AI). Requires professional review before any use.'));
         lines.push('// ' + L('Gerado com o Conversor Contratual', 'Generated with the Contract Converter') + ' (github.com/EduChacon/conversor_smartcontract)');
         lines.push('');
+        if (ctx.usesToken) {
+            lines.push('/// @notice ' + L('Interface mínima de "token" ERC-20 (usada pela "stablecoin").', 'Minimal ERC-20 token interface (used by the stablecoin).'));
+            lines.push('interface IERC20Minimo {');
+            lines.push('    function transfer(address to, uint256 value) external returns (bool);');
+            lines.push('    function transferFrom(address from, address to, uint256 value) external returns (bool);');
+            lines.push('}');
+            lines.push('');
+        }
         lines.push(`/// @title ${ctx.name}`);
         lines.push('/// @notice ' + L('Contrato montado por blocos. Cada seção abaixo transcreve, em comentário, a cláusula que implementa.', 'Contract assembled from blocks. Each section below quotes, as a comment, the clause it implements.'));
         lines.push(`contract ${ctx.name} {`);
@@ -1058,6 +1105,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         lines.push(commentBlock(minutaTxt[0].texto, '    '));
         ctx.roles.forEach(r => lines.push(`    address public immutable ${r.v};`));
         lines.push(`    uint256 public immutable ${N.inicio};`);
+        if (ctx.usesToken) lines.push(`    IERC20Minimo public immutable token; // ${L('"stablecoin" usada nos pagamentos em token', 'stablecoin used for token payments')}`);
         lines.push('');
         if (needsBps) lines.push(`    uint256 private constant BPS = 10_000; // ${L('100% em pontos-base', '100% in basis points')}`);
         constants.forEach(c => lines.push(c));
@@ -1066,6 +1114,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         lines.push(`    uint256 public ${N.encerradoEm};`);
         lines.push(`    mapping(address => uint256) public ${N.saldos};`);
         lines.push(`    bool private ${N.travado};`);
+        if (ctx.usesToken) lines.push(`    mapping(address => uint256) public ${w('saldosToken', 'tokenBalances')};`);
         state.forEach(s => lines.push(s));
         lines.push('');
         for (const m of modifiers.values()) { lines.push(m); lines.push(''); }
@@ -1077,6 +1126,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         lines.push(`        if (${roleChecks}) revert ${N.ParametroInvalido}();`);
         if (distinct.length) lines.push(`        if (${distinct.join(' || ')}) revert ${N.ParametroInvalido}();`);
         ctx.roles.forEach(r => lines.push(`        ${r.v} = _${r.v};`));
+        if (ctx.usesToken) lines.push('        token = IERC20Minimo(_token);');
         lines.push(`        ${N.inicio} = block.timestamp;`);
         lines.push('    }');
         lines.push('');
@@ -1106,6 +1156,17 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         }
         lines.push('    }');
         lines.push('');
+        if (ctx.usesToken) {
+            lines.push(`    /// @notice ${L('Saque do crédito em "stablecoin" pelo próprio titular.', 'Withdrawal of stablecoin credit by its owner.')}`);
+            lines.push(`    function ${w('sacarToken', 'withdrawToken')}() external nonReentrant {`);
+            lines.push(`        uint256 ${N.valor} = ${w('saldosToken', 'tokenBalances')}[msg.sender];`);
+            lines.push(`        if (${N.valor} == 0) revert ${N.SemSaldo}();`);
+            lines.push(`        ${w('saldosToken', 'tokenBalances')}[msg.sender] = 0;`);
+            lines.push(`        bool ok = token.transfer(msg.sender, ${N.valor});`);
+            lines.push(`        if (!ok) revert ${N.FalhaNoEnvio}();`);
+            lines.push('    }');
+            lines.push('');
+        }
         lines.push(`    /// @notice ${L('Saque do crédito disponível pelo próprio titular (padrão "pull payment").', 'Withdrawal of available credit by its owner ("pull payment" pattern).')}`);
         lines.push(`    function ${N.sacar}() external nonReentrant {`);
         lines.push(`        uint256 ${N.valor} = ${N.saldos}[msg.sender];`);
@@ -1410,10 +1471,41 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
             }
         }
 
+        // "Stablecoin": autorização prévia, pagamento e saque em token.
+        for (const b of blocks.filter(x => x.type === 'pagamentoToken')) {
+            const dev = roleById(b.params.devedor), cre = roleById(b.params.credor);
+            const tok = (Math.round(Number(b.params.valor) * 100) / 100) + ' ether';
+            scenarios.push(sc(w(`${b.label}: autorização, pagamento e saque`, `${b.label}: approval, payment and withdrawal`), 'funcionalidade',
+                w('O devedor autoriza o contrato no token, paga, e o credor saca os tokens.', 'The debtor authorizes the contract on the token, pays, and the payee withdraws the tokens.'), [
+                    { acao: 'chamar', alvo: 'token', conta: R(dev), funcao: 'approve', argumentos: ['@Contrato', tok], esperado: 'sucesso', explicacao: w('Autorização de débito no token.', 'Debit authorization on the token.') },
+                    call(R(dev), w('pagar', 'pay') + b.I, [], null, 'sucesso', null, w('Pagamento em tBRL.', 'Payment in tBRL.')),
+                    { acao: 'consultar', alvo: 'token', conta: R(cre), funcao: 'balanceOf', argumentos: ['@Contrato'], esperado: 'sucesso', resultadoEsperado: tok, explicacao: w('Os tokens estão no contrato.', 'The tokens are held by the contract.') },
+                    call(R(cre), w('sacarToken', 'withdrawToken'), [], null, 'sucesso', null, w('O credor saca os tokens.', 'The payee withdraws the tokens.')),
+                    call(R(cre), w('sacarToken', 'withdrawToken'), [], null, 'reverter', N.SemSaldo, w('Não há saque em duplicidade.', 'No duplicate withdrawal.'))
+                ]));
+            scenarios.push(sc(w(`${b.label}: pagamento sem autorização`, `${b.label}: payment without approval`), 'seguranca',
+                w('Sem a autorização prévia no token, o contrato não consegue debitar e o pagamento é recusado por inteiro.', 'Without prior approval on the token, the contract cannot debit and the whole payment is rejected.'), [
+                    call(R(dev), w('pagar', 'pay') + b.I, [], null, 'reverter', 'autorizacao insuficiente', w('Pagamento recusado; nada é registrado.', 'Payment rejected; nothing is recorded.')),
+                    query(R(cre), w('saldosToken', 'tokenBalances'), [R(cre)], '0', w('O credor não recebeu crédito indevido.', 'The payee received no undue credit.'))
+                ]));
+        }
+
+        // Ataque de reentrância por contrato malicioso real (crédito em Ether a um credor que é um contrato).
+        const ethPay = blocks.find(x => x.type === 'pagamentoUnico' || x.type === 'pagamentoPeriodico');
+        if (ethPay) {
+            const dev = roleById(ethPay.params.devedor), cre = roleById(ethPay.params.credor);
+            scenarios.push(Object.assign(sc(w('Ataque de reentrância por contrato malicioso', 'Reentrancy attack by a malicious contract'), 'seguranca',
+                w(`Um contrato atacante ocupa o lugar de ${cre.label}, recebe um crédito legítimo e tenta sacá-lo várias vezes, reentrando no saque. A trava de reentrância e a ordem "efeitos antes da interação" devem impedir.`,
+                    `An attacker contract takes ${cre.label}'s place, receives a legitimate credit and tries to withdraw it several times by re-entering the withdrawal. The reentrancy lock and the effects-before-interaction order must prevent it.`), [
+                    call(R(dev), w('pagar', 'pay') + ethPay.I, [], '=' + w('valorDevido', 'amountDue') + ethPay.I, 'sucesso', null, w('Pagamento legítimo, creditado ao contrato atacante.', 'Legitimate payment, credited to the attacker contract.')),
+                    { acao: 'ataqueReentrancia', conta: attacker, sacar: N.sacar, saldos: N.saldos, explicacao: w('O contrato atacante saca e, ao receber o Ether, tenta sacar de novo.', 'The attacker contract withdraws and, on receiving Ether, tries to withdraw again.') }
+                ]), { contratoAtacante: { papel: R(cre) } }));
+        }
+
         // Teste genérico: o Atacante tenta todas as funções que alteram o estado.
         scenarios.push({ titulo: w('Conta não autorizada tenta executar cada função', 'Unauthorized account tries every function'), tipo: 'seguranca',
             objetivo: w('Toda função que altera o estado deve recusar quem não é a parte legitimada.', 'Every state-changing function must reject anyone who is not the entitled party.'),
-            passos: [{ acao: 'atacarTodas', conta: attacker, ignorar: [N.sacar], erroEsperado: N.NaoAutorizado, explicacao: w('Chamada de cada função pela conta do Atacante.', 'Each function called by the Attacker account.') }, solv()] });
+            passos: [{ acao: 'atacarTodas', conta: attacker, ignorar: [N.sacar, w('sacarToken', 'withdrawToken')], erroEsperado: N.NaoAutorizado, explicacao: w('Chamada de cada função pela conta do Atacante.', 'Each function called by the Attacker account.') }, solv()] });
 
         if (priceOracles.length) {
             for (const scn of scenarios) {
@@ -1432,7 +1524,8 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         return {
             contrato: ctx.name,
             contas: ctx.roles.map(r => ({ nome: r.label, saldoEther: balance })).concat([{ nome: w('Atacante', 'Attacker'), saldoEther: balance }]),
-            implantacao: { conta: R(ctx.roles[0]), argumentos: ctx.roles.map(r => R(r)) },
+            implantacao: { conta: R(ctx.roles[0]), argumentos: ctx.roles.map(r => R(r)).concat(ctx.usesToken ? ['@Token'] : []) },
+            usaToken: ctx.usesToken,
             cenarios: scenarios,
             origem: 'modelo'
         };

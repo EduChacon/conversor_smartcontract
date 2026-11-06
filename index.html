@@ -9,7 +9,7 @@
         se conecta à API Gemini. Protege a chave da API contra scripts de
         terceiros.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com https://api.coingecko.com https://api.coinbase.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com https://api.coingecko.com https://api.coinbase.com https://ethereum-rpc.publicnode.com https://eth.llamarpc.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="description" content="Ferramenta educacional que converte cláusulas contratuais em linguagem natural em esqueletos de smart contracts em Solidity, com modelos revisados, verificação de segurança e testes em blockchain simulada.">
     <meta name="color-scheme" content="light dark">
     <meta name="author" content="Eduardo Chacon (https://github.com/EduChacon)">
@@ -179,6 +179,9 @@
                         <div class="inline-row doc-controls">
                             <label class="sr-only" for="docPresets" data-i18n="docStart">Começar de um exemplo</label>
                             <select id="docPresets"></select>
+                            <button type="button" id="docSave" class="link-btn" data-i18n="docSave">Salvar contrato</button>
+                            <button type="button" id="docOpen" class="link-btn" data-i18n="docOpen">Abrir contrato</button>
+                            <input type="file" id="docOpenFile" accept=".json,application/json" hidden>
                         </div>
                         <article class="doc" aria-labelledby="docTitle">
                             <input type="text" id="docTitle" class="doc-title" maxlength="80" data-i18n-placeholder="docTitlePlaceholder">
@@ -457,6 +460,7 @@
     <script src="assets/js/rates.js"></script>
     <script src="assets/js/compiler.js"></script>
     <script src="assets/vendor/evm-lab.js"></script>
+    <script src="assets/js/lab-helpers.js"></script>
     <script src="assets/js/lab.js"></script>
     <script src="assets/js/composer.js"></script>
     <script src="assets/js/tour.js"></script>

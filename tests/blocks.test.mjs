@@ -15,6 +15,7 @@ const blocks = require('../assets/js/blocks.js');
 globalThis.window = globalThis;
 require('../assets/js/i18n.js');
 globalThis.EvmLab = await import('../src/evm-lab.mjs');
+require('../assets/js/lab-helpers.js');
 require('../assets/js/lab.js');
 const CSC = globalThis.CSC;
 
@@ -43,8 +44,9 @@ async function check(model, lang, label) {
     assert.equal(errors.length, 0, label + '\n' + errors.map(e => e.formattedMessage).join('\n'));
     assert.equal(warnings.length, 0, label + '\n' + warnings.map(e => e.formattedMessage).join('\n'));
     const plan = blocks.plan(model, lang);
-    const [name, c] = Object.entries(out.contracts['Contrato.sol'])[0];
-    assert.equal(name, plan.contrato);
+    const name = plan.contrato;
+    const c = out.contracts['Contrato.sol'][name];
+    assert.ok(c, label + ': contrato principal ausente');
     assert.ok(c.evm.deployedBytecode.object.length / 2 <= 24576, label + ': contrato acima de 24 KB');
     const compiled = { name, abi: c.abi, bytecode: c.evm.bytecode.object, source: code };
     for (const scenario of plan.cenarios) {
@@ -81,10 +83,11 @@ test('combinações aleatórias de blocos (40 montagens)', async () => {
         const add = type => { const b = blocks.newBlock(type, roles, lang, model.blocks); model.blocks.push(b); return b; };
         const nPay = 1 + Math.floor(rand() * 2);
         for (let i = 0; i < nPay; i++) {
-            const b = add(pick(['pagamentoUnico', 'pagamentoPeriodico']));
+            const b = add(pick(['pagamentoUnico', 'pagamentoPeriodico', 'pagamentoUnico', 'pagamentoPeriodico', 'pagamentoToken']));
             b.params.devedor = pick(['a', 'b']);
             b.params.credor = b.params.devedor === 'a' ? 'b' : 'a';
             b.params.valor = 100 + Math.floor(rand() * 5000);
+            if (b.type === 'pagamentoToken') { b.params.prazo = 1 + Math.floor(rand() * 20); continue; }
             if (b.type === 'pagamentoPeriodico') { b.params.parcelas = 1 + Math.floor(rand() * 6); b.params.periodo = 10 + Math.floor(rand() * 30); }
             else b.params.prazo = 1 + Math.floor(rand() * 20);
             if (rand() < 0.6) { const e = add('encargos'); e.params.alvo = b.uid; e.params.multa = Math.floor(rand() * 20); e.params.juros = Math.floor(rand() * 5); e.params.tolerancia = Math.floor(rand() * 5); }

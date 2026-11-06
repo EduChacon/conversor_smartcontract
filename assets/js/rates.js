@@ -26,7 +26,25 @@
         }
     ];
 
-    const state = { current: null, error: null, loading: null, timer: null, subscribers: new Set(), holds: 0 };
+    // Preço do "gás" na rede principal (JSON-RPC público, sem chave).
+    const GAS_RPCS = ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com'];
+
+    const state = { current: null, error: null, loading: null, timer: null, subscribers: new Set(), holds: 0, gas: null };
+
+    async function refreshGas() {
+        for (const url of GAS_RPCS) {
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 10000);
+                const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }), signal: controller.signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
+                clearTimeout(timer);
+                const d = await r.json();
+                const wei = BigInt(d.result);
+                if (wei > 0n) { state.gas = { wei, source: new URL(url).hostname, fetched: Date.now() }; notify(); return state.gas; }
+            } catch (_) { /* tenta o próximo */ }
+        }
+        return null;
+    }
 
     async function fetchJson(url) {
         const controller = new AbortController();
@@ -70,7 +88,8 @@
         state.holds++;
         if (!state.timer) {
             refresh();
-            state.timer = setInterval(() => { if (!document.hidden) refresh(); }, REFRESH_MS);
+            refreshGas();
+            state.timer = setInterval(() => { if (!document.hidden) { refresh(); refreshGas(); } }, REFRESH_MS);
         }
     }
     function release() {
@@ -79,7 +98,9 @@
     }
 
     CSC.rates = {
-        refresh, hold, release,
+        refresh, hold, release, refreshGas,
+        gasPrice: () => (state.gas ? state.gas.wei : null),
+        gasInfo: () => state.gas,
         current: () => state.current,
         error: () => state.error,
         isStale: () => !state.current || Date.now() - state.current.fetched > STALE_MS,

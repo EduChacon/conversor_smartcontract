@@ -932,6 +932,11 @@
             const tp = state.templatePlan;
             const plan = tp ? (tp.kind === 'blocks' ? CSC.blocks.plan(tp.model, tp.lang) : TPL.plan(tp.id, tp.values, tp.lang)) : null;
             CSC.lab.setScale(planScale());
+            CSC.lab.setSeries(tp && tp.kind === 'blocks' ? tp.model.blocks.filter(b => b.type === 'oraculoValor' && Array.isArray(b.serie) && b.serie.length).map(b => ({
+                fn: (tp.lang === 'en' ? 'report' : 'informar') + CSC.blocks.names.pascal(b.label),
+                from: (tp.model.roles.find(r => r.id === b.params.fonte) || {}).label,
+                points: b.serie
+            })) : []);
             CSC.lab.prepare(Object.assign({ source: currentCode() }, chosen), plan);
         } finally {
             setBusy(false);
@@ -1081,6 +1086,12 @@
         lines.push('- solc: ' + CSC.config.SOLC_VERSION, '');
         lines.push('> ' + (state.aiUsed ? t('reportDisclaimer') : t('reportDisclaimerNoAI')), '');
         if (clauseText()) lines.push('## ' + t('reportClause'), '', clauseText().split('\n').map(l => '> ' + l).join('\n'), '');
+        const cm = state.mode === 'blocks' && CSC.composer.model();
+        if (cm && cm.roles.some(r => r.carteira)) {
+            lines.push('## ' + t('reportParties'), '');
+            cm.roles.forEach(r => lines.push('- ' + r.label + (r.carteira ? ': `' + r.carteira + '`' : '')));
+            lines.push('');
+        }
         const sections = [['risk', 'riskAnalysisTitle'], ['suggest', 'suggestClausesTitle']];
         for (const [k, title] of sections) if (state.outputs[k]) lines.push('## ' + t(title), '', state.outputs[k], '');
         lines.push('## ' + t('reportCode'), '', '```solidity', code.trimEnd(), '```', '');
@@ -1359,7 +1370,9 @@
         }
         ratesEl.status.textContent = t('ratesStatus', { brl: fmtMoney(q.brl, 'BRL'), usd: fmtMoney(q.usd, 'USD'), btc: q.btc ? fmtNum(q.btc, 6) + ' BTC' : '—' });
         const time = new Date(q.fetched).toLocaleTimeString(locale());
+        const g = CSC.rates.gasInfo();
         ratesEl.info.textContent = t('ratesInfo', { source: q.source, kind: q.source === 'CoinGecko' ? t('ratesKindAgg') : t('ratesKindEx'), time })
+            + (g ? ' ' + t('gasPriceInfo', { gwei: (Number(g.wei) / 1e9).toLocaleString(locale(), { maximumFractionDigits: 3 }), source: g.source }) : '')
             + (CSC.rates.isStale() ? ' ' + t('ratesStale') : '') + (err ? ' ' + t('ratesError', { msg: err }) : '');
         syncRates();
         CSC.lab.rerender && state.ratesRerenderLab && CSC.lab.rerender();
@@ -1514,6 +1527,7 @@
     });
     CSC.composer.init({
         doc: $('docBody'), title: $('docTitle'), presets: $('docPresets'), issues: $('docIssues'),
+        save: $('docSave'), open: $('docOpen'), openFile: $('docOpenFile'),
         generate: $('blocksGenerateButton'), notice: text => flash(el.toolbarFeedback, text) || showNotice(text)
     }, onComposerChange);
     loadKey();

@@ -92,6 +92,15 @@
         panic_50: 'acesso fora dos limites de array',
         errInsufficient: 'A conta não tem saldo suficiente para enviar esse valor.',
         errWrongAmount: 'Valor incorreto: devido {due}; enviado {sent}.',
+        seriesApplied: 'valor da série para o dia {d}',
+        reentrancyText: 'Contrato atacante → sacar e reentrar ({tries} tentativa(s) de reentrada); recebeu {got}',
+        reentrancyBlocked: 'Reentradas recusadas: o atacante recebeu apenas o próprio crédito, uma única vez.',
+        reentrancyBreach: 'O atacante conseguiu sacar mais de uma vez ou o crédito não foi zerado.',
+        tokenSection: '"Stablecoin" de teste (tBRL)',
+        tokenHint: 'Para pagar em tBRL, a parte primeiro autoriza o contrato no token (approve), informando "@Contrato" e o valor.',
+        gasCostMainnet: 'na rede principal hoje: ≈ {eth} ETH ({brl})',
+        gasCharge: 'Cobrar o "gás" das contas (preço atual da rede; sem consulta, 1 gwei)',
+        gasFeeCharged: 'taxa de "gás" cobrada: {v}',
         errLimit: 'limite: {date} UTC',
         labParticipants: 'Contas participantes',
         labDueFill: 'preencher o valor devido',
@@ -215,6 +224,15 @@
         panic_50: 'array index out of bounds',
         errInsufficient: 'The account does not have enough balance to send this amount.',
         errWrongAmount: 'Wrong amount: due {due}; sent {sent}.',
+        seriesApplied: 'series value for day {d}',
+        reentrancyText: 'Attacker contract → withdraw and re-enter ({tries} re-entry attempt(s)); received {got}',
+        reentrancyBlocked: 'Re-entries rejected: the attacker received only its own credit, once.',
+        reentrancyBreach: 'The attacker withdrew more than once or the credit was not zeroed.',
+        tokenSection: 'Test stablecoin (tBRL)',
+        tokenHint: 'To pay in tBRL, the party first authorizes the contract on the token (approve), entering "@Contrato" and the amount.',
+        gasCostMainnet: 'on mainnet today: ≈ {eth} ETH ({brl})',
+        gasCharge: 'Charge gas to the accounts (current network price; without lookup, 1 gwei)',
+        gasFeeCharged: 'gas fee charged: {v}',
         errLimit: 'limit: {date} UTC',
         labParticipants: 'Participating accounts',
         labDueFill: 'fill in the amount due',
@@ -295,6 +313,23 @@
      * para converter os valores em Ether); sem ela, a cotação de mercado.
      */
     let contractScale = null;
+    let series = [];   // [{ fn, from, points: [{ dia, valor }] , last }]
+
+    /** Aplica as séries de dados: a fonte informa o valor correspondente ao dia atual do contrato. */
+    async function applySeries() {
+        if (!series.length || !lab.chain || !lab.contract || lab.deployedAt == null) return;
+        const day = Math.floor(Number(lab.chain.timestamp - lab.deployedAt) / 86400);
+        for (const sr of series) {
+            const fnAbi = lab.contract.abi.find(x => x.type === 'function' && x.name === sr.fn);
+            const src = accountByName(sr.from || '');
+            if (!fnAbi || !src) continue;
+            const point = sr.points.filter(p => p.dia <= day).pop();
+            if (!point || sr.last === point.valor) continue;
+            const r = await lab.chain.call({ from: src.address, to: lab.contract.address, abi: lab.contract.abi, functionName: sr.fn, args: [BigInt(point.valor)] });
+            sr.last = point.valor;
+            lab.timeline.unshift({ ok: r.ok, actor: src.label, fn: sr.fn, args: [BigInt(point.valor)], value: 0n, gas: r.gasUsed, events: r.events || [], error: r.error, time: lab.chain.timestamp, note: t('seriesApplied', { d: point.dia }) });
+        }
+    }
     function brlPerEth() {
         if (contractScale) return contractScale;
         const q = CSC.rates && CSC.rates.current();
@@ -313,6 +348,29 @@
     }
     /** Valor monetário legível: "3,068 ETH (≈ R$ 3.068,00)". */
     function moneyText(wei) { return formatEth(wei, 6) + ' ETH' + approxBrl(wei); }
+
+    /** Cobrança opcional do gás: debita da conta o custo pelo preço atual da rede (ou 1 gwei, se indisponível). */
+    async function chargeGas(actor, gasTotal) {
+        if (!lab.chargeGas || !gasTotal) return 0n;
+        const gp = (CSC.rates && CSC.rates.gasPrice && CSC.rates.gasPrice()) || 1000000000n;
+        const fee = BigInt(gasTotal) * BigInt(gp);
+        await lab.chain.debit(actor.address, fee);
+        return fee;
+    }
+
+    /** Custo do "gás": total da transação e, se houver preço da rede, valor estimado em ETH e R$. */
+    function gasText(tx) {
+        const gas = tx.gasTotal != null ? tx.gasTotal : tx.gas;
+        let txt = Number(gas || 0n).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR') + ' ' + t('labGas');
+        const gp = CSC.rates && CSC.rates.gasPrice && CSC.rates.gasPrice();
+        if (gp && gas) {
+            const wei = BigInt(gas) * BigInt(gp);
+            const q = CSC.rates.current();
+            const brl = q ? Number(window.EvmLab.formatEther(wei)) * q.brl : null;
+            txt += ' · ' + t('gasCostMainnet', { eth: formatEth(wei, 6), brl: brl != null ? fmtBrl(brl) : '—' });
+        }
+        return txt;
+    }
 
     function formatDuration(seconds) {
         const s = Number(seconds);
@@ -375,6 +433,7 @@
             if (type === 'address' || type === 'address payable') {
                 if (/^@/.test(value)) {
                     if (norm(value) === 'contrato' || norm(value) === 'contract') return lab.contract.address;
+                    if (norm(value) === 'token' && lab.token) return lab.token.address;
                     const acc = accountByName(value);
                     if (!acc) throw new Error(t('labUnknownAccount', { name: value }));
                     return acc.address;
@@ -534,6 +593,8 @@
 
     function defaultArg(input) {
         const name = norm(input.name);
+        if (/^address/.test(input.type) && norm(input.name) === 'token') return '@Token';
+        if (/^address/.test(input.type) && /spender/.test(norm(input.name))) return '@Contrato';
         if (/^address/.test(input.type)) return '@' + (prettyName(input.name) || (lab.accounts[0] && lab.accounts[0].label) || '');
         if (/^u?int/.test(input.type)) {
             if (/(prazo|dias|duracao|duration|deadline|periodo|period|tempo|time|vencimento|due)/.test(name)) return '30 days';
@@ -564,11 +625,22 @@
         return { chain, accounts };
     }
 
+    /** Implanta a "stablecoin" de teste (tBRL) com saldo inicial para todas as contas. */
+    async function deployToken(env) {
+        const h = CSC.labHelpers && CSC.labHelpers.RealDigitalDeTeste;
+        if (!h) return null;
+        const res = await env.chain.deploy({ from: env.accounts[0].address, abi: h.abi, bytecode: h.bytecode, args: [env.accounts.map(a => a.address), window.EvmLab.parseEther('1000000')] });
+        return res.ok ? { address: res.address, abi: h.abi, name: 'tBRL' } : null;
+    }
+    const needsToken = abi => constructorOf(abi).inputs.some(i => norm(i.name) === 'token');
+
     async function deployInto(env, compiled, deploy) {
         const ctor = constructorOf(compiled.abi);
         const saved = { accounts: lab.accounts, contract: lab.contract };
         lab.accounts = env.accounts;
         lab.contract = { address: null, enums: parseEnums(compiled.source || '') };
+        const savedToken = lab.token;
+        lab.token = env.token || lab.token;
         try {
             const args = ctor.inputs.map((input, i) => parseArg((deploy.argumentos || [])[i] ?? '', input));
             const fromAcc = accountByName(deploy.conta) || env.accounts[0];
@@ -578,6 +650,7 @@
         } finally {
             lab.accounts = saved.accounts;
             lab.contract = saved.contract;
+            lab.token = savedToken;
         }
     }
 
@@ -627,12 +700,14 @@
         try {
             const names = document.getElementById('labAccountsInput').value.split(',').map(s => s.trim()).filter(Boolean);
             const env = await newChain(names.map(n => ({ nome: n, saldoEther: '100' })));
+            if (needsToken(compiled.abi)) env.token = await deployToken(env);
             const args = Array.from(d.deployForm.querySelectorAll('input[data-index]')).map(i => i.value);
             const valueInput = document.getElementById('labCtorValue');
             const deploy = { conta: document.getElementById('labDeployAs').value, argumentos: args, valor: valueInput ? valueInput.value : '' };
             const res = await deployInto(env, compiled, deploy);
             lab.chain = env.chain;
             lab.accounts = env.accounts;
+            lab.token = env.token || null;
             lab.timeline = [];
             if (!res.ok) {
                 lab.contract = null;
@@ -640,7 +715,10 @@
                 return;
             }
             lab.contract = { name: compiled.name, abi: compiled.abi, bytecode: compiled.bytecode, address: res.address, enums: parseEnums(compiled.source || ''), source: compiled.source || '' };
-            lab.timeline.push({ ok: true, actor: res.from.label, fn: 'constructor', value: 0n, gas: res.gasUsed, events: res.events || [], time: lab.chain.timestamp });
+            lab.timeline.push({ ok: true, actor: res.from.label, fn: 'constructor', value: 0n, gas: res.gasUsed, gasTotal: res.gasTotal, events: res.events || [], time: lab.chain.timestamp });
+            lab.deployedAt = lab.chain.timestamp;
+            series.forEach(sr => { sr.last = undefined; });
+            await applySeries();
             setStatus(t('labDeployed', { name: compiled.name, address: shortAddr(res.address) }), 'ok');
             d.workspace.hidden = false;
             await renderWorkspace();
@@ -656,10 +734,15 @@
         const rows = [];
         for (const a of lab.accounts) {
             const bal = await lab.chain.balanceOf(a.address);
+            let tok = null;
+            if (lab.token) {
+                const tb = await lab.chain.call({ from: a.address, to: lab.token.address, abi: lab.token.abi, functionName: 'balanceOf', args: [a.address] });
+                if (tb.ok) tok = formatEth(tb.result, 2) + ' tBRL';
+            }
             rows.push(el('tr', {}, [
                 el('th', { scope: 'row' }, [el('span', { class: 'party-mark', 'data-color': a.color }), a.label]),
                 el('td', {}, [el('code', { title: a.address, text: shortAddr(a.address) })]),
-                el('td', { class: 'num', text: formatEth(bal) + ' ETH' + approxBrl(bal) })
+                el('td', { class: 'num', text: formatEth(bal) + ' ETH' + approxBrl(bal) + (tok ? ' · ' + tok : '') })
             ]));
         }
         if (lab.contract && lab.contract.address) {
@@ -675,9 +758,13 @@
 
         const date = new Date(Number(lab.chain.timestamp) * 1000);
         const fmt = date.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
-        const advance = secs => async () => { lab.chain.advanceTime(secs); await renderWorkspace(true); (lab.dueFills || []).forEach(f => f()); };
+        const advance = secs => async () => { lab.chain.advanceTime(secs); await applySeries(); await renderWorkspace(true); renderTimeline(); (lab.dueFills || []).forEach(f => f()); };
         d.accounts.appendChild(el('div', { class: 'clock' }, [
             el('p', {}, [el('span', { class: 'field-label', text: t('labClock') }), el('br'), el('span', { class: 'clock-date', text: fmt })]),
+            el('label', { class: 'checkbox gas-toggle' }, [
+                el('input', { type: 'checkbox', checked: lab.chargeGas ? true : null, onchange: e => { lab.chargeGas = e.target.checked; if (lab.chargeGas && CSC.rates) CSC.rates.refreshGas(); } }),
+                el('span', { text: t('gasCharge') })
+            ]),
             el('div', { class: 'clock-buttons' }, [
                 el('button', { type: 'button', class: 'link-btn', text: t('labDay'), onclick: advance(86400) }),
                 el('button', { type: 'button', class: 'link-btn', text: t('labWeek'), onclick: advance(7 * 86400) }),
@@ -873,7 +960,16 @@
         const fns = lab.contract.abi.filter(x => x.type === 'function' && !((x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0));
         lab.dueFills = [];
         const grid = el('div', { class: 'fn-grid' });
-        for (const fn of fns) {
+        const tokenGrid = el('div', { class: 'fn-grid' });
+        const items = fns.map(fn => ({ fn, tgt: lab.contract, grid }));
+        if (lab.token) {
+            for (const name of ['approve', 'transfer', 'balanceOf', 'allowance']) {
+                const fn = lab.token.abi.find(x => x.type === 'function' && x.name === name);
+                if (fn) items.push({ fn, tgt: lab.token, grid: tokenGrid });
+            }
+        }
+        for (const { fn, tgt, grid: targetGrid } of items) {
+            const own = tgt === lab.contract;
             const isView = fn.stateMutability === 'view' || fn.stateMutability === 'pure';
             const isPayable = fn.stateMutability === 'payable';
             const inputs = fn.inputs.map((input, i) => el('label', { class: 'lab-field' }, [
@@ -883,18 +979,18 @@
             ]));
             const asSelect = el('select', { class: 'fn-as' }, lab.accounts.map(a => el('option', { value: a.label, text: a.label })));
             // Pré-seleciona a parte autorizada pela própria função.
-            try {
+            if (own) try {
                 const info = describeFunction(fn);
                 const who = info.who && info.who[0] && accountByName(info.who[0]);
                 if (who) asSelect.value = who.label;
             } catch (_) { /* mantém o padrão */ }
             const valueInput = isPayable ? el('input', { type: 'text', class: 'fn-value', value: '0', 'aria-label': t('labValue') }) : null;
-            const dueLink = isPayable && dueGetter(fn) ? el('button', { type: 'button', class: 'link-btn due-link', text: t('labDueFill') }) : null;
+            const dueLink = own && isPayable && dueGetter(fn) ? el('button', { type: 'button', class: 'link-btn due-link', text: t('labDueFill') }) : null;
             const output = el('div', { class: 'fn-output', role: 'status', 'aria-live': 'polite' });
             const card = el('div', { class: 'fn-card' + (isPayable ? ' fn-payable' : '') + (isView ? ' fn-view' : '') }, [
                 el('div', { class: 'fn-head' }, [
                     el('code', { class: 'fn-name', text: fn.name }),
-                    el('button', { type: 'button', class: 'info-btn', title: t('fnInfoButton'), 'aria-label': t('fnInfoButton') + ': ' + fn.name, text: 'i', onclick: () => showFunctionInfo(fn) }),
+                    own ? el('button', { type: 'button', class: 'info-btn', title: t('fnInfoButton'), 'aria-label': t('fnInfoButton') + ': ' + fn.name, text: 'i', onclick: () => showFunctionInfo(fn) }) : el('span', { class: 'tag', text: 'tBRL' }),
                     isPayable ? el('span', { class: 'tag tag-payable', text: 'payable' }) : null,
                     isView ? el('span', { class: 'tag tag-view', text: fn.stateMutability }) : null
                 ]),
@@ -913,13 +1009,14 @@
                                 });
                                 const value = valueInput ? parseAmount(valueInput.value || '0', 'ether') : 0n;
                                 const actor = accountByName(asSelect.value);
-                                const r = await lab.chain.call({ from: actor.address, to: lab.contract.address, abi: lab.contract.abi, functionName: fn.name, args, value });
+                                const r = await lab.chain.call({ from: actor.address, to: tgt.address, abi: tgt.abi, functionName: fn.name, args, value });
                                 if (isView) {
                                     output.className = 'fn-output ' + (r.ok ? 'ok' : 'err');
                                     output.textContent = r.ok ? t('labResult') + ': ' + formatResult(r.result, fn) : '✗ ' + describeRevert(r.error);
                                     return;
                                 }
-                                lab.timeline.unshift({ ok: r.ok, actor: actor.label, fn: fn.name, args, value, gas: r.gasUsed, events: r.events || [], error: r.error, time: lab.chain.timestamp });
+                                const fee = await chargeGas(actor, r.gasTotal);
+                                lab.timeline.unshift({ ok: r.ok, actor: actor.label, fn: (own ? '' : 'tBRL.') + fn.name, args, value, gas: r.gasUsed, gasTotal: r.gasTotal, fee, events: r.events || [], error: r.error, time: lab.chain.timestamp });
                                 output.className = 'fn-output ' + (r.ok ? 'ok' : 'err');
                                 output.textContent = r.ok ? '✓ ' + t('labTxOk') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error);
                                 await renderWorkspace(true);
@@ -938,9 +1035,14 @@
                 lab.dueFills.push(refill);
                 refill();
             }
-            grid.appendChild(card);
+            targetGrid.appendChild(card);
         }
         d.functions.appendChild(grid);
+        if (lab.token) {
+            d.functions.appendChild(el('h4', { class: 'block-title token-title', text: t('tokenSection') }));
+            d.functions.appendChild(el('p', { class: 'muted small', text: t('tokenHint') }));
+            d.functions.appendChild(tokenGrid);
+        }
     }
 
     function renderTimeline() {
@@ -960,7 +1062,9 @@
                 el('span', { text: ' → ' }),
                 el('code', { text: tx.fn + '(' + (tx.args || []).map(a => formatValue(a)).join(', ') + ')' }),
                 tx.value ? el('span', { class: 'tag tag-payable', text: formatEth(tx.value) + ' ETH' }) : null,
-                el('span', { class: 'muted small tx-meta', text: date + ' · ' + String(tx.gas || 0n) + ' ' + t('labGas') })
+                tx.note ? el('span', { class: 'tag', text: tx.note }) : null,
+                tx.fee ? el('span', { class: 'tag', text: t('gasFeeCharged', { v: formatEth(tx.fee, 8) + ' ETH' }) }) : null,
+                el('span', { class: 'muted small tx-meta', text: date + ' · ' + gasText(tx) })
             ]);
             const body = [];
             if (!tx.ok) {
@@ -1025,6 +1129,8 @@
         return { ok, got: formatValue(got, out) };
     }
 
+    function accountByNameIn(list, re) { return list.find(a => re.test(norm(a.label))) || list[list.length - 1]; }
+
     async function runScenario(plan, scenario, compiled) {
         const steps = [];
         const env = await newChain(plan.contas);
@@ -1035,12 +1141,25 @@
             acc.color = ACCOUNT_COLORS[ensured.length % ACCOUNT_COLORS.length];
             ensured.push(acc);
         }
-        const dep = await deployInto(env, compiled, plan.implantacao);
+        if (plan.usaToken || needsToken(compiled.abi)) env.token = await deployToken(env);
+        let deploy = plan.implantacao;
+        if (scenario.contratoAtacante && CSC.labHelpers) {
+            // Contrato atacante real ocupa o lugar de uma das partes.
+            const h = CSC.labHelpers.ContratoAtacante;
+            const evil = accountByNameIn(env.accounts, /^(atacante|attacker)$/);
+            const ad = await env.chain.deploy({ from: evil.address, abi: h.abi, bytecode: h.bytecode, args: [] });
+            if (ad.ok) {
+                env.attackerContract = { address: ad.address, abi: h.abi, owner: evil };
+                deploy = Object.assign({}, deploy, { argumentos: (deploy.argumentos || []).map(a => norm(a) === norm(scenario.contratoAtacante.papel) ? ad.address : a) });
+            }
+        }
+        const dep = await deployInto(env, compiled, deploy);
         if (!dep.ok) {
             return { status: 'invalid', steps: [{ status: 'invalid', text: 'constructor', note: t('labDeployFailed', { error: describeRevert(dep.error) }) }] };
         }
-        const saved = { accounts: lab.accounts, contract: lab.contract };
+        const saved = { accounts: lab.accounts, contract: lab.contract, token: lab.token };
         lab.accounts = env.accounts;
+        lab.token = env.token || null;
         lab.contract = { name: compiled.name, abi: compiled.abi, address: dep.address, enums: parseEnums(compiled.source || '') };
         let status = 'pass';
         try {
@@ -1080,6 +1199,26 @@
                         }
                         continue;
                     }
+                    if (step.acao === 'ataqueReentrancia') {
+                        const atk = env.attackerContract;
+                        if (!atk) throw new Error('ContratoAtacante');
+                        const callData = window.EvmLab.encodeFunctionData({ abi: compiled.abi, functionName: step.sacar, args: [] });
+                        await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'configurar', args: [dep.address, callData] });
+                        const before = await env.chain.balanceOf(atk.address);
+                        const r = await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'atacar', args: [] });
+                        const read = async fn => (await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: fn, args: [] })).result;
+                        const reentered = await read('reentrouComSucesso');
+                        const tries = await read('tentativas');
+                        const got = (await env.chain.balanceOf(atk.address)) - before;
+                        const credit = await env.chain.call({ from: atk.owner.address, to: dep.address, abi: compiled.abi, functionName: step.saldos, args: [atk.address] });
+                        const ok = r.ok && !reentered && BigInt(tries) >= 1n && credit.ok && BigInt(credit.result) === 0n;
+                        entry.status = ok ? 'pass' : 'fail';
+                        entry.text = t('reentrancyText', { tries: String(tries), got: moneyText(got) });
+                        entry.outcome = ok ? '✓ ' + t('reentrancyBlocked') : '✗ ' + t('reentrancyBreach');
+                        if (!ok) { entry.note = t('labVulnerability'); status = 'fail'; }
+                        steps.push(entry);
+                        continue;
+                    }
                     if (step.acao === 'avancarTempo') {
                         const secs = parseAmount(step.segundos || '0', 'seconds');
                         env.chain.advanceTime(secs);
@@ -1088,8 +1227,10 @@
                         steps.push(entry);
                         continue;
                     }
-                    const fnAbi = compiled.abi.find(x => x.type === 'function' && x.name === step.funcao && (x.inputs || []).length === (step.argumentos || []).length)
-                        || compiled.abi.find(x => x.type === 'function' && x.name === step.funcao);
+                    // Alvo da chamada: o contrato em teste ou, se indicado, a "stablecoin" de teste.
+                    const target = step.alvo === 'token' && env.token ? env.token : { address: dep.address, abi: compiled.abi };
+                    const fnAbi = target.abi.find(x => x.type === 'function' && x.name === step.funcao && (x.inputs || []).length === (step.argumentos || []).length)
+                        || target.abi.find(x => x.type === 'function' && x.name === step.funcao);
                     if (!fnAbi) throw new Error(t('labUnknownFunction', { name: step.funcao }));
                     const actor = accountByName(step.conta || env.accounts[0].label);
                     if (!actor) throw new Error(t('labUnknownAccount', { name: step.conta }));
@@ -1105,7 +1246,7 @@
                         value = parseAmount(step.valor, /^\d+$/.test(String(step.valor).trim()) ? 'wei' : 'ether');
                     }
                     entry.text = actor.label + ' → ' + fnAbi.name + '(' + args.map(a => formatValue(a)).join(', ') + ')' + (value ? ' + ' + formatEth(value) + ' ETH' : '');
-                    const r = await env.chain.call({ from: actor.address, to: dep.address, abi: compiled.abi, functionName: fnAbi.name, args, value });
+                    const r = await env.chain.call({ from: actor.address, to: target.address, abi: target.abi, functionName: fnAbi.name, args, value });
                     const expectRevert = step.esperado === 'reverter';
                     entry.expected = expectRevert ? t('labStepExpectedRevert') : t('labStepExpectedSuccess');
                     entry.outcome = r.ok ? '✓ ' + t('labTxOk') + (step.acao === 'consultar' ? ': ' + formatResult(r.result, fnAbi) : '') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error);
@@ -1138,6 +1279,7 @@
         } finally {
             lab.accounts = saved.accounts;
             lab.contract = saved.contract;
+            lab.token = saved.token;
         }
         return { status, steps };
     }
@@ -1258,6 +1400,7 @@
                 return date + ' — ' + tx.actor + ' → ' + tx.fn + '(' + (tx.args || []).map(a => formatValue(a)).join(', ') + ')' + (tx.value ? ' + ' + moneyText(tx.value) : '') + ': ' + (tx.ok ? t('labTxOk') : t('labTxReverted') + ' — ' + describeRevert(tx.error));
             });
         },
+        setSeries(list) { series = (list || []).map(x => Object.assign({}, x, { last: undefined })); },
         setScale(scale) { contractScale = scale > 0 ? Number(scale) : null; },
         prepare(compiled, plan) {
             if (plan) lab.scenarioPlan = plan;

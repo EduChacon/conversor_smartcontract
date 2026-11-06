@@ -533,3 +533,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .state-list dt { display: flex; flex-direction: column; font-family: var(--serif); color: var(--ink); }
 .state-raw { font-size: .7rem; color: var(--muted); }
 .due-link { font-family: var(--sans); font-size: .78rem; }
+
+/* Dados das partes e séries de dados */
+.parties-data { margin-top: .3rem; font-family: var(--sans); font-size: .85rem; }
+.parties-data > summary { cursor: pointer; list-style: none; display: inline; }
+.parties-data > summary::-webkit-details-marker { display: none; }
+.party-row { display: grid; grid-template-columns: minmax(7rem, 12rem) 1fr; gap: .5rem; align-items: center; margin: .3rem 0; }
+.party-wallet { font-family: var(--mono); font-size: .8rem; }
+.series { margin-top: .3rem; padding-left: .2rem; border-left: 2px dotted var(--rule); }
+.series .inline-row { font-family: var(--sans); font-size: .82rem; gap: .3rem 1rem; }
+.doc-controls { gap: .4rem 1.1rem; font-family: var(--sans); font-size: .85rem; }

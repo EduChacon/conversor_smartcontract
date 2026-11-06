@@ -15,6 +15,7 @@ const templates = require('../assets/js/templates.js');
 globalThis.window = globalThis;
 require('../assets/js/i18n.js');
 globalThis.EvmLab = await import('../src/evm-lab.mjs');
+require('../assets/js/lab-helpers.js');
 require('../assets/js/lab.js');
 const CSC = globalThis.CSC;
 

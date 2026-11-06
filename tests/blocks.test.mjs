@@ -99,7 +99,20 @@ test('combinações aleatórias de blocos (40 montagens)', async () => {
         if (rand() < 0.5) { const c = add('caucao'); c.params.garantidor = 'b'; c.params.beneficiario = 'a'; c.params.valor = 100 + Math.floor(rand() * 3000); c.params.prazo = 1 + Math.floor(rand() * 30); }
         if (arb) { const a = add('arbitro'); a.params.arbitro = 'c'; }
         if (rand() < 0.3) add('clausulaLivre');
-        if (!model.blocks.some(b => b.type === 'arbitro')) model.roles = roles.slice(0, 2);
+        // Informações externas (oráculos) ligadas aos pagamentos e garantias.
+        const pays = model.blocks.filter(b => b.type === 'pagamentoUnico' || b.type === 'pagamentoPeriodico');
+        if (pays.length && rand() < 0.5) {
+            const o = add('oraculoValor'); o.params.fonte = 'c'; o.params.validade = 1 + Math.floor(rand() * 60);
+            const target = pick(pays);
+            const kind = rand() < 0.5 ? 'reajuste' : 'conversaoCambial';
+            const x = add(kind); x.params.alvo = target.uid; x.params[kind === 'reajuste' ? 'indice' : 'cotacao'] = o.uid;
+        }
+        const cus = model.blocks.find(b => b.type === 'custodia');
+        if (cus && rand() < 0.6) {
+            const ev = add('oraculoEvento'); ev.params.fonte = 'c';
+            const rel = add('liberacaoPorEvento'); rel.params.alvo = cus.uid; rel.params.evento = ev.uid;
+        }
+        if (!model.blocks.some(b => b.type === 'arbitro' || ((b.type === 'oraculoValor' || b.type === 'oraculoEvento') && b.params.fonte === 'c'))) model.roles = roles.slice(0, 2);
         total += await check(model, lang, 'combinação ' + k + ' [' + model.blocks.map(b => b.type).join(', ') + ']');
     }
     assert.ok(total > 100);

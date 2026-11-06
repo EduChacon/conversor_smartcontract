@@ -208,6 +208,68 @@
                 en: '{quem} may terminate the contract at any time; upon termination, future obligations cease and amounts still held are returned to whoever deposited them.'
             }
         },
+        oraculoValor: {
+            category: 'externos',
+            name: { pt: 'Informação externa: valor', en: 'External data: value' },
+            defaultLabel: { pt: 'Indice', en: 'Index' },
+            params: [
+                { key: 'fonte', kind: 'role', role: 2 },
+                { key: 'validade', kind: 'days', def: 30, min: 1 }
+            ],
+            sentence: {
+                pt: 'Esta informação externa será fornecida por {fonte}, que a registrará no contrato com duas casas decimais. Cada registro vale por {validade} dias; vencido esse prazo, a informação não poderá ser usada até nova atualização. O contrato só aceita registros feitos pela fonte designada.',
+                en: 'This external data shall be provided by {fonte}, who records it in the contract with two decimal places. Each record is valid for {validade} days; after that, the data cannot be used until it is updated. The contract only accepts records from the designated source.'
+            }
+        },
+        oraculoEvento: {
+            category: 'externos',
+            name: { pt: 'Informação externa: evento', en: 'External data: event' },
+            defaultLabel: { pt: 'Entrega confirmada', en: 'Delivery confirmed' },
+            params: [{ key: 'fonte', kind: 'role', role: 2 }],
+            sentence: {
+                pt: 'A ocorrência deste evento será atestada por {fonte}, que a registrará no contrato. O registro é definitivo, e o contrato só o aceita da fonte designada.',
+                en: 'The occurrence of this event shall be attested by {fonte}, who records it in the contract. The record is final, and the contract only accepts it from the designated source.'
+            }
+        },
+        reajuste: {
+            category: 'externos',
+            name: { pt: 'Reajuste por índice', en: 'Index adjustment' },
+            attached: true,
+            params: [
+                { key: 'alvo', kind: 'ref', accepts: ['pagamentoUnico', 'pagamentoPeriodico'] },
+                { key: 'indice', kind: 'ref', accepts: ['oraculoValor'] }
+            ],
+            sentence: {
+                pt: 'O valor de {alvo} será reajustado pela variação percentual acumulada informada em {indice}. Prevalece sempre o último índice informado e, enquanto não houver informação, o valor original.',
+                en: 'The amount of {alvo} shall be adjusted by the accumulated percentage change reported in {indice}. The latest reported index always prevails and, while none is reported, the original amount applies.'
+            }
+        },
+        conversaoCambial: {
+            category: 'externos',
+            name: { pt: 'Valor em reais pela cotação', en: 'BRL amount at market price' },
+            attached: true,
+            params: [
+                { key: 'alvo', kind: 'ref', accepts: ['pagamentoUnico', 'pagamentoPeriodico'] },
+                { key: 'cotacao', kind: 'ref', accepts: ['oraculoValor'] }
+            ],
+            sentence: {
+                pt: 'O valor de {alvo}, fixado em reais, será pago em Ether convertido pela cotação (reais por 1 ETH) informada em {cotacao} no momento do pagamento. Sem cotação válida, o pagamento não poderá ser feito.',
+                en: 'The amount of {alvo}, fixed in BRL, shall be paid in Ether converted at the price (BRL per 1 ETH) reported in {cotacao} at the time of payment. Without a valid price, payment cannot be made.'
+            }
+        },
+        liberacaoPorEvento: {
+            category: 'externos',
+            name: { pt: 'Liberação por evento', en: 'Release on event' },
+            attached: true,
+            params: [
+                { key: 'alvo', kind: 'ref', accepts: ['custodia'] },
+                { key: 'evento', kind: 'ref', accepts: ['oraculoEvento'] }
+            ],
+            sentence: {
+                pt: 'Atestado o evento {evento}, o beneficiário de {alvo} poderá obter a liberação do valor retido, independentemente da confirmação de quem o depositou.',
+                en: 'Once the event {evento} is attested, the beneficiary of {alvo} may obtain the release of the held amount, regardless of the depositor\'s confirmation.'
+            }
+        },
         clausulaLivre: {
             category: 'livre',
             name: { pt: 'Cláusula livre', en: 'Free clause' },
@@ -241,7 +303,9 @@
         depositante: { pt: 'quem deposita', en: 'depositor' }, beneficiario: { pt: 'beneficiário', en: 'beneficiary' },
         contratante: { pt: 'contratante', en: 'client' }, contratado: { pt: 'contratado', en: 'contractor' }, etapas: { pt: 'número de etapas', en: 'number of milestones' },
         garantidor: { pt: 'quem presta a garantia', en: 'guarantor' }, arbitro: { pt: 'árbitro', en: 'arbitrator' }, quem: { pt: 'quem pode rescindir', en: 'who may terminate' },
-        duracao: { pt: 'duração (dias)', en: 'duration (days)' }
+        duracao: { pt: 'duração (dias)', en: 'duration (days)' },
+        fonte: { pt: 'fonte da informação', en: 'data source' }, validade: { pt: 'validade (dias)', en: 'validity (days)' },
+        indice: { pt: 'índice', en: 'index' }, cotacao: { pt: 'cotação', en: 'price' }, evento: { pt: 'evento', en: 'event' }
     };
     function fieldLabel(key, lang) { const f = FIELD_LABELS[key]; return f ? f[lang === 'en' ? 'en' : 'pt'] : key; }
 
@@ -250,6 +314,7 @@
         { id: 'garantias', pt: 'Garantias', en: 'Guarantees' },
         { id: 'execucao', pt: 'Execução', en: 'Performance' },
         { id: 'disputas', pt: 'Solução de disputas', en: 'Dispute resolution' },
+        { id: 'externos', pt: 'Informações externas (oráculos)', en: 'External data (oracles)' },
         { id: 'encerramento', pt: 'Encerramento', en: 'Termination' },
         { id: 'livre', pt: 'Redação livre', en: 'Free wording' }
     ];
@@ -340,7 +405,7 @@
             if (b.type === 'etapas' && Number(b.params.etapas) > 0 && toWei(b.params.valor, model.scale) < BigInt(Math.round(b.params.etapas))) add('Valor insuficiente para o número de etapas.', 'Amount too small for the number of milestones.', b.uid);
         }
         const targets = {};
-        for (const b of blocks.filter(x => x.type === 'encargos' || x.type === 'vencimentoAntecipado')) {
+        for (const b of blocks.filter(x => BLOCKS[x.type] && BLOCKS[x.type].attached)) {
             const k = b.type + ':' + b.params.alvo;
             if (targets[k]) add('Há dois blocos do mesmo tipo aplicados ao mesmo pagamento.', 'Two blocks of the same type apply to the same payment.', b.uid);
             targets[k] = true;
@@ -380,6 +445,7 @@
             NaoAutorizado: w('NaoAutorizado', 'Unauthorized'), ParametroInvalido: w('ParametroInvalido', 'InvalidParameter'), SituacaoInvalida: w('SituacaoInvalida', 'InvalidStatus'),
             ValorIncorreto: w('ValorIncorreto', 'WrongAmount'), JaConcluido: w('JaConcluido', 'AlreadyCompleted'), NaoDisponivel: w('NaoDisponivel', 'NotAvailable'),
             PrazoNaoEncerrado: w('PrazoNaoEncerrado', 'DeadlineNotReached'), PrazoEncerrado: w('PrazoEncerrado', 'DeadlinePassed'), SemAtraso: w('SemAtrasoSuficiente', 'NotLateEnough'),
+            DadoIndisponivel: w('DadoIndisponivel', 'DataUnavailable'),
             SemSaldo: w('SemSaldo', 'NothingToWithdraw'), FalhaNoEnvio: w('FalhaNoEnvio', 'TransferFailed'), Reentrada: w('Reentrada', 'Reentrancy'),
             ContratoEncerrado: w('ContratoEncerrado', 'AgreementClosed'), Saque: w('Saque', 'Withdrawal'),
             devido: w('devido', 'due'), enviado: w('enviado', 'sent'), limite: w('limite', 'limit'), valor: w('valor', 'amount'), credor: w('credor', 'payee'), quando: w('quando', 'when')
@@ -503,6 +569,28 @@
         // Encargos e vencimento antecipado conectados a cada pagamento.
         const encOf = b => blocks.find(x => x.type === 'encargos' && x.params.alvo === b.uid);
         const accOf = b => blocks.find(x => x.type === 'vencimentoAntecipado' && x.params.alvo === b.uid);
+        const adjOf = b => blocks.find(x => x.type === 'reajuste' && x.params.alvo === b.uid);
+        const fxOf = b => blocks.find(x => x.type === 'conversaoCambial' && x.params.alvo === b.uid);
+        const relOf = b => blocks.find(x => x.type === 'liberacaoPorEvento' && x.params.alvo === b.uid);
+
+        /** Valor-base de um pagamento: constante, reajustada por índice e/ou convertida pela cotação. */
+        function baseOf(b, P) {
+            const adj = adjOf(b), fx = fxOf(b);
+            const K = fx ? `${P}_${w('VALOR_REAIS_CENTAVOS', 'AMOUNT_BRL_CENTS')}` : `${P}_${w('VALOR', 'AMOUNT')}`;
+            if (fx) constants.push(`    uint256 public constant ${K} = ${Math.round(Number(b.params.valor) * 100)}; // ${money(b.params.valor, lang)} ${w('(em centavos; convertido em Ether pela cotação)', '(in cents; converted to Ether at the price)')}`);
+            else constants.push(`    uint256 public constant ${K} = ${weiLiteral(toWei(b.params.valor, ctx.scale))}; // ${money(b.params.valor, lang)}`);
+            if (!adj && !fx) return { expr: K, dynamic: false, code: '' };
+            const idx = adj ? ctx.byUid(adj.params.indice) : null;
+            const cot = fx ? ctx.byUid(fx.params.cotacao) : null;
+            if (adj) needsBps = true;
+            const fn = `_${w('valorBase', 'baseAmount')}${b.I}`;
+            const lines = [`    /// @notice ${w('Valor-base', 'Base amount')}${adj ? w(' reajustado pelo índice', ' adjusted by the index') : ''}${fx ? w(' e convertido em Ether pela cotação', ' and converted to Ether at the price') : ''}.`,
+                `    function ${fn}() private view returns (uint256 v) {`, `        v = ${K};`];
+            if (idx) lines.push(`        v = v * (BPS + ${idx.i}${w('Valor', 'Value')}) / BPS; // ${w('índice em centésimos de ponto percentual (4,25% = 425)', 'index in hundredths of a percentage point (4.25% = 425)')}`);
+            if (cot) lines.push(`        v = v * 1 ether / ${w('ler', 'read')}${cot.I}(); // ${w('centavos ÷ (centavos por ETH) = Ether', 'cents ÷ (cents per ETH) = Ether')}`);
+            lines.push('    }');
+            return { expr: fn + '()', dynamic: true, code: lines.join('\n') + '\n\n' };
+        }
 
         function lateCharges(b, dueExpr, baseExpr) {
             const e = encOf(b);
@@ -532,19 +620,19 @@
             if (b.type === 'pagamentoUnico') {
                 const dev = roleById(b.params.devedor), cre = roleById(b.params.credor);
                 const paid = b.i + w('Pago', 'Paid');
-                constants.push(`    uint256 public constant ${P}_${w('VALOR', 'AMOUNT')} = ${weiLiteral(toWei(b.params.valor, scale))}; // ${money(b.params.valor, lang)}`);
+                const base = baseOf(b, P);
                 constants.push(`    uint256 public constant ${P}_${w('PRAZO', 'DEADLINE')} = ${Math.round(b.params.prazo)} days;`);
                 state.push(`    bool public ${paid};`);
                 events.push(`    event ${w('Pagamento', 'Payment')}${b.I}(address indexed ${w('pagador', 'payer')}, uint256 ${N.valor}, uint256 ${w('encargos', 'charges')});`);
                 const dm = useMod(dev);
-                code.push(`    /// @notice ${w('Vencimento do pagamento.', 'Payment due date.')}
+                code.push(`${base.code}    /// @notice ${w('Vencimento do pagamento.', 'Payment due date.')}
     function ${w('vencimento', 'dueDate')}${b.I}() public view returns (uint256) {
         return ${N.inicio} + ${P}_${w('PRAZO', 'DEADLINE')};
     }
 
     /// @notice ${w('Valor devido agora, com encargos se houver atraso.', 'Amount due now, with charges if late.')}
-    function ${w('valorDevido', 'amountDue')}${b.I}() public ${encOf(b) ? 'view' : 'pure'} returns (uint256 total, uint256 ${w('encargos', 'charges')}) {
-        total = ${P}_${w('VALOR', 'AMOUNT')};${lateCharges(b, `${w('vencimento', 'dueDate')}${b.I}()`, `${P}_${w('VALOR', 'AMOUNT')}`)}
+    function ${w('valorDevido', 'amountDue')}${b.I}() public ${encOf(b) || base.dynamic ? 'view' : 'pure'} returns (uint256 total, uint256 ${w('encargos', 'charges')}) {
+        total = ${base.expr};${lateCharges(b, `${w('vencimento', 'dueDate')}${b.I}()`, base.dynamic ? 'total' : base.expr)}
     }
 
     /// @notice ${w('Pagamento pelo valor exato devido.', 'Payment of the exact amount due.')}
@@ -566,22 +654,22 @@
                 const pagas = b.i + w('ParcelasPagas', 'PaidInstallments');
                 const acc = accOf(b);
                 const accFlag = b.i + w('VencidoAntecipadamente', 'Accelerated');
-                constants.push(`    uint256 public constant ${P}_${w('VALOR', 'AMOUNT')} = ${weiLiteral(toWei(b.params.valor, scale))}; // ${money(b.params.valor, lang)}`);
+                const base = baseOf(b, P);
                 constants.push(`    uint256 public constant ${P}_${w('PARCELAS', 'INSTALLMENTS')} = ${Math.round(b.params.parcelas)};`);
                 constants.push(`    uint256 public constant ${P}_${w('PERIODO', 'PERIOD')} = ${Math.round(b.params.periodo)} days;`);
                 state.push(`    uint256 public ${pagas};`);
                 if (acc) state.push(`    bool public ${accFlag};`);
                 events.push(`    event ${w('Pagamento', 'Payment')}${b.I}(address indexed ${w('pagador', 'payer')}, uint256 indexed ${w('parcela', 'installment')}, uint256 ${N.valor}, uint256 ${w('encargos', 'charges')});`);
                 const dm = useMod(dev);
-                code.push(`    /// @notice ${w('Vencimento da próxima parcela.', 'Due date of the next installment.')}
+                code.push(`${base.code}    /// @notice ${w('Vencimento da próxima parcela.', 'Due date of the next installment.')}
     /// @dev ${w('LIMITAÇÃO: datas de calendário (ex.: "todo dia 05") foram aproximadas por períodos fixos.', 'LIMITATION: calendar dates (e.g. "every 5th") were approximated by fixed periods.')}
     function ${w('proximoVencimento', 'nextDueDate')}${b.I}() public view returns (uint256) {
         return ${N.inicio} + (${pagas} + 1) * ${P}_${w('PERIODO', 'PERIOD')};
     }
 
     /// @notice ${w('Valor devido agora pela próxima parcela, com encargos se houver atraso.', 'Amount due now for the next installment, with charges if late.')}
-    function ${w('valorDevido', 'amountDue')}${b.I}() public ${encOf(b) ? 'view' : 'pure'} returns (uint256 total, uint256 ${w('encargos', 'charges')}) {
-        ${encOf(b) ? '' : w('encargos', 'charges') + ' = 0;\n        '}total = ${P}_${w('VALOR', 'AMOUNT')};${lateCharges(b, `${w('proximoVencimento', 'nextDueDate')}${b.I}()`, `${P}_${w('VALOR', 'AMOUNT')}`)}
+    function ${w('valorDevido', 'amountDue')}${b.I}() public ${encOf(b) || base.dynamic ? 'view' : 'pure'} returns (uint256 total, uint256 ${w('encargos', 'charges')}) {
+        ${encOf(b) ? '' : w('encargos', 'charges') + ' = 0;\n        '}total = ${base.expr};${lateCharges(b, `${w('proximoVencimento', 'nextDueDate')}${b.I}()`, base.dynamic ? 'total' : base.expr)}
     }
 
     /// @notice ${w('Pagamento da próxima parcela, pelo valor exato devido.', 'Payment of the next installment, for the exact amount due.')}
@@ -606,7 +694,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
 
     /// @notice ${w('Saldo devedor: parcelas ainda não pagas.', 'Outstanding balance: unpaid installments.')}
     function ${w('saldoDevedor', 'outstanding')}${b.I}() public view returns (uint256) {
-        return (${P}_${w('PARCELAS', 'INSTALLMENTS')} - ${pagas}) * ${P}_${w('VALOR', 'AMOUNT')};
+        return (${P}_${w('PARCELAS', 'INSTALLMENTS')} - ${pagas}) * ${base.expr};
     }
 
     /// @notice ${w('Vencimento antecipado, se a parcela em aberto estiver atrasada além do limite.', 'Acceleration, if the open installment is late beyond the limit.')}
@@ -679,6 +767,23 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
     function ${w('decidirDisputa', 'resolveDispute')}${b.I}(bool ${w('favorBeneficiario', 'favorBeneficiary')}) external ${am} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
         if (${st} != ${N.EstadoGarantia}.${N.EmDisputa}) revert ${N.NaoDisponivel}();
         _${w('destinar', 'allocate')}${b.I}(${w('favorBeneficiario', 'favorBeneficiary')} ? ${ben.v} : ${dep.v});
+    }`);
+                }
+                const rel = relOf(b);
+                const evb = rel ? ctx.byUid(rel.params.evento) : null;
+                if (evb) {
+                    const bm = useMod(ben);
+                    code.push(`
+    // ${'-'.repeat(70)}
+    // ${ordinal(blocks.indexOf(rel) + 2, lang)} — ${clauseTitle(rel, ctx)}
+${commentBlock(fillSentence(rel, ctx), '    ')}
+    // ${'-'.repeat(70)}
+
+    /// @notice ${w('Liberação ao beneficiário depois que a fonte designada atestar o evento.', 'Release to the beneficiary after the designated source attests the event.')}
+    function ${w('liberarPorEvento', 'releaseOnEvent')}${b.I}() external ${bm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+        if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
+        if (!${evb.i}${w('Confirmado', 'Confirmed')}) revert ${N.NaoDisponivel}();
+        _${w('destinar', 'allocate')}${b.I}(${ben.v});
     }`);
                 }
                 code.push(`
@@ -837,6 +942,48 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                 retained.push(held);
             }
 
+            if (b.type === 'oraculoValor') {
+                const src = roleById(b.params.fonte);
+                const sm = useMod(src);
+                const val = b.i + w('Valor', 'Value'), upd = b.i + w('AtualizadoEm', 'UpdatedAt'), V = `${P}_${w('VALIDADE', 'VALIDITY')}`;
+                constants.push(`    uint256 public constant ${V} = ${Math.round(b.params.validade)} days;`);
+                state.push(`    uint256 public ${val}; // ${w('valor × 100 (duas casas decimais)', 'value × 100 (two decimal places)')}`, `    uint256 public ${upd};`);
+                events.push(`    event ${w('Informacao', 'Data')}${b.I}(uint256 ${N.valor}, uint256 ${N.quando});`);
+                code.push(`    /// @notice ${w('Registro da informação pela fonte designada. Informe o valor multiplicado por 100 (ex.: 4,25 → 425; R$ 15.000,00 → 1500000).', 'The designated source records the data. Enter the value multiplied by 100 (e.g. 4.25 → 425; R$ 15,000.00 → 1500000).')}
+    /// @param ${N.valor} ${w('valor multiplicado por 100', 'value multiplied by 100')}
+    /// @dev ${w('LIMITAÇÃO: o contrato confia na fonte designada; valores negativos não são suportados.', 'LIMITATION: the contract trusts the designated source; negative values are not supported.')}
+    function ${w('informar', 'report')}${b.I}(uint256 ${N.valor}) external ${sm} {
+        ${val} = ${N.valor};
+        ${upd} = block.timestamp;
+        emit ${w('Informacao', 'Data')}${b.I}(${N.valor}, block.timestamp);
+    }
+
+    /// @notice ${w('Leitura da informação; recusada se ainda não informada ou desatualizada.', 'Reads the data; rejected if not yet reported or outdated.')}
+    function ${w('ler', 'read')}${b.I}() public view returns (uint256) {
+        if (${upd} == 0 || ${val} == 0 || block.timestamp > ${upd} + ${V}) revert ${N.DadoIndisponivel}(${upd});
+        return ${val};
+    }`);
+            }
+
+            if (b.type === 'oraculoEvento') {
+                const src = roleById(b.params.fonte);
+                const sm = useMod(src);
+                const ok = b.i + w('Confirmado', 'Confirmed'), at = b.i + w('ConfirmadoEm', 'ConfirmedAt');
+                state.push(`    bool public ${ok};`, `    uint256 public ${at};`);
+                events.push(`    event ${w('Evento', 'Event')}${b.I}(uint256 ${N.quando});`);
+                code.push(`    /// @notice ${w('A fonte designada atesta a ocorrência do evento (registro definitivo).', 'The designated source attests that the event occurred (final record).')}
+    function ${w('atestar', 'attest')}${b.I}() external ${sm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+        if (${ok}) revert ${N.JaConcluido}();
+        ${ok} = true;
+        ${at} = block.timestamp;
+        emit ${w('Evento', 'Event')}${b.I}(block.timestamp);
+    }`);
+            }
+
+            if (b.type === 'reajuste' || b.type === 'conversaoCambial') {
+                code.push(`    // ${w('Aplicado no cálculo do valor-base do pagamento indicado.', 'Applied to the base amount of the indicated payment.')}`);
+            }
+
             if (b.type === 'clausulaLivre') {
                 code.push(`    // ${w('Cláusula declaratória: não é executada pelo contrato. Seu cumprimento depende das partes e, se for o caso, do Poder Judiciário.', 'Declaratory clause: not executed by the contract. Compliance depends on the parties and, where applicable, the courts.')}`);
             }
@@ -901,6 +1048,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         lines.push(`    error ${N.SemSaldo}();`);
         lines.push(`    error ${N.FalhaNoEnvio}();`);
         lines.push(`    error ${N.Reentrada}();`);
+        lines.push(`    error ${N.DadoIndisponivel}(uint256 ${w('atualizadoEm', 'updatedAt')});`);
         lines.push('');
         lines.push(`    event ${N.ContratoEncerrado}(uint256 ${N.quando});`);
         lines.push(`    event ${N.Saque}(address indexed ${N.credor}, uint256 ${N.valor});`);
@@ -1196,10 +1344,88 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
             }
         }
 
+        // Informações externas (oráculos).
+        const priceOracles = blocks.filter(o => o.type === 'oraculoValor' && blocks.some(x => x.type === 'conversaoCambial' && x.params.cotacao === o.uid));
+        const priceValue = String(Math.round(ctx.scale * 100)); // R$ por ETH × 100: equivale à escala do contrato
+        const refresh = () => priceOracles.map(o => call(R(roleById(o.params.fonte)), w('informar', 'report') + o.I, [priceValue], null, 'sucesso', null,
+            w('A fonte atualiza a cotação (R$ ' + num(ctx.scale, lang) + ' por ETH).', 'The source updates the price (R$ ' + num(ctx.scale, lang) + ' per ETH).')));
+        for (const b of blocks) {
+            const I = b.I;
+            if (b.type === 'oraculoValor') {
+                const src = roleById(b.params.fonte);
+                const isPrice = priceOracles.includes(b);
+                const v = isPrice ? priceValue : '425';
+                scenarios.push(sc(w(`${b.label}: informação desatualizada`, `${b.label}: outdated data`), 'seguranca',
+                    w('A informação vale pelo prazo de validade; depois dele, o contrato se recusa a usá-la até nova atualização.', 'Data is valid for its validity period; afterwards the contract refuses to use it until it is updated.'), [
+                        call(R(src), w('informar', 'report') + I, [v], null, 'sucesso', null, w('A fonte designada registra a informação.', 'The designated source records the data.')),
+                        query(R(src), w('ler', 'read') + I, [], v, w('A informação pode ser lida.', 'The data can be read.')),
+                        Object.assign(wait(Math.round(b.params.validade) + 1, w('O prazo de validade se esgota.', 'The validity period ends.')), { semAtualizar: true }),
+                        { acao: 'consultar', conta: R(src), funcao: w('ler', 'read') + I, argumentos: [], esperado: 'reverter', erroEsperado: N.DadoIndisponivel, explicacao: w('A leitura de informação vencida é recusada.', 'Reading outdated data is rejected.') }
+                    ]));
+            }
+            if (b.type === 'oraculoEvento') {
+                const src = roleById(b.params.fonte);
+                scenarios.push(sc(w(`${b.label}: registro do evento`, `${b.label}: event record`), 'funcionalidade',
+                    w('Só a fonte designada atesta o evento, e o registro não pode ser repetido.', 'Only the designated source attests the event, and the record cannot be repeated.'), [
+                        call(R(src), w('atestar', 'attest') + I, [], null, 'sucesso', null, w('A fonte atesta o evento.', 'The source attests the event.')),
+                        query(R(src), b.i + w('Confirmado', 'Confirmed'), [], 'true', w('O evento consta como confirmado.', 'The event is recorded as confirmed.')),
+                        call(R(src), w('atestar', 'attest') + I, [], null, 'reverter', N.JaConcluido, w('Um segundo registro é recusado.', 'A second record is rejected.'))
+                    ]));
+            }
+            if (b.type === 'reajuste') {
+                const pay = ctx.byUid(b.params.alvo), idx = ctx.byUid(b.params.indice);
+                if (pay && idx) {
+                    const dev = roleById(pay.params.devedor);
+                    scenarios.push(sc(w(`${pay.label}: reajuste pelo índice`, `${pay.label}: index adjustment`), 'funcionalidade',
+                        w('Informado um índice de 5%, o valor original passa a ser recusado e o valor reajustado é aceito.', 'Once a 5% index is reported, the original amount is rejected and the adjusted amount is accepted.'), [
+                            call(R(roleById(idx.params.fonte)), w('informar', 'report') + idx.I, ['500'], null, 'sucesso', null, w('A fonte informa variação de 5,00%.', 'The source reports a 5.00% change.')),
+                            call(R(dev), w('pagar', 'pay') + pay.I, [], amount(pay.params.valor), 'reverter', N.ValorIncorreto, w('O valor sem reajuste é recusado.', 'The unadjusted amount is rejected.')),
+                            call(R(dev), w('pagar', 'pay') + pay.I, [], '=' + w('valorDevido', 'amountDue') + pay.I, 'sucesso', null, w('O valor reajustado é aceito.', 'The adjusted amount is accepted.'))
+                        ]));
+                }
+            }
+            if (b.type === 'conversaoCambial') {
+                const pay = ctx.byUid(b.params.alvo);
+                if (pay) {
+                    const dev = roleById(pay.params.devedor);
+                    scenarios.push(Object.assign(sc(w(`${pay.label}: pagamento sem cotação válida`, `${pay.label}: payment without a valid price`), 'seguranca',
+                        w('Sem cotação informada pela fonte, o contrato não converte o valor em reais e recusa o pagamento.', 'Without a price from the source, the contract cannot convert the BRL amount and rejects the payment.'), [
+                            call(R(dev), w('pagar', 'pay') + pay.I, [], amount(pay.params.valor), 'reverter', N.DadoIndisponivel, w('Sem cotação, o pagamento é recusado.', 'Without a price, payment is rejected.'))
+                        ]), { semPrelude: true }));
+                }
+            }
+            if (b.type === 'liberacaoPorEvento') {
+                const cus = ctx.byUid(b.params.alvo), ev = ctx.byUid(b.params.evento);
+                if (cus && ev) {
+                    const dep = roleById(cus.params.depositante), ben = roleById(cus.params.beneficiario);
+                    scenarios.push(sc(w(`${cus.label}: liberação pelo evento`, `${cus.label}: release on event`), 'funcionalidade',
+                        w('Antes de o evento ser atestado, a liberação é recusada; depois, o beneficiário a obtém sem depender do depositante.', 'Before the event is attested, release is rejected; afterwards the beneficiary obtains it without the depositor.'), [
+                            call(R(dep), w('depositar', 'deposit') + cus.I, [], amount(cus.params.valor), 'sucesso', null, w('Depósito.', 'Deposit.')),
+                            call(R(ben), w('liberarPorEvento', 'releaseOnEvent') + cus.I, [], null, 'reverter', N.NaoDisponivel, w('Evento ainda não atestado.', 'Event not yet attested.')),
+                            call(R(roleById(ev.params.fonte)), w('atestar', 'attest') + ev.I, [], null, 'sucesso', null, w('A fonte atesta o evento.', 'The source attests the event.')),
+                            call(R(ben), w('liberarPorEvento', 'releaseOnEvent') + cus.I, [], null, 'sucesso', null, w('Liberação ao beneficiário.', 'Release to the beneficiary.')),
+                            call(R(ben), N.sacar, [], null, 'sucesso', null, w('O beneficiário saca.', 'The beneficiary withdraws.'))
+                        ]));
+                }
+            }
+        }
+
         // Teste genérico: o Atacante tenta todas as funções que alteram o estado.
         scenarios.push({ titulo: w('Conta não autorizada tenta executar cada função', 'Unauthorized account tries every function'), tipo: 'seguranca',
             objetivo: w('Toda função que altera o estado deve recusar quem não é a parte legitimada.', 'Every state-changing function must reject anyone who is not the entitled party.'),
             passos: [{ acao: 'atacarTodas', conta: attacker, ignorar: [N.sacar], erroEsperado: N.NaoAutorizado, explicacao: w('Chamada de cada função pela conta do Atacante.', 'Each function called by the Attacker account.') }, solv()] });
+
+        if (priceOracles.length) {
+            for (const scn of scenarios) {
+                if (scn.semPrelude) { delete scn.semPrelude; continue; }
+                const out = refresh();
+                for (const st of scn.passos) {
+                    out.push(st);
+                    if (st.acao === 'avancarTempo' && !st.semAtualizar) out.push(...refresh());
+                }
+                scn.passos = out;
+            }
+        }
 
         const moneyTotal = ctx.allMoney.reduce((s, b) => s + Number(b.params.valor) * (b.type === 'pagamentoPeriodico' ? Number(b.params.parcelas) : 1), 0);
         const balance = String(Math.max(100, Math.ceil(moneyTotal / ctx.scale * 2 + 10)));
@@ -1260,6 +1486,37 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                     blk('vigencia', '', { duracao: 90 })
                 ]
             }),
+            locacaoReajuste: () => ({
+                name: en ? 'Indexed Lease' : 'Locação com Reajuste', scale: 1000,
+                roles: [r('locador', 'Locador', 'Landlord'), r('locatario', 'Locatário', 'Tenant'), r('fonte', 'Fonte do índice', 'Index provider')],
+                blocks: [
+                    blk('pagamentoPeriodico', en ? 'Rent' : 'Aluguel', { devedor: 'locatario', credor: 'locador', valor: 2000, parcelas: 12, periodo: 30 }),
+                    blk('oraculoValor', en ? 'IGP-M Index' : 'Índice IGP-M', { fonte: 'fonte', validade: 45 }),
+                    blk('reajuste', '', { alvo: 'p_pagamentoPeriodico_' + (en ? 'Rent' : 'Aluguel'), indice: 'p_oraculoValor_' + (en ? 'IgpMIndex' : 'IndiceIgpM') }),
+                    blk('encargos', '', { alvo: 'p_pagamentoPeriodico_' + (en ? 'Rent' : 'Aluguel'), multa: 10, juros: 1, tolerancia: 0 }),
+                    blk('rescisao', '', { quem: '*' })
+                ]
+            }),
+            pagamentoCotacao: () => ({
+                name: en ? 'BRL Payment at Market Price' : 'Pagamento em Reais pela Cotação', scale: 15000,
+                roles: [r('credor', 'Credor', 'Creditor'), r('devedor', 'Devedor', 'Debtor'), r('oraculo', 'Oráculo de preços', 'Price oracle')],
+                blocks: [
+                    blk('pagamentoUnico', en ? 'Invoice' : 'Fatura', { devedor: 'devedor', credor: 'credor', valor: 3000, prazo: 15 }),
+                    blk('oraculoValor', en ? 'ETH BRL Price' : 'Cotação ETH BRL', { fonte: 'oraculo', validade: 1 }),
+                    blk('conversaoCambial', '', { alvo: 'p_pagamentoUnico_' + (en ? 'Invoice' : 'Fatura'), cotacao: 'p_oraculoValor_' + (en ? 'EthBrlPrice' : 'CotacaoEthBrl') }),
+                    blk('encargos', '', { alvo: 'p_pagamentoUnico_' + (en ? 'Invoice' : 'Fatura'), multa: 2, juros: 1, tolerancia: 0 })
+                ]
+            }),
+            entregaEvento: () => ({
+                name: en ? 'Purchase with Delivery Tracking' : 'Compra com Rastreio de Entrega', scale: 1000,
+                roles: [r('comprador', 'Comprador', 'Buyer'), r('vendedor', 'Vendedor', 'Seller'), r('transportadora', 'Transportadora', 'Carrier'), r('arbitro', 'Árbitro', 'Arbitrator')],
+                blocks: [
+                    blk('custodia', en ? 'Price' : 'Preço', { depositante: 'comprador', beneficiario: 'vendedor', valor: 8000, prazo: 20 }),
+                    blk('oraculoEvento', en ? 'Delivery Confirmed' : 'Entrega confirmada', { fonte: 'transportadora' }),
+                    blk('liberacaoPorEvento', '', { alvo: 'p_custodia_' + (en ? 'Price' : 'Preco'), evento: 'p_oraculoEvento_' + (en ? 'DeliveryConfirmed' : 'EntregaConfirmada') }),
+                    blk('arbitro', '', { arbitro: 'arbitro' })
+                ]
+            }),
             assinatura: () => ({
                 name: en ? 'Subscription' : 'Assinatura de Serviço', scale: 1000,
                 roles: [r('fornecedor', 'Fornecedor', 'Provider'), r('cliente', 'Cliente', 'Customer')],
@@ -1276,9 +1533,12 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         // Ajusta referências (uid gerado a partir do rótulo normalizado).
         const uids = new Set(model.blocks.map(b => b.uid));
         for (const b of model.blocks) {
-            if (b.params.alvo && !uids.has(b.params.alvo)) {
-                const target = model.blocks.find(x => ['pagamentoUnico', 'pagamentoPeriodico'].includes(x.type) && b.params.alvo.endsWith(pascal(x.label)));
-                if (target) b.params.alvo = target.uid;
+            for (const p of BLOCKS[b.type].params.filter(x => x.kind === 'ref')) {
+                const v = b.params[p.key];
+                if (v && !uids.has(v)) {
+                    const target = model.blocks.find(x => p.accepts.includes(x.type) && v.endsWith(pascal(x.label)));
+                    if (target) b.params[p.key] = target.uid;
+                }
             }
             if (!b.label) b.label = BLOCKS[b.type].name[en ? 'en' : 'pt'];
         }
@@ -1290,6 +1550,9 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         { id: 'compraParcelada', pt: 'Compra e venda parcelada com entrada e vencimento antecipado', en: 'Installment sale with down payment and acceleration' },
         { id: 'servicos', pt: 'Prestação de serviços com sinal, etapas e rescisão', en: 'Services with signing fee, milestones and termination' },
         { id: 'garantia', pt: 'Compra com depósito em garantia, árbitro e vigência', en: 'Escrow purchase with arbitrator and term' },
+        { id: 'locacaoReajuste', pt: 'Locação com reajuste pelo IGP-M (oráculo de índice)', en: 'Lease adjusted by an index (index oracle)' },
+        { id: 'pagamentoCotacao', pt: 'Pagamento em reais convertido pela cotação (oráculo de preço)', en: 'BRL payment converted at market price (price oracle)' },
+        { id: 'entregaEvento', pt: 'Compra com liberação ao confirmar a entrega (oráculo de evento)', en: 'Purchase released on delivery confirmation (event oracle)' },
         { id: 'assinatura', pt: 'Assinatura mensal com encargos, vigência e rescisão pelo cliente', en: 'Monthly subscription with charges, term and customer termination' }
     ];
 

@@ -270,8 +270,8 @@
             single: true,
             params: [{ key: 'arbitro', kind: 'role', role: 2 }],
             sentence: {
-                pt: 'As divergências sobre a liberação de valores retidos serão decididas por {arbitro}, cuja decisão o contrato executará.',
-                en: 'Disputes about the release of held amounts shall be decided by {arbitro}, whose decision the contract will execute.'
+                pt: 'As divergências sobre a liberação de valores retidos e sobre o cumprimento informado de obrigações serão decididas por {arbitro}, cuja decisão o contrato executará.',
+                en: 'Disputes about the release of held amounts and about reported performance of obligations shall be decided by {arbitro}, whose decision the contract will execute.'
             }
         },
         rescisao: {

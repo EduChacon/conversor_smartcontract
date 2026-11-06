@@ -72,6 +72,7 @@
         });
         document.querySelectorAll('[data-i18n-placeholder]').forEach(n => { n.placeholder = t(n.getAttribute('data-i18n-placeholder')); });
         document.querySelectorAll('[data-i18n-aria]').forEach(n => { n.setAttribute('aria-label', t(n.getAttribute('data-i18n-aria'))); });
+        document.querySelectorAll('[data-ai]').forEach(n => n.setAttribute('data-ai-badge', t('aiBadge')));
         el.language.textContent = t('languageToggle');
         el.toggleKey.textContent = el.apiKey.type === 'password' ? t('showKey') : t('hideKey');
         el.compileTitle.textContent = t('compileTitle', { v: CSC.config.SOLC_VERSION });
@@ -264,6 +265,7 @@
         let res;
         try {
             res = await call();
+            state.aiUsed = true;
         } catch (err) {
             if (err && err.code === 'model-not-found' && await switchToAvailableModel(apiKey).catch(() => null)) {
                 res = await call();
@@ -313,7 +315,12 @@
         try {
             return await task();
         } catch (err) {
-            showError(err && err.code === 'no-key' ? t('errNoKey') : errorMessage(err));
+            if (err && err.code === 'no-key') {
+                showError(t('errNoKeyOpened'));
+                $('settingsPanel').open = true;
+                $('settingsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => el.apiKey.focus({ preventScroll: true }), 400);
+            } else showError(errorMessage(err));
             return null;
         } finally {
             if (loading) loading.hidden = true;
@@ -858,6 +865,7 @@
             if (!c) return;
             const tp = state.templatePlan;
             const plan = tp.kind === 'blocks' ? CSC.blocks.plan(tp.model, tp.lang) : TPL.plan(tp.id, tp.values, tp.lang);
+            CSC.lab.setScale(planScale());
             const chosen = CSC.lab.pickContract(c.result.contracts, plan.contrato);
             if (!chosen) return CSC.lab.setStatus(t('labNoDeployable'), 'error');
             $('labScenariosPanel').hidden = false;
@@ -905,6 +913,13 @@
         return c;
     }
 
+    /** Escala R$/ETH usada na geração do código atual (se houver). */
+    function planScale() {
+        const tp = state.templatePlan;
+        if (!tp) return null;
+        return tp.kind === 'blocks' ? Number(tp.model.scale) || 1000 : Number((tp.values && tp.values.escala) || 1000);
+    }
+
     async function labStart() {
         if (state.busy) return;
         setBusy(true);
@@ -914,7 +929,10 @@
             const chosen = CSC.lab.pickContract(c.result.contracts);
             if (!chosen) return CSC.lab.setStatus(t('labNoDeployable'), 'error');
             CSC.lab.setStatus('', '');
-            CSC.lab.prepare(Object.assign({ source: currentCode() }, chosen));
+            const tp = state.templatePlan;
+            const plan = tp ? (tp.kind === 'blocks' ? CSC.blocks.plan(tp.model, tp.lang) : TPL.plan(tp.id, tp.values, tp.lang)) : null;
+            CSC.lab.setScale(planScale());
+            CSC.lab.prepare(Object.assign({ source: currentCode() }, chosen), plan);
         } finally {
             setBusy(false);
         }
@@ -1056,9 +1074,12 @@
         const code = currentCode();
         lines.push('# ' + t('reportTitle'), '');
         lines.push('- ' + t('reportGenerated') + ': ' + now.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR'));
-        lines.push('- ' + t('reportModel') + ': ' + state.settings.model + ' (temperatura ' + state.settings.temperature + ')');
+        const origin = state.history[state.index] ? state.history[state.index].origin : '';
+        lines.push('- ' + t('reportOrigin') + ': ' + originLabel(origin));
+        if (state.aiUsed) lines.push('- ' + t('reportModel') + ': ' + state.settings.model + ' (' + t('temperatureLabel').toLowerCase() + ' ' + state.settings.temperature + ')');
+        else lines.push('- ' + t('reportNoAI'));
         lines.push('- solc: ' + CSC.config.SOLC_VERSION, '');
-        lines.push('> ' + t('reportDisclaimer'), '');
+        lines.push('> ' + (state.aiUsed ? t('reportDisclaimer') : t('reportDisclaimerNoAI')), '');
         if (clauseText()) lines.push('## ' + t('reportClause'), '', clauseText().split('\n').map(l => '> ' + l).join('\n'), '');
         const sections = [['risk', 'riskAnalysisTitle'], ['suggest', 'suggestClausesTitle']];
         for (const [k, title] of sections) if (state.outputs[k]) lines.push('## ' + t(title), '', state.outputs[k], '');
@@ -1090,6 +1111,11 @@
                 s.passos.forEach(p => lines.push('- ' + (p.status === 'pass' ? '✓' : p.status === 'fail' ? '✗' : '!') + ' `' + (p.texto || '') + '`' + (p.resultado ? ' → ' + p.resultado : '') + (p.nota ? ' — ' + p.nota : '')));
                 lines.push('');
             }
+        }
+        const txs = CSC.lab.timelineForReport ? CSC.lab.timelineForReport() : [];
+        if (txs.length) {
+            lines.push('', '## ' + t('labTimeline'), '');
+            txs.forEach((tx, i) => lines.push((i + 1) + '. ' + tx));
         }
         for (const [k, title] of [['review', 'securityReviewTitle'], ['explain', 'explanationTitle'], ['optimize', 'optimizationTitle']]) {
             if (state.outputs[k]) lines.push('', '## ' + t(title), '', state.outputs[k]);
@@ -1190,8 +1216,21 @@
     $('remixShortButton').addEventListener('click', openRemix);
     $('remixButton').addEventListener('click', openRemix);
     const report = () => downloadFile('relatorio-' + contractName(currentCode()) + '.md', buildReport(), 'text/markdown;charset=utf-8');
+    /** Versão para imprimir ou salvar em PDF (pela janela de impressão do navegador). */
+    function printReport() {
+        let area = $('printArea');
+        if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+        area.innerHTML = CSC.markdown.render(buildReport());
+        document.body.classList.add('printing');
+        const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+        window.addEventListener('afterprint', done);
+        window.print();
+        setTimeout(done, 1000);
+    }
     $('reportButton').addEventListener('click', report);
     $('reportButton2').addEventListener('click', report);
+    $('printButton').addEventListener('click', printReport);
+    $('printButton2').addEventListener('click', printReport);
 
     $('compileButton').addEventListener('click', async () => {
         if (state.busy) return;
@@ -1282,7 +1321,7 @@
     });
 
     // ---------- Cotação do Ether ----------
-    const ratesEl = { panel: $('ratesPanel'), status: $('ratesStatus'), info: $('ratesInfo'), eth: $('rateEth'), brl: $('rateBrl'), usd: $('rateUsd') };
+    const ratesEl = { panel: $('ratesPanel'), status: $('ratesStatus'), info: $('ratesInfo'), eth: $('rateEth'), brl: $('rateBrl'), usd: $('rateUsd'), btc: $('rateBtc') };
     let ratesDriver = 'eth';
     const locale = () => (CSC.lang === 'en' ? 'en-US' : 'pt-BR');
     const fmtMoney = (v, cur) => Number(v).toLocaleString(locale(), { style: 'currency', currency: cur, maximumFractionDigits: 2 });
@@ -1301,11 +1340,13 @@
         if (!q) return;
         const eth = ratesDriver === 'eth' ? parseNum(ratesEl.eth.value)
             : ratesDriver === 'brl' ? parseNum(ratesEl.brl.value) / q.brl
-            : parseNum(ratesEl.usd.value) / q.usd;
+            : ratesDriver === 'usd' ? parseNum(ratesEl.usd.value) / q.usd
+            : parseNum(ratesEl.btc.value) / q.btc;
         if (!Number.isFinite(eth)) return;
         if (ratesDriver !== 'eth') ratesEl.eth.value = fmtNum(eth, 8);
         if (ratesDriver !== 'brl') ratesEl.brl.value = fmtNum(eth * q.brl, 2);
         if (ratesDriver !== 'usd') ratesEl.usd.value = fmtNum(eth * q.usd, 2);
+        if (ratesDriver !== 'btc') ratesEl.btc.value = q.btc ? fmtNum(eth * q.btc, 8) : '—';
     }
 
     function renderRates() {
@@ -1316,7 +1357,7 @@
             ratesEl.info.textContent = err ? t('ratesError', { msg: err }) : (ratesEl.panel.open ? t('ratesLoading') : '');
             return;
         }
-        ratesEl.status.textContent = t('ratesStatus', { brl: fmtMoney(q.brl, 'BRL'), usd: fmtMoney(q.usd, 'USD') });
+        ratesEl.status.textContent = t('ratesStatus', { brl: fmtMoney(q.brl, 'BRL'), usd: fmtMoney(q.usd, 'USD'), btc: q.btc ? fmtNum(q.btc, 6) + ' BTC' : '—' });
         const time = new Date(q.fetched).toLocaleTimeString(locale());
         ratesEl.info.textContent = t('ratesInfo', { source: q.source, kind: q.source === 'CoinGecko' ? t('ratesKindAgg') : t('ratesKindEx'), time })
             + (CSC.rates.isStale() ? ' ' + t('ratesStale') : '') + (err ? ' ' + t('ratesError', { msg: err }) : '');
@@ -1329,7 +1370,7 @@
         if (ratesEl.panel.open) CSC.rates.hold(); else CSC.rates.release();
         renderRates();
     });
-    ['eth', 'brl', 'usd'].forEach(k => ratesEl[k].addEventListener('input', () => { ratesDriver = k; syncRates(); }));
+    ['eth', 'brl', 'usd', 'btc'].forEach(k => ratesEl[k].addEventListener('input', () => { ratesDriver = k; syncRates(); }));
     $('ratesRefresh').addEventListener('click', () => { CSC.rates.refresh(); renderRates(); });
     $('ratesUseScale').addEventListener('click', () => {
         const q = CSC.rates.current();
@@ -1344,7 +1385,7 @@
         }
         state.template.scale = brl;
         $('scaleInput').value = String(brl);
-        showNotice(t('ratesApplied', { brl: fmtNum(brl, 2) }));
+        showNotice(t('ratesApplied', { brl: brl.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }));
         saveDraft();
     });
 

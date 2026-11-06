@@ -125,8 +125,8 @@
                 { key: 'tolerancia', kind: 'days', def: 0, min: 0 }
             ],
             sentence: {
-                pt: 'Em caso de atraso no pagamento de {alvo} superior a {tolerancia} dias de tolerância, incidirão multa de {multa} sobre o valor devido e juros de mora de {juros} ao mês, calculados por dia de atraso.',
-                en: 'If payment of {alvo} is late by more than a {tolerancia}-day grace period, a late fee of {multa} on the amount due and late interest of {juros} per month, calculated per day of delay, shall apply.'
+                pt: 'Em caso de atraso no pagamento de {alvo} superior a {tolerancia} dias de tolerância, incidirão multa de {multa} sobre o valor devido e juros de mora de {juros} ao mês, calculados por dia completo de atraso.',
+                en: 'If payment of {alvo} is late by more than a {tolerancia}-day grace period, a late fee of {multa} on the amount due and late interest of {juros} per month, calculated per full day of delay, shall apply.'
             }
         },
         vencimentoAntecipado: {
@@ -231,6 +231,20 @@
         }
     };
 
+    // Nomes legíveis das lacunas (mensagens de validação e acessibilidade).
+    const FIELD_LABELS = {
+        devedor: { pt: 'quem paga', en: 'payer' }, credor: { pt: 'quem recebe', en: 'payee' }, valor: { pt: 'valor (R$)', en: 'amount (R$)' },
+        prazo: { pt: 'prazo (dias)', en: 'deadline (days)' }, parcelas: { pt: 'número de parcelas', en: 'number of installments' },
+        periodo: { pt: 'periodicidade (dias)', en: 'period (days)' }, alvo: { pt: 'pagamento a que se aplica', en: 'payment it applies to' },
+        multa: { pt: 'multa (%)', en: 'late fee (%)' }, juros: { pt: 'juros ao mês (%)', en: 'monthly interest (%)' },
+        tolerancia: { pt: 'tolerância (dias)', en: 'grace period (days)' }, atraso: { pt: 'atraso (dias)', en: 'delay (days)' },
+        depositante: { pt: 'quem deposita', en: 'depositor' }, beneficiario: { pt: 'beneficiário', en: 'beneficiary' },
+        contratante: { pt: 'contratante', en: 'client' }, contratado: { pt: 'contratado', en: 'contractor' }, etapas: { pt: 'número de etapas', en: 'number of milestones' },
+        garantidor: { pt: 'quem presta a garantia', en: 'guarantor' }, arbitro: { pt: 'árbitro', en: 'arbitrator' }, quem: { pt: 'quem pode rescindir', en: 'who may terminate' },
+        duracao: { pt: 'duração (dias)', en: 'duration (days)' }
+    };
+    function fieldLabel(key, lang) { const f = FIELD_LABELS[key]; return f ? f[lang === 'en' ? 'en' : 'pt'] : key; }
+
     const CATEGORIES = [
         { id: 'pagamentos', pt: 'Pagamentos', en: 'Payments' },
         { id: 'garantias', pt: 'Garantias', en: 'Guarantees' },
@@ -308,13 +322,16 @@
                 }
                 if (['money', 'int', 'days', 'percent'].includes(p.kind)) {
                     const n = Number(v);
-                    if (!Number.isFinite(n) || n < 0) add('Valor inválido em "' + b.label + '".', 'Invalid value in "' + b.label + '".', b.uid);
+                    const fp = fieldLabel(p.key, 'pt'), fe = fieldLabel(p.key, 'en');
+                    const at = (pt, en) => add('Em "' + b.label + '", o campo "' + fp + '" ' + pt, 'In "' + b.label + '", the field "' + fe + '" ' + en, b.uid);
+                    if (v === '' || v == null || !Number.isFinite(n)) at('deve conter um número (ex.: ' + (p.kind === 'money' ? '3.000,00' : p.kind === 'percent' ? '2' : '30') + ').', 'must contain a number (e.g. ' + (p.kind === 'money' ? '3000' : p.kind === 'percent' ? '2' : '30') + ').');
+                    else if (n < 0) at('não pode ser negativo.', 'cannot be negative.');
                     else {
-                        if (p.kind === 'money' && n <= 0) add('Valor deve ser positivo em "' + b.label + '".', 'Amount must be positive in "' + b.label + '".', b.uid);
-                        if (p.min != null && n < p.min) add('Valor abaixo do mínimo em "' + b.label + '".', 'Value below minimum in "' + b.label + '".', b.uid);
-                        if (p.max != null && n > p.max) add('Valor acima do máximo em "' + b.label + '".', 'Value above maximum in "' + b.label + '".', b.uid);
-                        if (p.kind === 'percent' && n > 100) add('Percentual acima de 100% em "' + b.label + '".', 'Percentage above 100% in "' + b.label + '".', b.uid);
-                        if ((p.kind === 'int' || p.kind === 'days') && !Number.isInteger(n)) add('Use número inteiro em "' + b.label + '".', 'Use a whole number in "' + b.label + '".', b.uid);
+                        if (p.kind === 'money' && n <= 0) at('deve ser maior que zero.', 'must be greater than zero.');
+                        if (p.min != null && n < p.min) at('deve ser no mínimo ' + p.min + '.', 'must be at least ' + p.min + '.');
+                        if (p.max != null && n > p.max) at('deve ser no máximo ' + p.max + '.', 'must be at most ' + p.max + '.');
+                        if (p.kind === 'percent' && n > 100) at('não pode passar de 100%.', 'cannot exceed 100%.');
+                        if ((p.kind === 'int' || p.kind === 'days') && !Number.isInteger(n)) at('deve ser um número inteiro.', 'must be a whole number.');
                     }
                 }
             }
@@ -401,7 +418,9 @@
             const target = ctx.byUid(block.params.alvo);
             return def.name[ctx.lang === 'en' ? 'en' : 'pt'] + (target ? ' (' + target.label + ')' : '');
         }
-        return def.single ? def.name[ctx.lang === 'en' ? 'en' : 'pt'] : block.label + ' (' + def.name[ctx.lang === 'en' ? 'en' : 'pt'].toLowerCase() + ')';
+        const typeName = def.name[ctx.lang === 'en' ? 'en' : 'pt'];
+        if (def.single || pascal(block.label) === pascal(typeName)) return def.single ? typeName : block.label;
+        return block.label + ' (' + typeName.toLowerCase() + ')';
     }
 
     /** Minuta em linguagem natural: lista de { numero, titulo, texto }. */
@@ -496,8 +515,8 @@
             return `
         uint256 ${w('vencimento', 'dueDate')} = ${dueExpr};
         if (block.timestamp > ${w('vencimento', 'dueDate')} + ${P}_${w('TOLERANCIA', 'GRACE_PERIOD')}) {
-            // ${w('dias de atraso desde o vencimento, arredondados para cima', 'days late since the due date, rounded up')}
-            uint256 ${w('diasAtraso', 'daysLate')} = (block.timestamp - ${w('vencimento', 'dueDate')} + 1 days - 1) / 1 days;
+            // ${w('dias completos de atraso desde o vencimento (fração de dia não conta)', 'full days late since the due date (partial days do not count)')}
+            uint256 ${w('diasAtraso', 'daysLate')} = (block.timestamp - ${w('vencimento', 'dueDate')}) / 1 days;
             uint256 ${w('multa', 'fee')} = ${baseExpr} * ${P}_${w('MULTA_BPS', 'LATE_FEE_BPS')} / BPS;
             // ${w('juros simples "pro rata die": multiplica antes de dividir', 'simple pro rata interest: multiply before dividing')}
             uint256 ${w('juros', 'interest')} = ${baseExpr} * ${P}_${w('JUROS_MENSAIS_BPS', 'MONTHLY_INTEREST_BPS')} * ${w('diasAtraso', 'daysLate')} / (BPS * 30);
@@ -1202,7 +1221,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         const blk = (type, label, params) => ({ uid: 'p_' + type + '_' + pascal(label), type, label, params });
         const P = {
             locacao: () => ({
-                name: en ? 'Lease Agreement' : 'Contrato de Locacao', scale: 1000,
+                name: en ? 'Lease Agreement' : 'Contrato de Locação', scale: 1000,
                 roles: [r('locador', 'Locador', 'Landlord'), r('locatario', 'Locatário', 'Tenant'), r('arbitro', 'Árbitro', 'Arbitrator')],
                 blocks: [
                     blk('pagamentoPeriodico', en ? 'Rent' : 'Aluguel', { devedor: 'locatario', credor: 'locador', valor: 2000, parcelas: 12, periodo: 30 }),
@@ -1224,7 +1243,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                 ]
             }),
             servicos: () => ({
-                name: en ? 'Services Agreement' : 'Prestacao de Servicos', scale: 1000,
+                name: en ? 'Services Agreement' : 'Prestação de Serviços', scale: 1000,
                 roles: [r('contratante', 'Contratante', 'Client'), r('contratado', 'Contratado', 'Contractor')],
                 blocks: [
                     blk('pagamentoUnico', en ? 'Signing Fee' : 'Sinal', { devedor: 'contratante', credor: 'contratado', valor: 3000, prazo: 5 }),
@@ -1242,7 +1261,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                 ]
             }),
             assinatura: () => ({
-                name: en ? 'Subscription' : 'Assinatura de Servico', scale: 1000,
+                name: en ? 'Subscription' : 'Assinatura de Serviço', scale: 1000,
                 roles: [r('fornecedor', 'Fornecedor', 'Provider'), r('cliente', 'Cliente', 'Customer')],
                 blocks: [
                     blk('pagamentoPeriodico', en ? 'Monthly Fee' : 'Mensalidade', { devedor: 'cliente', credor: 'fornecedor', valor: 500, parcelas: 12, periodo: 30 }),
@@ -1282,6 +1301,6 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
     return {
         BLOCKS, CATEGORIES, PRESETS, SOLC_VERSION, slots, missingSlots,
         newBlock, validate, minuta, build, plan, preset, emptyModel, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
-        names: { pascal, camel, upper }, toWei
+        names: { pascal, camel, upper }, toWei, fieldLabel
     };
 }));

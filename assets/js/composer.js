@@ -148,7 +148,7 @@
         const v = block.params[p.key];
         const set = (val, structural) => { block.params[p.key] = val; changed(structural); };
         if (p.kind === 'role' || p.kind === 'roleOrAny') {
-            const sel = el('select', { class: 'blank blank-role', 'aria-label': p.key, onchange: e => {
+            const sel = el('select', { class: 'blank blank-role', 'aria-label': B().fieldLabel(p.key, CSC.lang), onchange: e => {
                 const clause = e.target.closest('.clause-text');
                 if (clause) clause.querySelectorAll('.chip[data-slot="' + p.key + '"] select').forEach(o => { o.value = e.target.value; });
                 set(e.target.value, false);
@@ -159,18 +159,19 @@
             return sel;
         }
         if (p.kind === 'ref') {
-            const sel = el('select', { class: 'blank blank-ref', 'aria-label': p.key, onchange: e => set(e.target.value, true) });
+            const sel = el('select', { class: 'blank blank-ref', 'aria-label': B().fieldLabel(p.key, CSC.lang), onchange: e => set(e.target.value, true) });
             sel.appendChild(el('option', { value: '', text: t('chooseBlock') }));
             for (const b of state.model.blocks.filter(x => p.accepts.includes(x.type))) sel.appendChild(el('option', { value: b.uid, text: b.label }));
             sel.value = v || '';
             return sel;
         }
         const input = el('input', {
-            class: 'blank blank-' + p.kind, type: 'text', inputmode: 'decimal', 'aria-label': p.key, value: String(v),
+            class: 'blank blank-' + p.kind, type: 'text', inputmode: 'decimal', 'aria-label': B().fieldLabel(p.key, CSC.lang), value: String(v),
             size: String(Math.max(2, String(v).length + (p.kind === 'money' ? 2 : 1))),
             oninput: e => {
                 e.target.size = Math.max(2, e.target.value.length + 1);
-                const n = Number(String(e.target.value).replace(/\./g, '').replace(',', '.'));
+                const raw = String(e.target.value).replace(/[%\sR$]/g, '');
+                const n = Number(raw.replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
                 // Lacunas repetidas na mesma cláusula (ex.: o mesmo prazo citado duas vezes) andam juntas.
                 const clause = e.target.closest('.clause-text');
                 if (clause) clause.querySelectorAll('.chip[data-slot="' + p.key + '"] input').forEach(other => { if (other !== e.target) { other.value = e.target.value; other.size = e.target.size; } });
@@ -257,7 +258,7 @@
                 size: String(Math.max(6, block.label.length + 1)),
                 oninput: e => { e.target.size = Math.max(6, e.target.value.length + 1); block.label = e.target.value; changed(false); },
                 onchange: () => changed(true) }),
-            el('span', { class: 'clause-kind', text: '(' + typeName.toLowerCase() + ')' })];
+            B().names.pascal(block.label) === B().names.pascal(typeName) ? null : el('span', { class: 'clause-kind', text: '(' + typeName.toLowerCase() + ')' })];
         const tools = el('span', { class: 'clause-tools' }, [
             block.texto && !def.declarative ? el('button', { type: 'button', class: 'link-btn', text: t('restoreWording'), onclick: () => { delete block.texto; changed(true); } }) : null,
             el('button', { type: 'button', class: 'link-btn', text: t('saveMyBlock'), onclick: () => saveMine(block) }),

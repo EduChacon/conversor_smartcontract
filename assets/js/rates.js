@@ -1,6 +1,6 @@
 /*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
- * Cotação do Ether em reais e dólares, para o conversor de moedas.
+ * Cotação do Ether em reais, dólares e bitcoin, para o conversor de moedas.
  *
  * Fonte principal: CoinGecko (preço agregado de várias corretoras).
  * Reserva automática: Coinbase (taxas de câmbio públicas).
@@ -16,13 +16,13 @@
     const SOURCES = [
         {
             name: 'CoinGecko',
-            url: 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=brl,usd&include_last_updated_at=true',
-            parse: d => ({ brl: d.ethereum.brl, usd: d.ethereum.usd, updated: d.ethereum.last_updated_at ? d.ethereum.last_updated_at * 1000 : Date.now() })
+            url: 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=brl,usd,btc&include_last_updated_at=true',
+            parse: d => ({ brl: d.ethereum.brl, usd: d.ethereum.usd, btc: d.ethereum.btc, updated: d.ethereum.last_updated_at ? d.ethereum.last_updated_at * 1000 : Date.now() })
         },
         {
             name: 'Coinbase',
             url: 'https://api.coinbase.com/v2/exchange-rates?currency=ETH',
-            parse: d => ({ brl: Number(d.data.rates.BRL), usd: Number(d.data.rates.USD), updated: Date.now() })
+            parse: d => ({ brl: Number(d.data.rates.BRL), usd: Number(d.data.rates.USD), btc: Number(d.data.rates.BTC), updated: Date.now() })
         }
     ];
 

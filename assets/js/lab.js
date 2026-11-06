@@ -91,6 +91,12 @@
         panic_33: 'valor inválido para "enum"',
         panic_50: 'acesso fora dos limites de array',
         errInsufficient: 'A conta não tem saldo suficiente para enviar esse valor.',
+        errWrongAmount: 'Valor incorreto: devido {due}; enviado {sent}.',
+        errLimit: 'limite: {date} UTC',
+        labParticipants: 'Contas participantes',
+        labDueFill: 'preencher o valor devido',
+        labDueFilled: 'Valor devido preenchido: {v}.',
+        stateOf: '{a} de {b}',
         fnInfoTitle: 'Sobre a função',
         fnInfoClause: 'Cláusula que esta função implementa',
         fnInfoWhat: 'O que faz',
@@ -208,6 +214,12 @@
         panic_33: 'invalid enum value',
         panic_50: 'array index out of bounds',
         errInsufficient: 'The account does not have enough balance to send this amount.',
+        errWrongAmount: 'Wrong amount: due {due}; sent {sent}.',
+        errLimit: 'limit: {date} UTC',
+        labParticipants: 'Participating accounts',
+        labDueFill: 'fill in the amount due',
+        labDueFilled: 'Amount due filled in: {v}.',
+        stateOf: '{a} of {b}',
         fnInfoTitle: 'About the function',
         fnInfoClause: 'Clause implemented by this function',
         fnInfoWhat: 'What it does',
@@ -278,13 +290,29 @@
         return n.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { maximumFractionDigits: digits == null ? 4 : digits });
     }
 
-    /** Equivalente aproximado em reais, se a cotação já tiver sido consultada. */
-    function approxBrl(wei) {
+    /**
+     * Equivalente em reais. Usa a escala do próprio contrato (a mesma usada
+     * para converter os valores em Ether); sem ela, a cotação de mercado.
+     */
+    let contractScale = null;
+    function brlPerEth() {
+        if (contractScale) return contractScale;
         const q = CSC.rates && CSC.rates.current();
-        if (!q || !wei) return '';
-        const brl = Number(window.EvmLab.formatEther(wei)) * q.brl;
-        return ' (≈ ' + brl.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) + ')';
+        return q ? q.brl : null;
     }
+    function brlOf(wei) {
+        const rate = brlPerEth();
+        if (!rate) return null;
+        return Number(window.EvmLab.formatEther(wei)) * rate;
+    }
+    function fmtBrl(v) { return Number(v).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function approxBrl(wei) {
+        if (!wei) return '';
+        const v = brlOf(wei);
+        return v == null ? '' : ' (≈ ' + fmtBrl(v) + ')';
+    }
+    /** Valor monetário legível: "3,068 ETH (≈ R$ 3.068,00)". */
+    function moneyText(wei) { return formatEth(wei, 6) + ' ETH' + approxBrl(wei); }
 
     function formatDuration(seconds) {
         const s = Number(seconds);
@@ -398,14 +426,14 @@
             return (names[idx] || String(value)) + ' (' + idx + ')';
         }
         if (typeof value === 'bigint') {
-            if (value >= 10n ** 14n) return value.toString() + ' wei (' + formatEth(value, 6) + ' ETH)';
+            if (value >= 10n ** 14n) return moneyText(value);
             // Valores na faixa de datas Unix (2017 a 2096) são exibidos também como data.
             if (value >= 1500000000n && value <= 4000000000n) {
                 const d = new Date(Number(value) * 1000).toLocaleDateString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { timeZone: 'UTC' });
-                return value.toString() + ' (' + d + ')';
+                return d;
             }
             if (value > 0n && value % 86400n === 0n && /(prazo|dura|period|tempo|time|dias|days|interval)/i.test((output && output.name) || '')) {
-                return value.toString() + ' s (' + formatDuration(value) + ')';
+                return formatDuration(value);
             }
             return value.toLocaleString ? value.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR') : value.toString();
         }
@@ -440,8 +468,18 @@
         if (error.name === 'Error') return '"' + (error.args && error.args[0]) + '"';
         if (error.name === 'SaldoInsuficiente') return t('errInsufficient');
         if (error.name === 'OutOfGas') return t('errOutOfGas');
-        const args = (error.args || []).map(a => formatValue(a)).join(', ');
-        return error.name + (args ? '(' + args + ')' : '');
+        const desc = t('errDesc_' + error.name);
+        const args = error.args || [];
+        if (/^(ValorIncorreto|WrongAmount)$/.test(error.name) && args.length === 2) {
+            return t('errWrongAmount', { due: moneyText(args[0]), sent: moneyText(args[1]) });
+        }
+        if (/^(PrazoNaoEncerrado|DeadlineNotReached|PrazoEncerrado|DeadlinePassed|SemAtrasoSuficiente|NotLateEnough|ForaDoPrazo)$/.test(error.name) && args.length) {
+            const date = new Date(Number(args[args.length - 1]) * 1000).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' });
+            return (desc !== 'errDesc_' + error.name ? desc : error.name) + ' (' + t('errLimit', { date }) + ')';
+        }
+        const argText = args.map(a => formatValue(a)).join(', ');
+        if (desc !== 'errDesc_' + error.name) return desc.charAt(0).toUpperCase() + desc.slice(1) + (argText ? ' (' + argText + ')' : '') + ' [' + error.name + ']';
+        return error.name + (argText ? '(' + argText + ')' : '');
     }
 
     function sameError(got, expected) {
@@ -573,7 +611,7 @@
 
         d.deployForm.appendChild(el('h4', { class: 'block-title', text: t('labDeployTitle') + ' — ' + compiled.name }));
         d.deployForm.appendChild(el('p', { class: 'muted small', text: t('labDeployHint') }));
-        d.deployForm.appendChild(el('label', { class: 'lab-field' }, [el('span', { class: 'lab-field-name', text: t('labAccounts') }), accountsInput]));
+        d.deployForm.appendChild(el('label', { class: 'lab-field' }, [el('span', { class: 'lab-field-name', text: t('labParticipants') }), accountsInput]));
         fields.forEach(f => d.deployForm.appendChild(f));
         if (valueField) d.deployForm.appendChild(valueField);
         d.deployForm.appendChild(el('div', { class: 'lab-inline' }, [
@@ -637,7 +675,7 @@
 
         const date = new Date(Number(lab.chain.timestamp) * 1000);
         const fmt = date.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
-        const advance = secs => () => { lab.chain.advanceTime(secs); renderWorkspace(true); };
+        const advance = secs => async () => { lab.chain.advanceTime(secs); await renderWorkspace(true); (lab.dueFills || []).forEach(f => f()); };
         d.accounts.appendChild(el('div', { class: 'clock' }, [
             el('p', {}, [el('span', { class: 'field-label', text: t('labClock') }), el('br'), el('span', { class: 'clock-date', text: fmt })]),
             el('div', { class: 'clock-buttons' }, [
@@ -649,6 +687,18 @@
         ]));
     }
 
+    /** Rótulo legível a partir do nome técnico (ALUGUEL_MULTA_BPS → "Aluguel multa (%)"). */
+    function humanLabel(name) {
+        let words;
+        if (/^[A-Z0-9_]+$/.test(name)) words = name.toLowerCase().split('_');
+        else words = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(' ');
+        const isBps = words[words.length - 1] === 'bps';
+        if (isBps) words.pop();
+        let label = words.filter(Boolean).join(' ');
+        label = label.charAt(0).toUpperCase() + label.slice(1);
+        return isBps ? label + ' (%)' : label;
+    }
+
     async function renderState() {
         const d = lab.dom;
         d.state.textContent = '';
@@ -658,12 +708,31 @@
             d.state.appendChild(el('p', { class: 'muted small', text: t('labStateEmpty') }));
             return;
         }
-        const dl = el('dl', { class: 'state-list' });
         const owner = lab.accounts[0];
+        const values = {};
         for (const g of getters) {
             const r = await lab.chain.call({ from: owner.address, to: lab.contract.address, abi: lab.contract.abi, functionName: g.name, args: [] });
-            dl.appendChild(el('dt', { text: g.name }));
-            dl.appendChild(el('dd', { text: r.ok ? formatResult(r.result, g) : '⚠ ' + describeRevert(r.error) }));
+            values[g.name] = r;
+        }
+        const dl = el('dl', { class: 'state-list' });
+        const timeLike = /(prazo|periodo|tolerancia|atraso|vigencia|duracao|period|deadline|grace|delay|term|return)/i;
+        for (const g of getters) {
+            const r = values[g.name];
+            let text;
+            if (!r.ok) text = '⚠ ' + describeRevert(r.error);
+            else {
+                const v = Array.isArray(r.result) ? r.result : r.result;
+                if (/_BPS$/i.test(g.name) && typeof v === 'bigint') text = (Number(v) / 100).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR') + '%';
+                else if (typeof v === 'bigint' && v > 0n && v % 86400n === 0n && timeLike.test(g.name) && v < 10n ** 12n) text = formatDuration(v);
+                else {
+                    text = formatResult(r.result, g);
+                    // "Parcelas pagas: 1 de 12", quando houver a constante correspondente.
+                    const total = Object.keys(values).find(k => /_(PARCELAS|INSTALLMENTS|ETAPAS|MILESTONES)$/.test(k) && norm(g.name).startsWith(norm(k.split('_')[0])));
+                    if (total && /(pagas|paid|aprovadas|approved)/i.test(g.name) && values[total].ok) text = t('stateOf', { a: String(v), b: String(values[total].result) });
+                }
+            }
+            dl.appendChild(el('dt', {}, [el('span', { text: humanLabel(g.name) }), el('code', { class: 'state-raw', text: g.name })]));
+            dl.appendChild(el('dd', { text }));
         }
         d.state.appendChild(dl);
     }
@@ -771,12 +840,38 @@
         infoDialog.showModal();
     }
 
+    /** Função de consulta que informa quanto uma função "payable" deve receber. */
+    function dueGetter(fn) {
+        const views = lab.contract.abi.filter(x => x.type === 'function' && (x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0).map(x => x.name);
+        const has = n => views.find(v => v.toLowerCase() === n.toLowerCase());
+        const rest = fn.name.replace(/^(pagar|pay|quitar|repay|depositar|deposit|fund|liberar|disburse)/i, '');
+        const U = rest.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+        const cands = /^(quitar|repay)/i.test(fn.name)
+            ? ['saldoDevedor' + rest, 'outstanding' + rest, 'saldoDevedor', 'outstandingBalance']
+            : ['valorDevido' + rest, 'amountDue' + rest, U + '_VALOR', U + '_AMOUNT', U + '_VALOR_TOTAL', U + '_TOTAL',
+                'valorDevido', 'amountDue', 'valor' + rest, rest ? rest.charAt(0).toLowerCase() + rest.slice(1) : '', 'preco', 'price', 'valorTotal', 'totalAmount', 'valorEmprestimo', 'loanAmount', 'valorAluguel', 'rent', 'installmentAmount'];
+        for (const c of cands) { const v = c && has(c); if (v) return v; }
+        return null;
+    }
+
+    async function fillDue(fn, input, output) {
+        const getter = dueGetter(fn);
+        if (!getter) return;
+        const r = await lab.chain.call({ from: lab.accounts[0].address, to: lab.contract.address, abi: lab.contract.abi, functionName: getter, args: [] });
+        if (!r.ok) return;
+        const wei = BigInt(Array.isArray(r.result) ? r.result[0] : r.result);
+        input.value = window.EvmLab.formatEther(wei);
+        input.title = moneyText(wei);
+        if (output) { output.className = 'fn-output'; output.textContent = t('labDueFilled', { v: moneyText(wei) }); }
+    }
+
     function renderFunctions() {
         const d = lab.dom;
         d.functions.textContent = '';
         d.functions.appendChild(el('h4', { class: 'block-title', text: t('labFunctions') }));
         d.functions.appendChild(el('p', { class: 'muted small', text: t('labFunctionsHint') }));
         const fns = lab.contract.abi.filter(x => x.type === 'function' && !((x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0));
+        lab.dueFills = [];
         const grid = el('div', { class: 'fn-grid' });
         for (const fn of fns) {
             const isView = fn.stateMutability === 'view' || fn.stateMutability === 'pure';
@@ -787,7 +882,14 @@
                 el('input', { type: 'text', 'data-arg': String(i), placeholder: defaultArg(input), spellcheck: 'false' })
             ]));
             const asSelect = el('select', { class: 'fn-as' }, lab.accounts.map(a => el('option', { value: a.label, text: a.label })));
+            // Pré-seleciona a parte autorizada pela própria função.
+            try {
+                const info = describeFunction(fn);
+                const who = info.who && info.who[0] && accountByName(info.who[0]);
+                if (who) asSelect.value = who.label;
+            } catch (_) { /* mantém o padrão */ }
             const valueInput = isPayable ? el('input', { type: 'text', class: 'fn-value', value: '0', 'aria-label': t('labValue') }) : null;
+            const dueLink = isPayable && dueGetter(fn) ? el('button', { type: 'button', class: 'link-btn due-link', text: t('labDueFill') }) : null;
             const output = el('div', { class: 'fn-output', role: 'status', 'aria-live': 'polite' });
             const card = el('div', { class: 'fn-card' + (isPayable ? ' fn-payable' : '') + (isView ? ' fn-view' : '') }, [
                 el('div', { class: 'fn-head' }, [
@@ -799,7 +901,7 @@
                 ...inputs,
                 el('div', { class: 'lab-inline' }, [
                     el('span', { class: 'muted small', text: t('labCallAs') }), asSelect,
-                    valueInput ? el('span', { class: 'muted small', text: t('labValue') }) : null, valueInput,
+                    valueInput ? el('span', { class: 'muted small', text: t('labValue') }) : null, valueInput, dueLink,
                     el('button', {
                         type: 'button', class: 'btn ' + (isView ? 'btn-quiet' : 'btn-ink'), text: isView ? t('labQuery') : t('labExecute'),
                         onclick: async () => {
@@ -830,6 +932,12 @@
                 ]),
                 output
             ]);
+            if (dueLink) {
+                dueLink.addEventListener('click', () => fillDue(fn, valueInput, output));
+                const refill = () => fillDue(fn, valueInput, null);
+                lab.dueFills.push(refill);
+                refill();
+            }
             grid.appendChild(card);
         }
         d.functions.appendChild(grid);
@@ -1144,7 +1252,15 @@
         setStatus,
         hasPlan: () => !!lab.scenarioPlan,
         /** Prepara a implantação interativa do contrato compilado. */
-        prepare(compiled) {
+        timelineForReport() {
+            return lab.timeline.slice().reverse().map(tx => {
+                const date = new Date(Number(tx.time) * 1000).toLocaleDateString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { timeZone: 'UTC' });
+                return date + ' — ' + tx.actor + ' → ' + tx.fn + '(' + (tx.args || []).map(a => formatValue(a)).join(', ') + ')' + (tx.value ? ' + ' + moneyText(tx.value) : '') + ': ' + (tx.ok ? t('labTxOk') : t('labTxReverted') + ' — ' + describeRevert(tx.error));
+            });
+        },
+        setScale(scale) { contractScale = scale > 0 ? Number(scale) : null; },
+        prepare(compiled, plan) {
+            if (plan) lab.scenarioPlan = plan;
             lab.dom.workspace.hidden = true;
             renderDeployForm(compiled);
         },

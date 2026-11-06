@@ -56,22 +56,22 @@
                 <div class="guide-grid">
                     <section class="guide-item">
                         <h3 class="sub-title" data-i18n="guideT1Title">1. Primeiro contrato em 5 minutos</h3>
-                        <ol data-i18n-html="guideT1Steps"></ol>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT1Steps"></ol></details>
                         <button type="button" class="btn btn-ink" id="tour1Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
                     </section>
                     <section class="guide-item">
                         <h3 class="sub-title" data-i18n="guideT2Title">2. Testar na prática</h3>
-                        <ol data-i18n-html="guideT2Steps"></ol>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT2Steps"></ol></details>
                         <button type="button" class="btn btn-ink" id="tour2Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
                     </section>
                     <section class="guide-item">
                         <h3 class="sub-title" data-i18n="guideT3Title">3. IA como complemento</h3>
-                        <ol data-i18n-html="guideT3Steps"></ol>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT3Steps"></ol></details>
                         <button type="button" class="btn btn-quiet" id="tour3Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
                     </section>
                     <section class="guide-item">
                         <h3 class="sub-title" data-i18n="guideT4Title">4. Rede de teste real</h3>
-                        <ol data-i18n-html="guideT4Steps"></ol>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT4Steps"></ol></details>
                     </section>
                 </div>
             </div>
@@ -132,7 +132,7 @@
         <!-- Cotação do Ether -->
         <details class="settings rates" id="ratesPanel">
             <summary>
-                <span class="settings-title" data-i18n="ratesTitle">Cotação do Ether (ETH, R$, US$)</span>
+                <span class="settings-title" data-i18n="ratesTitle">Cotação do Ether (ETH, R$, US$, BTC)</span>
                 <span class="settings-status" id="ratesStatus"></span>
             </summary>
             <div class="rates-body">
@@ -141,6 +141,8 @@
                 <label class="param"><span class="field-label">R$</span><input type="text" id="rateBrl" inputmode="decimal"></label>
                 <span class="rates-eq" aria-hidden="true">⇄</span>
                 <label class="param"><span class="field-label">US$</span><input type="text" id="rateUsd" inputmode="decimal"></label>
+                <span class="rates-eq" aria-hidden="true">⇄</span>
+                <label class="param"><span class="field-label">BTC</span><input type="text" id="rateBtc" inputmode="decimal"></label>
                 <div class="rates-actions">
                     <button type="button" id="ratesRefresh" class="btn btn-quiet" data-i18n="ratesRefresh">Atualizar agora</button>
                     <button type="button" id="ratesUseScale" class="btn btn-quiet" data-i18n="ratesUseScale">Usar esta cotação no contrato</button>
@@ -157,6 +159,7 @@
 
                     <fieldset class="mode-switch">
                         <legend class="field-label" data-i18n="modeLegend">Modo de conversão</legend>
+                        <p class="hint modes-help" data-i18n="modesHelp"></p>
                         <label class="mode-option">
                             <input type="radio" name="mode" value="blocks" id="modeBlocks">
                             <span><strong data-i18n="modeBlocks">Montar contrato</strong> <span class="mode-sub" data-i18n="modeBlocksSub">cláusulas em blocos · sem IA</span></span>
@@ -260,7 +263,8 @@
                         <button type="button" id="undoButton" class="link-btn" data-i18n="undoButton">Desfazer</button>
                         <button type="button" id="redoButton" class="link-btn" data-i18n="redoButton">Refazer</button>
                         <button type="button" id="remixShortButton" class="link-btn" data-needs-code data-i18n="remixButtonShort">Abrir no Remix</button>
-                        <button type="button" id="reportButton" class="link-btn" data-needs-code data-i18n="reportButton">Relatório</button>
+                        <button type="button" id="reportButton" class="link-btn" data-needs-code data-i18n="reportButton">Relatório (.md)</button>
+                        <button type="button" id="printButton" class="link-btn" data-needs-code data-i18n="printButton">Imprimir / PDF</button>
                         <span id="toolbarFeedback" class="feedback" role="status" aria-live="polite"></span>
                     </div>
                     <textarea id="solidityCode" class="code-editor" rows="26" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off" data-i18n-placeholder="solidityOutputPlaceholder"></textarea>
@@ -427,6 +431,7 @@
                     <div class="actions">
                         <button type="button" id="remixButton" class="btn btn-ink" data-needs-code data-i18n="openRemixButton">Abrir no Remix IDE</button>
                         <button type="button" id="reportButton2" class="btn btn-quiet" data-needs-code data-i18n="reportButtonLong">Baixar relatório da sessão (.md)</button>
+                        <button type="button" id="printButton2" class="btn btn-quiet" data-needs-code data-i18n="printButtonLong">Imprimir ou salvar em PDF</button>
                     </div>
                 </div>
             </section>

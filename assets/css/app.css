@@ -508,3 +508,28 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .tour-text { margin: .2rem 0 .7rem; font-size: .96rem; }
 .tour-nav { display: flex; gap: .6rem; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
 .tour-nav .link-btn { margin-right: auto; font-family: var(--sans); font-size: .82rem; }
+
+/* Botões que dependem de IA: selo discreto "IA". */
+.btn[data-ai]::after, .link-btn[data-ai]::after {
+    content: attr(data-ai-badge); margin-left: .45rem; font-family: var(--sans); font-size: .62rem; font-weight: 700; letter-spacing: .08em;
+    padding: .05rem .3rem; border: 1px solid currentColor; border-radius: 2px; opacity: .75; vertical-align: middle;
+}
+
+/* Layout em coluna única: documento em cima, código por trás logo abaixo. */
+.spread { grid-template-columns: minmax(0, 1fr); }
+.spread > .sec { max-width: 54rem; width: 100%; margin-left: auto; margin-right: auto; }
+.spread > .sec + .sec { margin-top: 2.5rem; }
+.mode-switch { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+.mode-option + .mode-option { border-left: 1px solid var(--rule); }
+.mode-option { margin: 0 -1px -1px 0; }
+
+/* Impressão do relatório */
+#printArea { display: none; }
+@media print {
+    body.printing > *:not(#printArea) { display: none !important; }
+    body.printing #printArea { display: block; font-family: var(--serif); color: #000; }
+    #printArea pre, #printArea code { white-space: pre-wrap; font-size: 9pt; }
+}
+.state-list dt { display: flex; flex-direction: column; font-family: var(--serif); color: var(--ink); }
+.state-raw { font-size: .7rem; color: var(--muted); }
+.due-link { font-family: var(--sans); font-size: .78rem; }

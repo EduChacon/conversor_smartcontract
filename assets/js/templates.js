@@ -171,8 +171,8 @@ ${GUARDS}
         uint256 vencimento = proximoVencimento();
         total = valorAluguel;
         if (block.timestamp > vencimento + tolerancia) {
-            // {{dias de atraso contados do vencimento, arredondados para cima|days late counted from the due date, rounded up}}
-            uint256 diasAtraso = (block.timestamp - vencimento + 1 days - 1) / 1 days;
+            // {{dias completos de atraso desde o vencimento (fração de dia não conta)|full days late since the due date (partial days do not count)}}
+            uint256 diasAtraso = (block.timestamp - vencimento) / 1 days;
             uint256 multa = valorAluguel * multaBps / BPS;
             // {{juros simples "pro rata die": multiplica antes de dividir|simple pro rata interest: multiply before dividing}}
             uint256 juros = valorAluguel * jurosMensaisBps * diasAtraso / (BPS * MES);

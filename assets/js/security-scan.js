@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * Verificador estático (heurístico) de segurança para código Solidity.
  *
@@ -87,6 +88,11 @@
             severity: 'medium', swc: 'SWC-105 / SWC-106',
             pt: ['Função pública altera o estado sem verificar quem chama', 'Qualquer conta pode executar esta função, pois não há modificador de acesso nem verificação de "msg.sender".', 'Restrinja à parte legitimada (ex.: modificador "apenasLocador") ou documente por que o acesso é livre.'],
             en: ['Public state-changing function without caller check', 'Any account can call this function: there is no access modifier and no "msg.sender" check.', 'Restrict it to the entitled party (e.g. an "onlyLandlord" modifier) or document why it is permissionless.']
+        },
+        'self-credit': {
+            severity: 'high', swc: 'SWC-105',
+            pt: ['Função livre credita saldo a quem a chama', 'Qualquer conta pode chamar esta função e aumentar o próprio crédito (ex.: "saldos[msg.sender] += ..."), sem ter pago nada; em seguida, saca o valor.', 'Restrinja a função à parte legitimada e credite apenas valores efetivamente recebidos ("msg.value") ou devidos pelo contrato.'],
+            en: ['Permissionless function credits the caller', 'Any account can call this function and increase its own credit (e.g. "balances[msg.sender] += ...") without paying, then withdraw it.', 'Restrict the function to the entitled party and credit only amounts actually received ("msg.value") or owed by the contract.']
         },
         'payable-no-value-check': {
             severity: 'low', swc: null,
@@ -535,6 +541,19 @@
                 // Funções que chamam outro modificador definido no contrato que use msg.sender.
                 if (!hasAccessModifier && !checksSender && writesState(body, stateVars)) {
                     add('no-access-control', fn.start, fn.name);
+                }
+            }
+
+            // Função sem controle de acesso que credita saldo ao próprio chamador.
+            if (fn.kind === 'function' && (fn.visibility === 'public' || fn.visibility === 'external') && !fn.isView && fn.bodyStart !== -1 && !fn.modifiers.some(isAccessModifier)) {
+                const re = /\b\w+\s*\[\s*msg\.sender\s*\]\s*(\+=|=)\s*([^;]+);/g;
+                let m;
+                while ((m = re.exec(body)) !== null) {
+                    const rhs = m[2].trim();
+                    if ((m[1] === '+=' || !/^0+$/.test(rhs)) && !/\bmsg\.value\b/.test(rhs) && !/^(true|false|block\.timestamp)$/.test(rhs)) {
+                        add('self-credit', fn.start, fn.name);
+                        break;
+                    }
                 }
             }
 

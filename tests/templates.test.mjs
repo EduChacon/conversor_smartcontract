@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 // Testes dos modelos sem IA: para cada modelo e idioma, o código deve
 // compilar, não ter achados altos/médios e passar em todos os cenários
 // predefinidos executados na EVM simulada (mesmo executor da página).
@@ -14,6 +15,7 @@ const templates = require('../assets/js/templates.js');
 globalThis.window = globalThis;
 require('../assets/js/i18n.js');
 globalThis.EvmLab = await import('../src/evm-lab.mjs');
+require('../assets/js/lab-helpers.js');
 require('../assets/js/lab.js');
 const CSC = globalThis.CSC;
 

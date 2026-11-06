@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * Laboratório: implanta o contrato compilado numa "blockchain" simulada
  * (assets/vendor/evm-lab.js), com contas fictícias, e permite:
@@ -90,6 +91,58 @@
         panic_33: 'valor inválido para "enum"',
         panic_50: 'acesso fora dos limites de array',
         errInsufficient: 'A conta não tem saldo suficiente para enviar esse valor.',
+        errWrongAmount: 'Valor incorreto: devido {due}; enviado {sent}.',
+        seriesApplied: 'valor da série para o dia {d}',
+        reentrancyText: 'Contrato atacante → sacar e reentrar ({tries} tentativa(s) de reentrada); recebeu {got}',
+        viaAttacker: 'Contrato atacante (no lugar da parte) → {fn}()',
+        reentrancyBlocked: 'Reentradas recusadas: o atacante recebeu apenas o próprio crédito, uma única vez.',
+        reentrancyBreach: 'O atacante conseguiu sacar mais de uma vez ou o crédito não foi zerado.',
+        tokenSection: '"Stablecoin" de teste (tBRL)',
+        tokenHint: 'Para pagar em tBRL, a parte primeiro autoriza o contrato no token (approve), informando "@Contrato" e o valor.',
+        gasCostMainnet: 'na rede principal hoje: ≈ {eth} ETH ({brl})',
+        gasCharge: 'Cobrar o "gás" das contas (preço atual da rede; sem consulta, 1 gwei)',
+        gasFeeCharged: 'taxa de "gás" cobrada: {v}',
+        errLimit: 'limite: {date} UTC',
+        labParticipants: 'Contas participantes',
+        labDueFill: 'preencher o valor devido',
+        labDueFilled: 'Valor devido preenchido: {v}.',
+        stateOf: '{a} de {b}',
+        fnInfoTitle: 'Sobre a função',
+        fnInfoClause: 'Cláusula que esta função implementa',
+        fnInfoWhat: 'O que faz',
+        fnInfoWho: 'Quem pode chamar',
+        fnInfoAnyone: 'Qualquer conta. A função atua sobre o próprio crédito de quem chama.',
+        fnInfoAnyoneRead: 'Qualquer conta (apenas leitura).',
+        fnInfoMoney: 'Dinheiro',
+        fnInfoPayable: 'Recebe Ether junto com a chamada. Informe o valor no campo "Valor (ETH)".',
+        fnInfoNoPayable: 'Não recebe Ether.',
+        fnInfoView: 'É uma consulta: não altera o contrato e não gera transação.',
+        fnInfoWhen: 'Quando pode ser usada',
+        fnInfoStatus: 'Somente com o contrato na situação "{s}".',
+        fnInfoAlways: 'A qualquer tempo, observadas as condições abaixo.',
+        fnInfoGuard: 'Protegida contra reentrância (a função não pode ser reaberta durante a própria execução).',
+        fnInfoErrors: 'Pode ser recusada quando',
+        fnInfoNoErrors: 'Não há recusas previstas no código.',
+        fnInfoEvents: 'Registros (eventos) emitidos',
+        fnInfoSignature: 'Assinatura técnica',
+        fnInfoButton: 'Explicar a função',
+        fnInfoClose: 'Fechar',
+        errDesc_NaoAutorizado: 'quem chama não é a parte autorizada',
+        errDesc_SituacaoInvalida: 'o contrato não está na situação exigida (por exemplo, já foi encerrado)',
+        errDesc_ValorIncorreto: 'o valor enviado é diferente do valor devido',
+        errDesc_JaConcluido: 'este ato já foi praticado (pagamento, depósito ou registro já feito)',
+        errDesc_NaoDisponivel: 'a ação não está disponível neste momento',
+        errDesc_PrazoNaoEncerrado: 'o prazo ainda não terminou',
+        errDesc_PrazoEncerrado: 'o prazo já terminou',
+        errDesc_SemAtrasoSuficiente: 'o atraso ainda não atingiu o limite contratual',
+        errDesc_SemSaldo: 'não há crédito a sacar',
+        errDesc_FalhaNoEnvio: 'o envio do Ether ao destinatário falhou',
+        errDesc_Reentrada: 'houve tentativa de reabrir a função durante a própria execução (ataque de reentrância)',
+        errDesc_ParametroInvalido: 'algum dado informado é inválido',
+        errDesc_EnderecoInvalido: 'algum endereço informado é inválido',
+        errDesc_ForaDoPrazo: 'a operação ocorreu fora do prazo',
+        labSolvencyOk: 'Solvência conferida: saldo do contrato {bal} ETH = créditos das partes {cred} ETH + valores retidos {held} ETH.',
+        labSolvencyFail: 'Falha de solvência: saldo do contrato {bal} ETH ≠ créditos {cred} ETH + retidos {held} ETH.',
         errOutOfGas: 'A execução esgotou o limite de "gás".'
     });
     Object.assign(CSC.texts.en, {
@@ -171,6 +224,56 @@
         panic_33: 'invalid enum value',
         panic_50: 'array index out of bounds',
         errInsufficient: 'The account does not have enough balance to send this amount.',
+        errWrongAmount: 'Wrong amount: due {due}; sent {sent}.',
+        seriesApplied: 'series value for day {d}',
+        reentrancyText: 'Attacker contract → withdraw and re-enter ({tries} re-entry attempt(s)); received {got}',
+        viaAttacker: 'Attacker contract (in the party\'s place) → {fn}()',
+        reentrancyBlocked: 'Re-entries rejected: the attacker received only its own credit, once.',
+        reentrancyBreach: 'The attacker withdrew more than once or the credit was not zeroed.',
+        tokenSection: 'Test stablecoin (tBRL)',
+        tokenHint: 'To pay in tBRL, the party first authorizes the contract on the token (approve), entering "@Contrato" and the amount.',
+        gasCostMainnet: 'on mainnet today: ≈ {eth} ETH ({brl})',
+        gasCharge: 'Charge gas to the accounts (current network price; without lookup, 1 gwei)',
+        gasFeeCharged: 'gas fee charged: {v}',
+        errLimit: 'limit: {date} UTC',
+        labParticipants: 'Participating accounts',
+        labDueFill: 'fill in the amount due',
+        labDueFilled: 'Amount due filled in: {v}.',
+        stateOf: '{a} of {b}',
+        fnInfoTitle: 'About the function',
+        fnInfoClause: 'Clause implemented by this function',
+        fnInfoWhat: 'What it does',
+        fnInfoWho: 'Who can call it',
+        fnInfoAnyone: 'Any account. The function acts on the caller\'s own credit.',
+        fnInfoAnyoneRead: 'Any account (read only).',
+        fnInfoMoney: 'Money',
+        fnInfoPayable: 'Receives Ether with the call. Enter the amount in the "Value (ETH)" field.',
+        fnInfoNoPayable: 'Does not receive Ether.',
+        fnInfoView: 'It is a query: it does not change the contract and creates no transaction.',
+        fnInfoWhen: 'When it can be used',
+        fnInfoStatus: 'Only while the contract status is "{s}".',
+        fnInfoAlways: 'At any time, subject to the conditions below.',
+        fnInfoGuard: 'Protected against reentrancy (it cannot be re-entered during its own execution).',
+        fnInfoErrors: 'It may be rejected when',
+        fnInfoNoErrors: 'The code foresees no rejections.',
+        fnInfoEvents: 'Records (events) emitted',
+        fnInfoSignature: 'Technical signature',
+        fnInfoButton: 'Explain the function',
+        fnInfoClose: 'Close',
+        errDesc_Unauthorized: 'the caller is not the authorized party',
+        errDesc_InvalidStatus: 'the contract is not in the required status (for example, already closed)',
+        errDesc_WrongAmount: 'the amount sent differs from the amount due',
+        errDesc_AlreadyCompleted: 'this act has already been performed (payment, deposit or record already made)',
+        errDesc_NotAvailable: 'the action is not available at this moment',
+        errDesc_DeadlineNotReached: 'the deadline has not passed yet',
+        errDesc_DeadlinePassed: 'the deadline has already passed',
+        errDesc_NotLateEnough: 'the delay has not reached the contractual limit',
+        errDesc_NothingToWithdraw: 'there is no credit to withdraw',
+        errDesc_TransferFailed: 'sending Ether to the recipient failed',
+        errDesc_Reentrancy: 'the function was re-entered during its own execution (reentrancy attack)',
+        errDesc_InvalidParameter: 'some given data is invalid',
+        labSolvencyOk: 'Solvency checked: contract balance {bal} ETH = parties\' credits {cred} ETH + held amounts {held} ETH.',
+        labSolvencyFail: 'Solvency failure: contract balance {bal} ETH ≠ credits {cred} ETH + held {held} ETH.',
         errOutOfGas: 'Execution ran out of gas.'
     });
 
@@ -205,6 +308,70 @@
         const n = Number(s);
         if (!isFinite(n)) return s;
         return n.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { maximumFractionDigits: digits == null ? 4 : digits });
+    }
+
+    /**
+     * Equivalente em reais. Usa a escala do próprio contrato (a mesma usada
+     * para converter os valores em Ether); sem ela, a cotação de mercado.
+     */
+    let contractScale = null;
+    let series = [];   // [{ fn, from, points: [{ dia, valor }] , last }]
+
+    /** Aplica as séries de dados: a fonte informa o valor correspondente ao dia atual do contrato. */
+    async function applySeries() {
+        if (!series.length || !lab.chain || !lab.contract || lab.deployedAt == null) return;
+        const day = Math.floor(Number(lab.chain.timestamp - lab.deployedAt) / 86400);
+        for (const sr of series) {
+            const fnAbi = lab.contract.abi.find(x => x.type === 'function' && x.name === sr.fn);
+            const src = accountByName(sr.from || '');
+            if (!fnAbi || !src) continue;
+            const point = sr.points.filter(p => p.dia <= day).pop();
+            if (!point || sr.last === point.valor) continue;
+            const r = await lab.chain.call({ from: src.address, to: lab.contract.address, abi: lab.contract.abi, functionName: sr.fn, args: [BigInt(point.valor)] });
+            sr.last = point.valor;
+            lab.timeline.unshift({ ok: r.ok, actor: src.label, fn: sr.fn, args: [BigInt(point.valor)], value: 0n, gas: r.gasUsed, events: r.events || [], error: r.error, time: lab.chain.timestamp, note: t('seriesApplied', { d: point.dia }) });
+        }
+    }
+    function brlPerEth() {
+        if (contractScale) return contractScale;
+        const q = CSC.rates && CSC.rates.current();
+        return q ? q.brl : null;
+    }
+    function brlOf(wei) {
+        const rate = brlPerEth();
+        if (!rate) return null;
+        return Number(window.EvmLab.formatEther(wei)) * rate;
+    }
+    function fmtBrl(v) { return Number(v).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function approxBrl(wei) {
+        if (!wei) return '';
+        const v = brlOf(wei);
+        return v == null ? '' : ' (≈ ' + fmtBrl(v) + ')';
+    }
+    /** Valor monetário legível: "3,068 ETH (≈ R$ 3.068,00)". */
+    function moneyText(wei) { return formatEth(wei, 6) + ' ETH' + approxBrl(wei); }
+
+    /** Cobrança opcional do gás: debita da conta o custo pelo preço atual da rede (ou 1 gwei, se indisponível). */
+    async function chargeGas(actor, gasTotal) {
+        if (!lab.chargeGas || !gasTotal) return 0n;
+        const gp = (CSC.rates && CSC.rates.gasPrice && CSC.rates.gasPrice()) || 1000000000n;
+        const fee = BigInt(gasTotal) * BigInt(gp);
+        await lab.chain.debit(actor.address, fee);
+        return fee;
+    }
+
+    /** Custo do "gás": total da transação e, se houver preço da rede, valor estimado em ETH e R$. */
+    function gasText(tx) {
+        const gas = tx.gasTotal != null ? tx.gasTotal : tx.gas;
+        let txt = Number(gas || 0n).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR') + ' ' + t('labGas');
+        const gp = CSC.rates && CSC.rates.gasPrice && CSC.rates.gasPrice();
+        if (gp && gas) {
+            const wei = BigInt(gas) * BigInt(gp);
+            const q = CSC.rates.current();
+            const brl = q ? Number(window.EvmLab.formatEther(wei)) * q.brl : null;
+            txt += ' · ' + t('gasCostMainnet', { eth: formatEth(wei, 6), brl: brl != null ? fmtBrl(brl) : '—' });
+        }
+        return txt;
     }
 
     function formatDuration(seconds) {
@@ -268,6 +435,7 @@
             if (type === 'address' || type === 'address payable') {
                 if (/^@/.test(value)) {
                     if (norm(value) === 'contrato' || norm(value) === 'contract') return lab.contract.address;
+                    if (norm(value) === 'token' && lab.token) return lab.token.address;
                     const acc = accountByName(value);
                     if (!acc) throw new Error(t('labUnknownAccount', { name: value }));
                     return acc.address;
@@ -319,14 +487,14 @@
             return (names[idx] || String(value)) + ' (' + idx + ')';
         }
         if (typeof value === 'bigint') {
-            if (value >= 10n ** 14n) return value.toString() + ' wei (' + formatEth(value, 6) + ' ETH)';
+            if (value >= 10n ** 14n) return moneyText(value);
             // Valores na faixa de datas Unix (2017 a 2096) são exibidos também como data.
             if (value >= 1500000000n && value <= 4000000000n) {
                 const d = new Date(Number(value) * 1000).toLocaleDateString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { timeZone: 'UTC' });
-                return value.toString() + ' (' + d + ')';
+                return d;
             }
             if (value > 0n && value % 86400n === 0n && /(prazo|dura|period|tempo|time|dias|days|interval)/i.test((output && output.name) || '')) {
-                return value.toString() + ' s (' + formatDuration(value) + ')';
+                return formatDuration(value);
             }
             return value.toLocaleString ? value.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR') : value.toString();
         }
@@ -361,12 +529,23 @@
         if (error.name === 'Error') return '"' + (error.args && error.args[0]) + '"';
         if (error.name === 'SaldoInsuficiente') return t('errInsufficient');
         if (error.name === 'OutOfGas') return t('errOutOfGas');
-        const args = (error.args || []).map(a => formatValue(a)).join(', ');
-        return error.name + (args ? '(' + args + ')' : '');
+        const desc = t('errDesc_' + error.name);
+        const args = error.args || [];
+        if (/^(ValorIncorreto|WrongAmount)$/.test(error.name) && args.length === 2) {
+            return t('errWrongAmount', { due: moneyText(args[0]), sent: moneyText(args[1]) });
+        }
+        if (/^(PrazoNaoEncerrado|DeadlineNotReached|PrazoEncerrado|DeadlinePassed|SemAtrasoSuficiente|NotLateEnough|ForaDoPrazo)$/.test(error.name) && args.length) {
+            const date = new Date(Number(args[args.length - 1]) * 1000).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' });
+            return (desc !== 'errDesc_' + error.name ? desc : error.name) + ' (' + t('errLimit', { date }) + ')';
+        }
+        const argText = args.map(a => formatValue(a)).join(', ');
+        if (desc !== 'errDesc_' + error.name) return desc.charAt(0).toUpperCase() + desc.slice(1) + (argText ? ' (' + argText + ')' : '') + ' [' + error.name + ']';
+        return error.name + (argText ? '(' + argText + ')' : '');
     }
 
     function sameError(got, expected) {
         if (!expected) return true;
+        if (String(expected).includes('|')) return String(expected).split('|').some(e => sameError(got, e.trim()));
         const g = norm(got && got.name);
         const e = norm(String(expected).replace(/\(.*$/, ''));
         if (g === e) return true;
@@ -416,6 +595,8 @@
 
     function defaultArg(input) {
         const name = norm(input.name);
+        if (/^address/.test(input.type) && norm(input.name) === 'token') return '@Token';
+        if (/^address/.test(input.type) && /spender/.test(norm(input.name))) return '@Contrato';
         if (/^address/.test(input.type)) return '@' + (prettyName(input.name) || (lab.accounts[0] && lab.accounts[0].label) || '');
         if (/^u?int/.test(input.type)) {
             if (/(prazo|dias|duracao|duration|deadline|periodo|period|tempo|time|vencimento|due)/.test(name)) return '30 days';
@@ -425,6 +606,13 @@
         }
         if (input.type === 'bool') return 'true';
         if (input.type === 'string') return 'texto';
+        if (/^bytes\d+$/.test(input.type)) {
+            // Impressão digital do texto: já vem preenchida com a constante do contrato.
+            const m = /(HASH_DO_TEXTO|TEXT_HASH) = (0x[0-9a-fA-F]{64})/.exec((lab.contract && lab.contract.source) || '');
+            if (m && /(hashdotexto|texthash)/.test(name)) return m[2];
+            return '0x' + '00'.repeat(Number(input.type.slice(5)));
+        }
+        if (input.type === 'bytes') return '0x';
         return '';
     }
 
@@ -446,11 +634,22 @@
         return { chain, accounts };
     }
 
+    /** Implanta a "stablecoin" de teste (tBRL) com saldo inicial para todas as contas. */
+    async function deployToken(env) {
+        const h = CSC.labHelpers && CSC.labHelpers.RealDigitalDeTeste;
+        if (!h) return null;
+        const res = await env.chain.deploy({ from: env.accounts[0].address, abi: h.abi, bytecode: h.bytecode, args: [env.accounts.map(a => a.address), window.EvmLab.parseEther('1000000')] });
+        return res.ok ? { address: res.address, abi: h.abi, name: 'tBRL' } : null;
+    }
+    const needsToken = abi => constructorOf(abi).inputs.some(i => norm(i.name) === 'token');
+
     async function deployInto(env, compiled, deploy) {
         const ctor = constructorOf(compiled.abi);
         const saved = { accounts: lab.accounts, contract: lab.contract };
         lab.accounts = env.accounts;
         lab.contract = { address: null, enums: parseEnums(compiled.source || '') };
+        const savedToken = lab.token;
+        lab.token = env.token || lab.token;
         try {
             const args = ctor.inputs.map((input, i) => parseArg((deploy.argumentos || [])[i] ?? '', input));
             const fromAcc = accountByName(deploy.conta) || env.accounts[0];
@@ -460,6 +659,7 @@
         } finally {
             lab.accounts = saved.accounts;
             lab.contract = saved.contract;
+            lab.token = savedToken;
         }
     }
 
@@ -493,7 +693,7 @@
 
         d.deployForm.appendChild(el('h4', { class: 'block-title', text: t('labDeployTitle') + ' — ' + compiled.name }));
         d.deployForm.appendChild(el('p', { class: 'muted small', text: t('labDeployHint') }));
-        d.deployForm.appendChild(el('label', { class: 'lab-field' }, [el('span', { class: 'lab-field-name', text: t('labAccounts') }), accountsInput]));
+        d.deployForm.appendChild(el('label', { class: 'lab-field' }, [el('span', { class: 'lab-field-name', text: t('labParticipants') }), accountsInput]));
         fields.forEach(f => d.deployForm.appendChild(f));
         if (valueField) d.deployForm.appendChild(valueField);
         d.deployForm.appendChild(el('div', { class: 'lab-inline' }, [
@@ -509,20 +709,25 @@
         try {
             const names = document.getElementById('labAccountsInput').value.split(',').map(s => s.trim()).filter(Boolean);
             const env = await newChain(names.map(n => ({ nome: n, saldoEther: '100' })));
+            if (needsToken(compiled.abi)) env.token = await deployToken(env);
             const args = Array.from(d.deployForm.querySelectorAll('input[data-index]')).map(i => i.value);
             const valueInput = document.getElementById('labCtorValue');
             const deploy = { conta: document.getElementById('labDeployAs').value, argumentos: args, valor: valueInput ? valueInput.value : '' };
             const res = await deployInto(env, compiled, deploy);
             lab.chain = env.chain;
             lab.accounts = env.accounts;
+            lab.token = env.token || null;
             lab.timeline = [];
             if (!res.ok) {
                 lab.contract = null;
                 setStatus(t('labDeployFailed', { error: describeRevert(res.error) }), 'error');
                 return;
             }
-            lab.contract = { name: compiled.name, abi: compiled.abi, bytecode: compiled.bytecode, address: res.address, enums: parseEnums(compiled.source || '') };
-            lab.timeline.push({ ok: true, actor: res.from.label, fn: 'constructor', value: 0n, gas: res.gasUsed, events: res.events || [], time: lab.chain.timestamp });
+            lab.contract = { name: compiled.name, abi: compiled.abi, bytecode: compiled.bytecode, address: res.address, enums: parseEnums(compiled.source || ''), source: compiled.source || '' };
+            lab.timeline.push({ ok: true, actor: res.from.label, fn: 'constructor', value: 0n, gas: res.gasUsed, gasTotal: res.gasTotal, events: res.events || [], time: lab.chain.timestamp });
+            lab.deployedAt = lab.chain.timestamp;
+            series.forEach(sr => { sr.last = undefined; });
+            await applySeries();
             setStatus(t('labDeployed', { name: compiled.name, address: shortAddr(res.address) }), 'ok');
             d.workspace.hidden = false;
             await renderWorkspace();
@@ -538,10 +743,15 @@
         const rows = [];
         for (const a of lab.accounts) {
             const bal = await lab.chain.balanceOf(a.address);
+            let tok = null;
+            if (lab.token) {
+                const tb = await lab.chain.call({ from: a.address, to: lab.token.address, abi: lab.token.abi, functionName: 'balanceOf', args: [a.address] });
+                if (tb.ok) tok = formatEth(tb.result, 2) + ' tBRL';
+            }
             rows.push(el('tr', {}, [
                 el('th', { scope: 'row' }, [el('span', { class: 'party-mark', 'data-color': a.color }), a.label]),
                 el('td', {}, [el('code', { title: a.address, text: shortAddr(a.address) })]),
-                el('td', { class: 'num', text: formatEth(bal) + ' ETH' })
+                el('td', { class: 'num', text: formatEth(bal) + ' ETH' + approxBrl(bal) + (tok ? ' · ' + tok : '') })
             ]));
         }
         if (lab.contract && lab.contract.address) {
@@ -549,7 +759,7 @@
             rows.push(el('tr', { class: 'row-contract' }, [
                 el('th', { scope: 'row', text: t('labContractRow') + ' ' + lab.contract.name }),
                 el('td', {}, [el('code', { title: lab.contract.address, text: shortAddr(lab.contract.address) })]),
-                el('td', { class: 'num', text: formatEth(bal) + ' ETH' })
+                el('td', { class: 'num', text: formatEth(bal) + ' ETH' + approxBrl(bal) })
             ]));
         }
         d.accounts.appendChild(el('table', { class: 'ledger compact' }, [el('tbody', {}, rows)]));
@@ -557,9 +767,13 @@
 
         const date = new Date(Number(lab.chain.timestamp) * 1000);
         const fmt = date.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
-        const advance = secs => () => { lab.chain.advanceTime(secs); renderWorkspace(true); };
+        const advance = secs => async () => { lab.chain.advanceTime(secs); await applySeries(); await renderWorkspace(true); renderTimeline(); (lab.dueFills || []).forEach(f => f()); };
         d.accounts.appendChild(el('div', { class: 'clock' }, [
             el('p', {}, [el('span', { class: 'field-label', text: t('labClock') }), el('br'), el('span', { class: 'clock-date', text: fmt })]),
+            el('label', { class: 'checkbox gas-toggle' }, [
+                el('input', { type: 'checkbox', checked: lab.chargeGas ? true : null, onchange: e => { lab.chargeGas = e.target.checked; if (lab.chargeGas && CSC.rates) CSC.rates.refreshGas(); } }),
+                el('span', { text: t('gasCharge') })
+            ]),
             el('div', { class: 'clock-buttons' }, [
                 el('button', { type: 'button', class: 'link-btn', text: t('labDay'), onclick: advance(86400) }),
                 el('button', { type: 'button', class: 'link-btn', text: t('labWeek'), onclick: advance(7 * 86400) }),
@@ -567,6 +781,39 @@
                 el('button', { type: 'button', class: 'link-btn', text: t('labYear'), onclick: advance(365 * 86400) })
             ])
         ]));
+    }
+
+    /** Rótulo legível a partir do nome técnico (ALUGUEL_MULTA_BPS → "Aluguel multa (%)"). */
+    function humanLabel(name) {
+        let words;
+        if (/^[A-Z0-9_]+$/.test(name)) words = name.toLowerCase().split('_');
+        else words = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(' ');
+        const isBps = words[words.length - 1] === 'bps';
+        if (isBps) words.pop();
+        let label = words.filter(Boolean).join(' ');
+        label = label.charAt(0).toUpperCase() + label.slice(1);
+        return isBps ? label + ' (%)' : label;
+    }
+
+    // ---------- Cores e títulos legíveis (legenda do contrato montado) ----------
+    function legenda() { return lab.scenarioPlan && lab.scenarioPlan.legenda ? lab.scenarioPlan.legenda : null; }
+    function clauseOf(uid) { const l = legenda(); return l && uid ? l.clausulas.find(c => c.uid === uid) || null : null; }
+    function clauseOfFunction(name) { const l = legenda(); return l ? clauseOf(l.funcoes[name]) : null; }
+    const ACCENTS = { clausula: 'cláusula', liberacao: 'liberação', violacao: 'violação', proximo: 'próximo', indice: 'índice', cotacao: 'cotação', devolucao: 'devolução', decisao: 'decisão', etapa: 'etapa', valor: 'valor' };
+    /** "executarClausulaPenal_BemVendido" → "Executar cláusula penal · Bem vendido" (com o rótulo original da cláusula). */
+    function functionTitle(name) {
+        const k = name.indexOf('_', 1);
+        const act = k > 0 ? name.slice(0, k) : name;
+        const words = act.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(' ').map(w => CSC.lang === 'en' ? w : (ACCENTS[w] || w));
+        let title = words.join(' ');
+        title = title.charAt(0).toUpperCase() + title.slice(1);
+        if (k > 0) {
+            const tail = name.slice(k + 1);
+            const P = CSC.blocks && CSC.blocks.names ? CSC.blocks.names.pascal : null;
+            const hit = P && legenda() ? legenda().clausulas.find(x => x.rotulo && P(x.rotulo) === tail) : null;
+            title += ' · ' + (hit ? hit.rotulo : humanLabel(tail));
+        }
+        return title;
     }
 
     async function renderState() {
@@ -578,14 +825,162 @@
             d.state.appendChild(el('p', { class: 'muted small', text: t('labStateEmpty') }));
             return;
         }
-        const dl = el('dl', { class: 'state-list' });
         const owner = lab.accounts[0];
+        const values = {};
         for (const g of getters) {
             const r = await lab.chain.call({ from: owner.address, to: lab.contract.address, abi: lab.contract.abi, functionName: g.name, args: [] });
-            dl.appendChild(el('dt', { text: g.name }));
-            dl.appendChild(el('dd', { text: r.ok ? formatResult(r.result, g) : '⚠ ' + describeRevert(r.error) }));
+            values[g.name] = r;
+        }
+        const dl = el('dl', { class: 'state-list' });
+        const timeLike = /(prazo|periodo|tolerancia|atraso|vigencia|duracao|period|deadline|grace|delay|term|return)/i;
+        for (const g of getters) {
+            const r = values[g.name];
+            let text;
+            if (!r.ok) text = '⚠ ' + describeRevert(r.error);
+            else {
+                const v = Array.isArray(r.result) ? r.result : r.result;
+                if (/_BPS$/i.test(g.name) && typeof v === 'bigint') text = (Number(v) / 100).toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR') + '%';
+                else if (typeof v === 'bigint' && v > 0n && v % 86400n === 0n && timeLike.test(g.name) && v < 10n ** 12n) text = formatDuration(v);
+                else {
+                    text = formatResult(r.result, g);
+                    // "Parcelas pagas: 1 de 12", quando houver a constante correspondente.
+                    const total = Object.keys(values).find(k => /_(PARCELAS|INSTALLMENTS|ETAPAS|MILESTONES)$/.test(k) && norm(g.name).startsWith(norm(k.split('_')[0])));
+                    if (total && /(pagas|paid|aprovadas|approved)/i.test(g.name) && values[total].ok) text = t('stateOf', { a: String(v), b: String(values[total].result) });
+                }
+            }
+            dl.appendChild(el('dt', {}, [el('span', { text: humanLabel(g.name) }), el('code', { class: 'state-raw', text: g.name })]));
+            dl.appendChild(el('dd', { text }));
         }
         d.state.appendChild(dl);
+    }
+
+    // ---------- Explicação de cada função (botão "i") ----------
+    function functionSource(source, name) {
+        const re = new RegExp('\\bfunction\\s+' + name.replace(/[$]/g, '\\$') + '\\s*\\(');
+        const m = re.exec(source);
+        if (!m) return null;
+        const open = source.indexOf('{', m.index);
+        let depth = 0, end = open;
+        for (let i = open; i < source.length; i++) {
+            if (source[i] === '{') depth++;
+            else if (source[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+        }
+        return { start: m.index, header: source.slice(m.index, open), body: source.slice(open + 1, end) };
+    }
+
+    function natspecBefore(source, index) {
+        const lines = source.slice(0, index).split('\n');
+        lines.pop();
+        const out = [];
+        while (lines.length && /^\s*\/\/\//.test(lines[lines.length - 1])) out.unshift(lines.pop().replace(/^\s*\/\/\/\s?/, ''));
+        return out.map(l => l.replace(/^@notice\s*/, '').replace(/^@dev\s*/, '').replace(/^@param\s+/, '')).filter(Boolean);
+    }
+
+    /** Seção de cláusula mais próxima acima da função (código gerado pelo montador). */
+    function clauseBefore(source, index) {
+        const before = source.slice(0, index);
+        const re = /\/\/\s*((?:Cláusula|Clause)\s+\d+ª?\s+—\s+[^\n]+)\n((?:\s*\/\/\/[^\n]*\n)+)/g;
+        let m, last = null;
+        while ((m = re.exec(before)) !== null) last = m;
+        if (!last) return null;
+        return { title: last[1].trim(), text: last[2].split('\n').map(l => l.replace(/^\s*\/\/\/\s?/, '')).join(' ').replace(/\s+/g, ' ').trim() };
+    }
+
+    function roleLabelFromVar(v) {
+        const acc = lab.accounts.find(a => norm(a.label) === norm(v));
+        return acc ? acc.label : v;
+    }
+
+    function describeFunction(fnAbi) {
+        const source = (lab.contract && lab.contract.source) || '';
+        const f = functionSource(source, fnAbi.name);
+        const isView = fnAbi.stateMutability === 'view' || fnAbi.stateMutability === 'pure';
+        const info = { name: fnAbi.name, signature: fnAbi.name + '(' + fnAbi.inputs.map(i => i.type + (i.name ? ' ' + i.name : '')).join(', ') + ')' + (fnAbi.outputs && fnAbi.outputs.length ? ' → ' + fnAbi.outputs.map(o => o.type).join(', ') : ''), isView, payable: fnAbi.stateMutability === 'payable', who: [], status: null, guard: false, errors: [], events: [], notes: [], clause: null };
+        if (!f) return info;
+        info.notes = natspecBefore(source, f.start);
+        info.clause = clauseBefore(source, f.start);
+        const mods = (f.header.replace(/\breturns\s*\([^)]*\)/, '').match(/\b[A-Za-z_]\w*\s*(\([^)]*\))?/g) || []).map(x => x.trim());
+        const errs = new Set();
+        for (const m of mods) {
+            const name = m.replace(/\(.*$/, '');
+            if (/^(public|external|internal|private|view|pure|payable|virtual|override|function)$/.test(name) || name === fnAbi.name) continue;
+            const def = new RegExp('modifier\\s+' + name + '\\s*\\([^)]*\\)\\s*\\{([\\s\\S]*?)\\n\\s*\\}').exec(source);
+            if (!def) continue;
+            const senders = (def[1].match(/msg\.sender\s*!=\s*(\w+)/g) || []).map(x => x.replace(/msg\.sender\s*!=\s*/, ''));
+            if (senders.length) info.who.push(...senders.map(roleLabelFromVar));
+            const st = /\((\w+)\.(\w+)\)/.exec(m);
+            if (st && /situacao|status|naSituacao|inStatus/i.test(def[1] + name)) info.status = st[2];
+            if (/nonReentrant/i.test(name)) info.guard = true;
+            (def[1].match(/revert\s+(\w+)\s*\(/g) || []).forEach(x => errs.add(x.replace(/revert\s+|\s*\(/g, '')));
+        }
+        (f.body.match(/revert\s+(\w+)\s*\(/g) || []).forEach(x => errs.add(x.replace(/revert\s+|\s*\(/g, '')));
+        // Erros de funções privadas chamadas pela função (um nível).
+        (f.body.match(/\b(_\w+)\s*\(/g) || []).forEach(call => {
+            const inner = functionSource(source, call.replace(/\s*\($/, ''));
+            if (inner) (inner.body.match(/revert\s+(\w+)\s*\(/g) || []).forEach(x => errs.add(x.replace(/revert\s+|\s*\(/g, '')));
+        });
+        info.errors = Array.from(errs);
+        info.events = Array.from(new Set((f.body.match(/emit\s+(\w+)/g) || []).map(x => x.replace(/emit\s+/, ''))));
+        info.anyone = !info.who.length && /msg\.sender/.test(f.body);
+        return info;
+    }
+
+    let infoDialog = null;
+    function showFunctionInfo(fnAbi) {
+        const info = describeFunction(fnAbi);
+        if (!infoDialog) {
+            infoDialog = el('dialog', { class: 'fn-dialog', 'aria-labelledby': 'fnDialogTitle' });
+            document.body.appendChild(infoDialog);
+            infoDialog.addEventListener('click', e => { if (e.target === infoDialog) infoDialog.close(); });
+        }
+        infoDialog.textContent = '';
+        const section = (title, content) => el('section', {}, [el('h4', { class: 'field-label', text: title }), ...[].concat(content)]);
+        const errDesc = name => { const k = 'errDesc_' + name; const d = t(k); return d === k ? name : d; };
+        const who = info.isView ? t('fnInfoAnyoneRead') : info.who.length ? Array.from(new Set(info.who)).join(CSC.lang === 'en' ? ' or ' : ' ou ') : info.anyone ? t('fnInfoAnyone') : t('fnInfoAnyone');
+        const when = [info.status ? t('fnInfoStatus', { s: info.status }) : t('fnInfoAlways')];
+        if (info.guard) when.push(t('fnInfoGuard'));
+        infoDialog.append(
+            el('header', { class: 'fn-dialog-head' }, [
+                el('p', { class: 'field-label', text: t('fnInfoTitle') }),
+                el('h3', { id: 'fnDialogTitle', class: 'fn-dialog-title' }, [el('code', { text: info.name })]),
+                el('button', { type: 'button', class: 'icon-btn fn-dialog-close', 'aria-label': t('fnInfoClose'), text: '×', onclick: () => infoDialog.close() })
+            ]),
+            info.clause ? section(t('fnInfoClause'), [el('p', { class: 'fn-dialog-clause' }, [el('strong', { text: info.clause.title + '. ' }), info.clause.text])]) : null,
+            info.notes.length ? section(t('fnInfoWhat'), info.notes.map(n => el('p', { text: n }))) : null,
+            section(t('fnInfoWho'), el('p', { text: who })),
+            section(t('fnInfoMoney'), el('p', { text: info.isView ? t('fnInfoView') : info.payable ? t('fnInfoPayable') : t('fnInfoNoPayable') })),
+            info.isView ? null : section(t('fnInfoWhen'), when.map(w => el('p', { text: w }))),
+            info.isView ? null : section(t('fnInfoErrors'), info.errors.length ? el('ul', {}, info.errors.map(e => el('li', {}, [el('code', { text: e }), ': ' + errDesc(e)]))) : el('p', { text: t('fnInfoNoErrors') })),
+            info.events.length ? section(t('fnInfoEvents'), el('p', {}, info.events.map((e, i) => el('code', { text: (i ? ', ' : '') + e })))) : null,
+            section(t('fnInfoSignature'), el('p', {}, [el('code', { text: info.signature })]))
+        );
+        infoDialog.showModal();
+    }
+
+    /** Função de consulta que informa quanto uma função "payable" deve receber. */
+    function dueGetter(fn) {
+        const views = lab.contract.abi.filter(x => x.type === 'function' && (x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0).map(x => x.name);
+        const has = n => views.find(v => v.toLowerCase() === n.toLowerCase());
+        const bond = /^(depositarGarantia|depositBond)/i.test(fn.name);
+        const rest = fn.name.replace(/^(depositarGarantia|depositBond|pagar|pay|quitar|repay|depositar|deposit|fund|liberar|disburse)/i, '');
+        const U = rest.replace(/^_/, '').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+        const cands = bond ? [U + '_CLAUSULA_PENAL', U + '_PENALTY'] : /^(quitar|repay)/i.test(fn.name)
+            ? ['saldoDevedor' + rest, 'outstanding' + rest, 'saldoDevedor', 'outstandingBalance']
+            : ['valorDevido' + rest, 'amountDue' + rest, U + '_VALOR', U + '_AMOUNT', U + '_VALOR_TOTAL', U + '_TOTAL',
+                'valorDevido', 'amountDue', 'valor' + rest, rest ? rest.charAt(0).toLowerCase() + rest.slice(1) : '', 'preco', 'price', 'valorTotal', 'totalAmount', 'valorEmprestimo', 'loanAmount', 'valorAluguel', 'rent', 'installmentAmount'];
+        for (const c of cands) { const v = c && has(c); if (v) return v; }
+        return null;
+    }
+
+    async function fillDue(fn, input, output) {
+        const getter = dueGetter(fn);
+        if (!getter) return;
+        const r = await lab.chain.call({ from: lab.accounts[0].address, to: lab.contract.address, abi: lab.contract.abi, functionName: getter, args: [] });
+        if (!r.ok) return;
+        const wei = BigInt(Array.isArray(r.result) ? r.result[0] : r.result);
+        input.value = window.EvmLab.formatEther(wei);
+        input.title = moneyText(wei);
+        if (output) { output.className = 'fn-output'; output.textContent = t('labDueFilled', { v: moneyText(wei) }); }
     }
 
     function renderFunctions() {
@@ -594,8 +989,20 @@
         d.functions.appendChild(el('h4', { class: 'block-title', text: t('labFunctions') }));
         d.functions.appendChild(el('p', { class: 'muted small', text: t('labFunctionsHint') }));
         const fns = lab.contract.abi.filter(x => x.type === 'function' && !((x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0));
+        lab.dueFills = [];
         const grid = el('div', { class: 'fn-grid' });
-        for (const fn of fns) {
+        const tokenGrid = el('div', { class: 'fn-grid' });
+        // Com a legenda do contrato montado, as funções seguem a ordem das cláusulas.
+        const order = name => { const l = legenda(); if (!l) return 0; const i = l.clausulas.findIndex(c => c.uid === l.funcoes[name]); return i < 0 ? 999 : i; };
+        const items = fns.map((fn, i) => ({ fn, i })).sort((x, y) => order(x.fn.name) - order(y.fn.name) || x.i - y.i).map(({ fn }) => ({ fn, tgt: lab.contract, grid }));
+        if (lab.token) {
+            for (const name of ['approve', 'transfer', 'balanceOf', 'allowance']) {
+                const fn = lab.token.abi.find(x => x.type === 'function' && x.name === name);
+                if (fn) items.push({ fn, tgt: lab.token, grid: tokenGrid });
+            }
+        }
+        for (const { fn, tgt, grid: targetGrid } of items) {
+            const own = tgt === lab.contract;
             const isView = fn.stateMutability === 'view' || fn.stateMutability === 'pure';
             const isPayable = fn.stateMutability === 'payable';
             const inputs = fn.inputs.map((input, i) => el('label', { class: 'lab-field' }, [
@@ -604,18 +1011,28 @@
                 el('input', { type: 'text', 'data-arg': String(i), placeholder: defaultArg(input), spellcheck: 'false' })
             ]));
             const asSelect = el('select', { class: 'fn-as' }, lab.accounts.map(a => el('option', { value: a.label, text: a.label })));
+            // Pré-seleciona a parte autorizada pela própria função.
+            if (own) try {
+                const info = describeFunction(fn);
+                const who = info.who && info.who[0] && accountByName(info.who[0]);
+                if (who) asSelect.value = who.label;
+            } catch (_) { /* mantém o padrão */ }
             const valueInput = isPayable ? el('input', { type: 'text', class: 'fn-value', value: '0', 'aria-label': t('labValue') }) : null;
+            const dueLink = own && isPayable && dueGetter(fn) ? el('button', { type: 'button', class: 'link-btn due-link', text: t('labDueFill') }) : null;
             const output = el('div', { class: 'fn-output', role: 'status', 'aria-live': 'polite' });
-            const card = el('div', { class: 'fn-card' + (isPayable ? ' fn-payable' : '') + (isView ? ' fn-view' : '') }, [
+            const cl = own ? clauseOfFunction(fn.name) : null;
+            const card = el('div', { class: 'fn-card' + (isPayable ? ' fn-payable' : '') + (isView ? ' fn-view' : '') + (cl ? ' k' + cl.cor : '') }, [
                 el('div', { class: 'fn-head' }, [
+                    own && legenda() ? el('span', { class: 'fn-title' }, [cl ? el('span', { class: 'k-dot' }) : null, functionTitle(fn.name), cl ? el('span', { class: 'fn-clause', text: cl.numero }) : null]) : null,
                     el('code', { class: 'fn-name', text: fn.name }),
+                    own ? el('button', { type: 'button', class: 'info-btn', title: t('fnInfoButton'), 'aria-label': t('fnInfoButton') + ': ' + fn.name, text: 'i', onclick: () => showFunctionInfo(fn) }) : el('span', { class: 'tag', text: 'tBRL' }),
                     isPayable ? el('span', { class: 'tag tag-payable', text: 'payable' }) : null,
                     isView ? el('span', { class: 'tag tag-view', text: fn.stateMutability }) : null
                 ]),
                 ...inputs,
                 el('div', { class: 'lab-inline' }, [
                     el('span', { class: 'muted small', text: t('labCallAs') }), asSelect,
-                    valueInput ? el('span', { class: 'muted small', text: t('labValue') }) : null, valueInput,
+                    valueInput ? el('span', { class: 'muted small', text: t('labValue') }) : null, valueInput, dueLink,
                     el('button', {
                         type: 'button', class: 'btn ' + (isView ? 'btn-quiet' : 'btn-ink'), text: isView ? t('labQuery') : t('labExecute'),
                         onclick: async () => {
@@ -627,13 +1044,14 @@
                                 });
                                 const value = valueInput ? parseAmount(valueInput.value || '0', 'ether') : 0n;
                                 const actor = accountByName(asSelect.value);
-                                const r = await lab.chain.call({ from: actor.address, to: lab.contract.address, abi: lab.contract.abi, functionName: fn.name, args, value });
+                                const r = await lab.chain.call({ from: actor.address, to: tgt.address, abi: tgt.abi, functionName: fn.name, args, value });
                                 if (isView) {
                                     output.className = 'fn-output ' + (r.ok ? 'ok' : 'err');
                                     output.textContent = r.ok ? t('labResult') + ': ' + formatResult(r.result, fn) : '✗ ' + describeRevert(r.error);
                                     return;
                                 }
-                                lab.timeline.unshift({ ok: r.ok, actor: actor.label, fn: fn.name, args, value, gas: r.gasUsed, events: r.events || [], error: r.error, time: lab.chain.timestamp });
+                                const fee = await chargeGas(actor, r.gasTotal);
+                                lab.timeline.unshift({ ok: r.ok, actor: actor.label, fn: (own ? '' : 'tBRL.') + fn.name, args, value, gas: r.gasUsed, gasTotal: r.gasTotal, fee, events: r.events || [], error: r.error, time: lab.chain.timestamp });
                                 output.className = 'fn-output ' + (r.ok ? 'ok' : 'err');
                                 output.textContent = r.ok ? '✓ ' + t('labTxOk') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error);
                                 await renderWorkspace(true);
@@ -646,9 +1064,20 @@
                 ]),
                 output
             ]);
-            grid.appendChild(card);
+            if (dueLink) {
+                dueLink.addEventListener('click', () => fillDue(fn, valueInput, output));
+                const refill = () => fillDue(fn, valueInput, null);
+                lab.dueFills.push(refill);
+                refill();
+            }
+            targetGrid.appendChild(card);
         }
         d.functions.appendChild(grid);
+        if (lab.token) {
+            d.functions.appendChild(el('h4', { class: 'block-title token-title', text: t('tokenSection') }));
+            d.functions.appendChild(el('p', { class: 'muted small', text: t('tokenHint') }));
+            d.functions.appendChild(tokenGrid);
+        }
     }
 
     function renderTimeline() {
@@ -668,7 +1097,9 @@
                 el('span', { text: ' → ' }),
                 el('code', { text: tx.fn + '(' + (tx.args || []).map(a => formatValue(a)).join(', ') + ')' }),
                 tx.value ? el('span', { class: 'tag tag-payable', text: formatEth(tx.value) + ' ETH' }) : null,
-                el('span', { class: 'muted small tx-meta', text: date + ' · ' + String(tx.gas || 0n) + ' ' + t('labGas') })
+                tx.note ? el('span', { class: 'tag', text: tx.note }) : null,
+                tx.fee ? el('span', { class: 'tag', text: t('gasFeeCharged', { v: formatEth(tx.fee, 8) + ' ETH' }) }) : null,
+                el('span', { class: 'muted small tx-meta', text: date + ' · ' + gasText(tx) })
             ]);
             const body = [];
             if (!tx.ok) {
@@ -733,6 +1164,8 @@
         return { ok, got: formatValue(got, out) };
     }
 
+    function accountByNameIn(list, re) { return list.find(a => re.test(norm(a.label))) || list[list.length - 1]; }
+
     async function runScenario(plan, scenario, compiled) {
         const steps = [];
         const env = await newChain(plan.contas);
@@ -743,18 +1176,100 @@
             acc.color = ACCOUNT_COLORS[ensured.length % ACCOUNT_COLORS.length];
             ensured.push(acc);
         }
-        const dep = await deployInto(env, compiled, plan.implantacao);
+        if (plan.usaToken || needsToken(compiled.abi)) env.token = await deployToken(env);
+        let deploy = plan.implantacao;
+        if (scenario.contratoAtacante && CSC.labHelpers) {
+            // Contrato atacante real ocupa o lugar de uma das partes.
+            const h = CSC.labHelpers.ContratoAtacante;
+            const evil = accountByNameIn(env.accounts, /^(atacante|attacker)$/);
+            const ad = await env.chain.deploy({ from: evil.address, abi: h.abi, bytecode: h.bytecode, args: [] });
+            if (ad.ok) {
+                env.attackerContract = { address: ad.address, abi: h.abi, owner: evil };
+                deploy = Object.assign({}, deploy, { argumentos: (deploy.argumentos || []).map(a => norm(a) === norm(scenario.contratoAtacante.papel) ? ad.address : a) });
+            }
+        }
+        const dep = await deployInto(env, compiled, deploy);
         if (!dep.ok) {
             return { status: 'invalid', steps: [{ status: 'invalid', text: 'constructor', note: t('labDeployFailed', { error: describeRevert(dep.error) }) }] };
         }
-        const saved = { accounts: lab.accounts, contract: lab.contract };
+        const saved = { accounts: lab.accounts, contract: lab.contract, token: lab.token };
         lab.accounts = env.accounts;
+        lab.token = env.token || null;
         lab.contract = { name: compiled.name, abi: compiled.abi, address: dep.address, enums: parseEnums(compiled.source || '') };
         let status = 'pass';
         try {
             for (const step of scenario.passos || []) {
                 const entry = { explicacao: step.explicacao || '' };
                 try {
+                    if (step.acao === 'verificarSolvencia') {
+                        // Saldo do contrato = créditos das partes + valores retidos.
+                        const bal = await env.chain.balanceOf(dep.address);
+                        let credits = 0n;
+                        for (const acc of env.accounts) {
+                            const r = await env.chain.call({ from: acc.address, to: dep.address, abi: compiled.abi, functionName: step.saldos, args: [acc.address] });
+                            if (r.ok) credits += BigInt(r.result);
+                        }
+                        const h = await env.chain.call({ from: env.accounts[0].address, to: dep.address, abi: compiled.abi, functionName: step.retido, args: [] });
+                        const held = h.ok ? BigInt(h.result) : 0n;
+                        const ok = bal === credits + held;
+                        entry.status = ok ? 'pass' : 'fail';
+                        entry.text = t(ok ? 'labSolvencyOk' : 'labSolvencyFail', { bal: formatEth(bal, 6), cred: formatEth(credits, 6), held: formatEth(held, 6) });
+                        steps.push(entry);
+                        if (!ok) status = 'fail';
+                        continue;
+                    }
+                    if (step.acao === 'atacarTodas') {
+                        const attackerAcc = accountByName(step.conta);
+                        const ignore = new Set(step.ignorar || []);
+                        const fns = compiled.abi.filter(x => x.type === 'function' && x.stateMutability !== 'view' && x.stateMutability !== 'pure' && !ignore.has(x.name));
+                        for (const fn of fns) {
+                            const args = fn.inputs.map(i => /^u?int/.test(i.type) ? 1n : i.type === 'bool' ? true : i.type === 'string' ? 'x' : /^address/.test(i.type) ? attackerAcc.address : /^bytes\d+$/.test(i.type) ? '0x' + '11'.repeat(Number(i.type.slice(5))) : /^bytes/.test(i.type) ? '0x' : 0n);
+                            const r = await env.chain.call({ from: attackerAcc.address, to: dep.address, abi: compiled.abi, functionName: fn.name, args });
+                            const ok = !r.ok && sameError(r.error, step.erroEsperado);
+                            const sub = { explicacao: '', text: attackerAcc.label + ' → ' + fn.name + '()', expected: t('labStepExpectedRevert'),
+                                outcome: r.ok ? '✓ ' + t('labTxOk') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error), status: ok ? 'pass' : 'fail' };
+                            if (!ok) sub.note = r.ok ? t('labVulnerability') : t('labWrongError', { got: describeRevert(r.error), expected: step.erroEsperado });
+                            steps.push(sub);
+                            if (!ok) status = 'fail';
+                        }
+                        continue;
+                    }
+                    if (step.acao === 'ataqueReentrancia') {
+                        const atk = env.attackerContract;
+                        if (!atk) throw new Error('ContratoAtacante');
+                        const callData = window.EvmLab.encodeFunctionData({ abi: compiled.abi, functionName: step.sacar, args: [] });
+                        await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'configurar', args: [dep.address, callData] });
+                        const before = await env.chain.balanceOf(atk.address);
+                        const r = await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'atacar', args: [] });
+                        const read = async fn => (await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: fn, args: [] })).result;
+                        const reentered = await read('reentrouComSucesso');
+                        const tries = await read('tentativas');
+                        const got = (await env.chain.balanceOf(atk.address)) - before;
+                        const credit = await env.chain.call({ from: atk.owner.address, to: dep.address, abi: compiled.abi, functionName: step.saldos, args: [atk.address] });
+                        const ok = r.ok && !reentered && BigInt(tries) >= 1n && credit.ok && BigInt(credit.result) === 0n;
+                        entry.status = ok ? 'pass' : 'fail';
+                        entry.text = t('reentrancyText', { tries: String(tries), got: moneyText(got) });
+                        entry.outcome = ok ? '✓ ' + t('reentrancyBlocked') : '✗ ' + t('reentrancyBreach');
+                        if (!ok) { entry.note = t('labVulnerability'); status = 'fail'; }
+                        steps.push(entry);
+                        continue;
+                    }
+                    if (step.acao === 'chamarPeloAtacante') {
+                        // A parte substituída pelo contrato atacante pratica um ato legítimo por meio dele (ex.: assinar).
+                        const atk = env.attackerContract;
+                        if (!atk) throw new Error('ContratoAtacante');
+                        const fnAbi = compiled.abi.find(x => x.type === 'function' && x.name === step.funcao);
+                        const args = fnAbi.inputs.map((input, i) => parseArg((step.argumentos || [])[i] ?? '', input));
+                        const callData = window.EvmLab.encodeFunctionData({ abi: compiled.abi, functionName: step.funcao, args });
+                        await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'configurar', args: [dep.address, callData] });
+                        const r = await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'atacar', args: [] });
+                        entry.text = t('viaAttacker', { fn: step.funcao });
+                        entry.status = r.ok ? 'pass' : 'fail';
+                        entry.outcome = r.ok ? '✓ ' + t('labTxOk') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error);
+                        if (!r.ok) status = 'fail';
+                        steps.push(entry);
+                        continue;
+                    }
                     if (step.acao === 'avancarTempo') {
                         const secs = parseAmount(step.segundos || '0', 'seconds');
                         env.chain.advanceTime(secs);
@@ -763,8 +1278,10 @@
                         steps.push(entry);
                         continue;
                     }
-                    const fnAbi = compiled.abi.find(x => x.type === 'function' && x.name === step.funcao && (x.inputs || []).length === (step.argumentos || []).length)
-                        || compiled.abi.find(x => x.type === 'function' && x.name === step.funcao);
+                    // Alvo da chamada: o contrato em teste ou, se indicado, a "stablecoin" de teste.
+                    const target = step.alvo === 'token' && env.token ? env.token : { address: dep.address, abi: compiled.abi };
+                    const fnAbi = target.abi.find(x => x.type === 'function' && x.name === step.funcao && (x.inputs || []).length === (step.argumentos || []).length)
+                        || target.abi.find(x => x.type === 'function' && x.name === step.funcao);
                     if (!fnAbi) throw new Error(t('labUnknownFunction', { name: step.funcao }));
                     const actor = accountByName(step.conta || env.accounts[0].label);
                     if (!actor) throw new Error(t('labUnknownAccount', { name: step.conta }));
@@ -780,7 +1297,7 @@
                         value = parseAmount(step.valor, /^\d+$/.test(String(step.valor).trim()) ? 'wei' : 'ether');
                     }
                     entry.text = actor.label + ' → ' + fnAbi.name + '(' + args.map(a => formatValue(a)).join(', ') + ')' + (value ? ' + ' + formatEth(value) + ' ETH' : '');
-                    const r = await env.chain.call({ from: actor.address, to: dep.address, abi: compiled.abi, functionName: fnAbi.name, args, value });
+                    const r = await env.chain.call({ from: actor.address, to: target.address, abi: target.abi, functionName: fnAbi.name, args, value });
                     const expectRevert = step.esperado === 'reverter';
                     entry.expected = expectRevert ? t('labStepExpectedRevert') : t('labStepExpectedSuccess');
                     entry.outcome = r.ok ? '✓ ' + t('labTxOk') + (step.acao === 'consultar' ? ': ' + formatResult(r.result, fnAbi) : '') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error);
@@ -813,6 +1330,7 @@
         } finally {
             lab.accounts = saved.accounts;
             lab.contract = saved.contract;
+            lab.token = saved.token;
         }
         return { status, steps };
     }
@@ -847,11 +1365,13 @@
         for (const { scenario, result } of results) {
             const icon = result.status === 'pass' ? '✓' : result.status === 'fail' ? '✗' : '?';
             const label = result.status === 'pass' ? t('labPassed') : result.status === 'fail' ? t('labFailed') : t('labInvalid');
-            const details = el('details', { class: 'scenario scenario-' + result.status, open: result.status === 'fail' ? true : null }, [
+            const sc = clauseOf(scenario.bloco);
+            const details = el('details', { class: 'scenario scenario-' + result.status + (sc ? ' k' + sc.cor : ''), open: result.status === 'fail' ? true : null }, [
                 el('summary', {}, [
                     el('span', { class: 'scenario-icon', text: icon }),
                     el('span', { class: 'tag ' + (scenario.tipo === 'seguranca' ? 'tag-security' : 'tag-functional'), text: scenario.tipo === 'seguranca' ? t('labTypeSecurity') : t('labTypeFunctional') }),
                     el('strong', { class: 'scenario-title', text: scenario.titulo }),
+                    sc ? el('span', { class: 'scenario-clause', text: sc.numero }) : null,
                     el('span', { class: 'scenario-status', text: label })
                 ]),
                 el('p', { class: 'scenario-goal', text: scenario.objetivo }),
@@ -927,7 +1447,16 @@
         setStatus,
         hasPlan: () => !!lab.scenarioPlan,
         /** Prepara a implantação interativa do contrato compilado. */
-        prepare(compiled) {
+        timelineForReport() {
+            return lab.timeline.slice().reverse().map(tx => {
+                const date = new Date(Number(tx.time) * 1000).toLocaleDateString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { timeZone: 'UTC' });
+                return date + ' — ' + tx.actor + ' → ' + tx.fn + '(' + (tx.args || []).map(a => formatValue(a)).join(', ') + ')' + (tx.value ? ' + ' + moneyText(tx.value) : '') + ': ' + (tx.ok ? t('labTxOk') : t('labTxReverted') + ' — ' + describeRevert(tx.error));
+            });
+        },
+        setSeries(list) { series = (list || []).map(x => Object.assign({}, x, { last: undefined })); },
+        setScale(scale) { contractScale = scale > 0 ? Number(scale) : null; },
+        prepare(compiled, plan) {
+            if (plan) lab.scenarioPlan = plan;
             lab.dom.workspace.hidden = true;
             renderDeployForm(compiled);
         },
@@ -954,6 +1483,6 @@
                 passos: result.steps.map(s => ({ status: s.status, texto: s.text, resultado: s.outcome, nota: s.note }))
             }));
         },
-        _internals: { parseArg, parseAmount, describeRevert, runScenario }
+        _internals: { parseArg, parseAmount, describeRevert, runScenario, describeFunction, setContract: c => { lab.contract = c; lab.accounts = c.accounts || []; } }
     };
 })();

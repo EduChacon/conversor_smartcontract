@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (https://github.com/EduChacon). Todos os direitos reservados. Uso sujeito ao arquivo LICENSE. -->
 <html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
@@ -8,9 +9,11 @@
         se conecta à API Gemini. Protege a chave da API contra scripts de
         terceiros.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com https://api.anthropic.com https://api.openai.com https://api.deepseek.com https://api.coingecko.com https://api.coinbase.com https://ethereum-rpc.publicnode.com https://eth.llamarpc.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="description" content="Ferramenta educacional que converte cláusulas contratuais em linguagem natural em esqueletos de smart contracts em Solidity, com modelos revisados, verificação de segurança e testes em blockchain simulada.">
     <meta name="color-scheme" content="light dark">
+    <meta name="author" content="Eduardo Chacon (https://github.com/EduChacon)">
+    <meta name="copyright" content="© 2025-2026 Eduardo Chacon. Todos os direitos reservados.">
     <title>Conversor Contratual para Esqueleto Solidity</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f6f1e7'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='22' text-anchor='middle' fill='%237a1f2b'%3E%C2%A7%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,6 +45,38 @@
             <p class="notice-small" data-i18n-html="privacyText"></p>
         </aside>
 
+        <!-- Como usar: tutoriais -->
+        <details class="settings guide" id="guidePanel">
+            <summary>
+                <span class="settings-title" data-i18n="guideTitle">Como usar: tutoriais práticos</span>
+                <span class="settings-status" data-i18n="guideStatus">comece por aqui</span>
+            </summary>
+            <div class="guide-body">
+                <p class="lede" data-i18n="guideIntro"></p>
+                <div class="guide-grid">
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT1Title">1. Primeiro contrato em 5 minutos</h3>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT1Steps"></ol></details>
+                        <button type="button" class="btn btn-ink" id="tour1Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
+                    </section>
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT2Title">2. Testar na prática</h3>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT2Steps"></ol></details>
+                        <button type="button" class="btn btn-ink" id="tour2Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
+                    </section>
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT3Title">3. IA como complemento</h3>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT3Steps"></ol></details>
+                        <button type="button" class="btn btn-quiet" id="tour3Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
+                    </section>
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT4Title">4. Rede de teste real</h3>
+                        <details class="guide-steps"><summary data-i18n="guideSeeSteps">Ver os passos</summary><ol data-i18n-html="guideT4Steps"></ol></details>
+                    </section>
+                </div>
+            </div>
+        </details>
+
         <!-- Configuração da IA (facultativa) -->
         <details class="settings" id="settingsPanel">
             <summary>
@@ -50,7 +85,9 @@
             </summary>
             <div class="settings-body">
                 <div class="settings-col">
-                    <label for="geminiApiKeyInput" class="field-label" data-i18n="apiKeyLabel">Chave da API Gemini</label>
+                    <label for="providerSelect" class="field-label" data-i18n="providerLabel">Provedor de IA</label>
+                    <select id="providerSelect"></select>
+                    <label for="geminiApiKeyInput" class="field-label" data-i18n="apiKeyLabel">Chave da API</label>
                     <div class="inline-row">
                         <input type="password" id="geminiApiKeyInput" autocomplete="off" spellcheck="false" data-i18n-placeholder="apiKeyPlaceholder">
                         <button type="button" id="toggleKeyVisibility" class="btn btn-quiet" data-i18n="showKey">Mostrar</button>
@@ -61,7 +98,7 @@
                         <label class="checkbox"><input type="checkbox" id="rememberKeyCheckbox"> <span data-i18n="rememberKey">Lembrar neste navegador</span></label>
                     </div>
                     <p class="hint"><span data-i18n="apiKeyHelp"></span>
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" data-i18n="apiKeyHelpLink">Obter chave</a></p>
+                        <a id="apiKeyLink" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" data-i18n="apiKeyHelpLink">Obter chave</a></p>
                     <p id="apiKeySaveFeedback" class="feedback" role="status" aria-live="polite"></p>
                 </div>
                 <div class="settings-col" id="aiParams">
@@ -94,22 +131,61 @@
             </div>
         </details>
 
+        <!-- Cotação do Ether -->
+        <details class="settings rates" id="ratesPanel">
+            <summary>
+                <span class="settings-title" data-i18n="ratesTitle">Cotação do Ether (ETH, R$, US$, BTC)</span>
+                <span class="settings-status" id="ratesStatus"></span>
+            </summary>
+            <div class="rates-body">
+                <label class="param"><span class="field-label">ETH</span><input type="text" id="rateEth" inputmode="decimal" value="1"></label>
+                <span class="rates-eq" aria-hidden="true">⇄</span>
+                <label class="param"><span class="field-label">R$</span><input type="text" id="rateBrl" inputmode="decimal"></label>
+                <span class="rates-eq" aria-hidden="true">⇄</span>
+                <label class="param"><span class="field-label">US$</span><input type="text" id="rateUsd" inputmode="decimal"></label>
+                <span class="rates-eq" aria-hidden="true">⇄</span>
+                <label class="param"><span class="field-label">BTC</span><input type="text" id="rateBtc" inputmode="decimal"></label>
+                <div class="rates-actions">
+                    <button type="button" id="ratesRefresh" class="btn btn-quiet" data-i18n="ratesRefresh">Atualizar agora</button>
+                    <button type="button" id="ratesUseScale" class="btn btn-quiet" data-i18n="ratesUseScale">Usar esta cotação no contrato</button>
+                </div>
+                <p class="hint rates-info" id="ratesInfo" role="status" aria-live="polite"></p>
+            </div>
+        </details>
+
+        <details class="settings assistant" id="assistantPanel">
+            <summary>
+                <span class="settings-title" id="asstTitle">Assistente (IA)</span>
+                <span class="settings-status" id="asstStatus"></span>
+            </summary>
+            <div class="asst-body">
+                <p class="hint" id="asstIntro"></p>
+                <div class="asst-quick" id="asstQuick"></div>
+                <div class="asst-log" id="asstLog" role="log" aria-live="polite"></div>
+                <label class="sr-only" for="asstInput">Mensagem</label>
+                <textarea id="asstInput" rows="4" spellcheck="true"></textarea>
+                <div class="inline-row">
+                    <button type="button" class="btn btn-ink" id="asstSend">Enviar</button>
+                    <button type="button" class="link-btn" id="asstClear">Limpar conversa</button>
+                    <span class="muted small">Ctrl+Enter</span>
+                </div>
+                <p class="muted small" id="asstPrivacy"></p>
+            </div>
+        </details>
+
         <main id="main">
             <div class="spread">
                 <!-- § 1 Cláusula -->
                 <section class="sec" aria-labelledby="step1Title">
                     <header class="sec-head"><span class="sec-num">§ 1</span><h2 id="step1Title" data-i18n="step1Title">Cláusula contratual</h2></header>
 
-                    <div class="label-row">
-                        <label for="naturalLanguageClause" class="field-label" data-i18n="naturalClauseLabel">Cláusula ou contrato</label>
-                        <label class="example-field"><span class="sr-only" data-i18n="examplesLabel">Exemplos</span>
-                            <select id="exampleSelect"></select>
-                        </label>
-                    </div>
-                    <textarea id="naturalLanguageClause" class="clause" rows="9" maxlength="20000" data-i18n-placeholder="naturalClausePlaceholder"></textarea>
-
                     <fieldset class="mode-switch">
                         <legend class="field-label" data-i18n="modeLegend">Modo de conversão</legend>
+                        <p class="hint modes-help" data-i18n="modesHelp"></p>
+                        <label class="mode-option">
+                            <input type="radio" name="mode" value="blocks" id="modeBlocks">
+                            <span><strong data-i18n="modeBlocks">Montar contrato</strong> <span class="mode-sub" data-i18n="modeBlocksSub">cláusulas em blocos · sem IA</span></span>
+                        </label>
                         <label class="mode-option">
                             <input type="radio" name="mode" value="template" id="modeTemplate">
                             <span><strong data-i18n="modeTemplate">Modelos revisados</strong> <span class="mode-sub" data-i18n="modeTemplateSub">sem IA · reprodutível</span></span>
@@ -119,6 +195,38 @@
                             <span><strong data-i18n="modeAI">Texto livre</strong> <span class="mode-sub" data-i18n="modeAISub">com IA · qualquer cláusula</span></span>
                         </label>
                     </fieldset>
+
+                    <div id="blocksPanel" class="mode-panel mode-panel-doc">
+                        <p class="hint" data-i18n="modeBlocksHelp"></p>
+                        <div class="inline-row doc-controls">
+                            <label class="sr-only" for="docPresets" data-i18n="docStart">Começar de um exemplo</label>
+                            <select id="docPresets"></select>
+                            <button type="button" id="docSave" class="link-btn" data-i18n="docSave">Salvar contrato</button>
+                            <button type="button" id="docOpen" class="link-btn" data-i18n="docOpen">Abrir contrato</button>
+                            <button type="button" id="docPrint" class="link-btn" data-i18n="docPrint">Imprimir para assinatura (PDF)</button>
+                            <input type="file" id="docOpenFile" accept=".json,application/json" hidden>
+                        </div>
+                        <div id="docMyModels"></div>
+                        <article class="doc" aria-labelledby="docTitle">
+                            <input type="text" id="docTitle" class="doc-title" maxlength="80" data-i18n-placeholder="docTitlePlaceholder">
+                            <div id="docBody"></div>
+                        </article>
+                        <div id="docIssues" class="doc-issues" role="status" aria-live="polite"></div>
+                        <div class="actions">
+                            <button type="button" id="blocksGenerateButton" class="btn btn-ink btn-wide" data-i18n="blocksGenerate">Gerar o "smart contract"</button>
+                        </div>
+                        <p class="hint" data-i18n="blocksLive"></p>
+                    </div>
+
+                    <div id="clauseInput">
+                        <div class="label-row">
+                            <label for="naturalLanguageClause" class="field-label" data-i18n="naturalClauseLabel">Cláusula ou contrato</label>
+                            <label class="example-field"><span class="sr-only" data-i18n="examplesLabel">Exemplos</span>
+                                <select id="exampleSelect"></select>
+                            </label>
+                        </div>
+                        <textarea id="naturalLanguageClause" class="clause" rows="9" maxlength="20000" data-i18n-placeholder="naturalClausePlaceholder"></textarea>
+                    </div>
 
                     <div id="templatePanel" class="mode-panel">
                         <p class="hint" data-i18n="modeTemplateHelp"></p>
@@ -182,9 +290,11 @@
                         <button type="button" id="undoButton" class="link-btn" data-i18n="undoButton">Desfazer</button>
                         <button type="button" id="redoButton" class="link-btn" data-i18n="redoButton">Refazer</button>
                         <button type="button" id="remixShortButton" class="link-btn" data-needs-code data-i18n="remixButtonShort">Abrir no Remix</button>
-                        <button type="button" id="reportButton" class="link-btn" data-needs-code data-i18n="reportButton">Relatório</button>
+                        <button type="button" id="reportButton" class="link-btn" data-needs-code data-i18n="reportButton">Relatório (.md)</button>
+                        <button type="button" id="printButton" class="link-btn" data-needs-code data-i18n="printButton">Imprimir / PDF</button>
                         <span id="toolbarFeedback" class="feedback" role="status" aria-live="polite"></span>
                     </div>
+                    <div id="codeLegend" class="code-legend" hidden></div>
                     <textarea id="solidityCode" class="code-editor" rows="26" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off" data-i18n-placeholder="solidityOutputPlaceholder"></textarea>
 
                     <div id="adaptRow" class="adapt" hidden>
@@ -349,6 +459,7 @@
                     <div class="actions">
                         <button type="button" id="remixButton" class="btn btn-ink" data-needs-code data-i18n="openRemixButton">Abrir no Remix IDE</button>
                         <button type="button" id="reportButton2" class="btn btn-quiet" data-needs-code data-i18n="reportButtonLong">Baixar relatório da sessão (.md)</button>
+                        <button type="button" id="printButton2" class="btn btn-quiet" data-needs-code data-i18n="printButtonLong">Imprimir ou salvar em PDF</button>
                     </div>
                 </div>
             </section>
@@ -359,6 +470,7 @@
 
         <footer class="colophon">
             <p><span data-i18n="footerText"></span> <span data-i18n="footerCredit">Feito por ETCS.</span></p>
+            <p class="rights" data-i18n="footerRights">© 2025-2026 ETCS. Todos os direitos reservados.</p>
             <p><a href="https://github.com/EduChacon/conversor_smartcontract" target="_blank" rel="noopener noreferrer" data-i18n="footerRepo">Código-fonte no GitHub</a></p>
         </footer>
     </div>
@@ -368,10 +480,16 @@
     <script src="assets/js/markdown.js"></script>
     <script src="assets/js/security-scan.js"></script>
     <script src="assets/js/templates.js"></script>
+    <script src="assets/js/blocks.js"></script>
     <script src="assets/js/gemini.js"></script>
+    <script src="assets/js/rates.js"></script>
     <script src="assets/js/compiler.js"></script>
     <script src="assets/vendor/evm-lab.js"></script>
+    <script src="assets/js/lab-helpers.js"></script>
     <script src="assets/js/lab.js"></script>
+    <script src="assets/js/composer.js"></script>
+    <script src="assets/js/tour.js"></script>
     <script src="assets/js/app.js"></script>
+    <script src="assets/js/assistant.js"></script>
 </body>
 </html>

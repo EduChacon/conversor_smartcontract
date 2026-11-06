@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * "Blockchain" simulada para o Laboratório (fonte do pacote
  * assets/vendor/evm-lab.js, gerado por "npm run build").
@@ -94,6 +95,24 @@ export class Chain {
         this.blockNumber += 1n;
     }
 
+    /** Gás intrínseco da transação (base + dados), como na rede real. */
+    intrinsicGas(dataHex, isCreate) {
+        const bytes = hexToBytes(dataHex);
+        let g = isCreate ? 53000n : 21000n;
+        for (const b of bytes) g += b === 0 ? 4n : 16n;
+        if (isCreate) g += 2n * BigInt(Math.ceil(bytes.length / 32)); // EIP-3860
+        return g;
+    }
+
+    /** Debita o custo do gás de uma conta (cobrança opcional no laboratório). */
+    async debit(address, amount) {
+        const addr = createAddressFromString(address);
+        const acc = await this.vm.stateManager.getAccount(addr);
+        if (!acc) return;
+        acc.balance = acc.balance > amount ? acc.balance - amount : 0n;
+        await this.vm.stateManager.putAccount(addr, acc);
+    }
+
     async run({ from, to, data, value }) {
         const result = await this.vm.evm.runCall({
             caller: createAddressFromString(from),
@@ -114,18 +133,20 @@ export class Chain {
         const data = encodeDeployData({ abi, bytecode: bytecode.startsWith('0x') ? bytecode : '0x' + bytecode, args: args || [] });
         const r = await this.run({ from, data, value });
         const ex = r.execResult;
+        const gasTotal = this.intrinsicGas(data, true) + ex.executionGasUsed;
         if (ex.exceptionError) {
-            return { ok: false, gasUsed: ex.executionGasUsed, error: describeError(abi, bytesToHex(ex.returnValue), ex.exceptionError) };
+            return { ok: false, gasUsed: ex.executionGasUsed, gasTotal, error: describeError(abi, bytesToHex(ex.returnValue), ex.exceptionError) };
         }
-        return { ok: true, address: r.createdAddress.toString(), gasUsed: ex.executionGasUsed, events: decodeLogs(abi, ex.logs) };
+        return { ok: true, address: r.createdAddress.toString(), gasUsed: ex.executionGasUsed, gasTotal, events: decodeLogs(abi, ex.logs) };
     }
 
     async call({ from, to, abi, functionName, args, value }) {
         const data = encodeFunctionData({ abi, functionName, args: args || [] });
         const r = await this.run({ from, to, data, value });
         const ex = r.execResult;
+        const gasTotal = this.intrinsicGas(data, false) + ex.executionGasUsed;
         if (ex.exceptionError) {
-            return { ok: false, gasUsed: ex.executionGasUsed, error: describeError(abi, bytesToHex(ex.returnValue), ex.exceptionError) };
+            return { ok: false, gasUsed: ex.executionGasUsed, gasTotal, error: describeError(abi, bytesToHex(ex.returnValue), ex.exceptionError) };
         }
         let result;
         try {
@@ -133,8 +154,8 @@ export class Chain {
         } catch (_) {
             result = undefined;
         }
-        return { ok: true, result, gasUsed: ex.executionGasUsed, events: decodeLogs(abi, ex.logs) };
+        return { ok: true, result, gasUsed: ex.executionGasUsed, gasTotal, events: decodeLogs(abi, ex.logs) };
     }
 }
 
-export { parseEther, formatEther, parseUnits, getAddress, Address };
+export { parseEther, formatEther, parseUnits, getAddress, Address, encodeFunctionData };

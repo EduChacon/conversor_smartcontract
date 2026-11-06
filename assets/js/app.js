@@ -1,6 +1,14 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /* Controlador da página: interface, chave, parâmetros da IA e fluxos. */
 (function () {
     'use strict';
+
+    // Proteção contra "clickjacking": a página não funciona dentro de moldura de outro site.
+    if (window.top !== window.self) {
+        try { window.top.location.href = window.self.location.href; } catch (_) { /* moldura de outra origem */ }
+        document.documentElement.style.visibility = 'hidden';
+        return;
+    }
     const CSC = window.CSC;
     const t = (k, v) => CSC.t(k, v);
     const $ = id => document.getElementById(id);
@@ -15,7 +23,9 @@
     const SETTINGS_KEY = 'csc.settings';
     const DRAFT_KEY = 'csc.draft';
 
-    const DEFAULT_SETTINGS = { model: CSC.config.DEFAULT_MODEL, temperature: 0.2, rounds: 2, autoCompile: true };
+    const DEFAULT_SETTINGS = { provider: 'gemini', model: CSC.config.DEFAULT_MODEL, modelsByProvider: {}, temperature: 0.2, rounds: 2, autoCompile: true };
+    const PROV = () => CSC.llm.PROVIDERS[state.settings.provider] || CSC.llm.PROVIDERS.gemini;
+    const keyName = () => PROV().keyName;
     const MODE_KEY = 'csc.mode';
 
     // ---------- Estado ----------
@@ -30,7 +40,7 @@
         optimization: '',
         outputs: {},        // textos das análises, para o relatório
         mapping: null,
-        mode: store.get('localStorage', MODE_KEY) === 'ai' ? 'ai' : 'template',
+        mode: ['ai', 'template', 'blocks'].includes(store.get('localStorage', MODE_KEY)) ? store.get('localStorage', MODE_KEY) : 'blocks',
         template: { id: null, values: {}, status: {}, manual: false, scale: 1000 },
         templatePlan: null   // { id, values, lang } do último código gerado por modelo
     };
@@ -71,13 +81,16 @@
         });
         document.querySelectorAll('[data-i18n-placeholder]').forEach(n => { n.placeholder = t(n.getAttribute('data-i18n-placeholder')); });
         document.querySelectorAll('[data-i18n-aria]').forEach(n => { n.setAttribute('aria-label', t(n.getAttribute('data-i18n-aria'))); });
+        document.querySelectorAll('[data-ai]').forEach(n => n.setAttribute('data-ai-badge', t('aiBadge')));
         el.language.textContent = t('languageToggle');
         el.toggleKey.textContent = el.apiKey.type === 'password' ? t('showKey') : t('hideKey');
         el.compileTitle.textContent = t('compileTitle', { v: CSC.config.SOLC_VERSION });
         if (CSC.gemini) renderRequestCount(CSC.gemini.stats.requests);
+        if (typeof renderRates === 'function' && document.getElementById('ratesStatus')) try { renderRates(); } catch (_) { /* antes da inicialização */ }
         renderExamples();
         renderTemplateSelect();
         renderTemplateFields();
+        if (CSC.composer.model()) CSC.composer.render();
         renderDetected();
         updateSettingsStatus();
         applyTheme();
@@ -85,6 +98,7 @@
         renderCompile();
         if (state.mapping) renderMapping(state.mapping);
         CSC.lab.rerender();
+        document.dispatchEvent(new CustomEvent('csc:language'));
     }
 
     function renderExamples() {
@@ -105,8 +119,8 @@
 
     // ---------- Chave da API ----------
     function loadKey() {
-        const session = store.get('sessionStorage', KEY_NAME);
-        const persistent = store.get('localStorage', KEY_NAME);
+        const session = store.get('sessionStorage', keyName());
+        const persistent = store.get('localStorage', keyName());
         el.apiKey.value = session || persistent || '';
         el.remember.checked = !!persistent;
     }
@@ -121,17 +135,17 @@
     function saveKey() {
         const key = el.apiKey.value.trim();
         if (!key) return flash(el.keyFeedback, t('apiKeyEmpty'));
-        store.remove('localStorage', KEY_NAME);
-        store.remove('sessionStorage', KEY_NAME);
-        if (el.remember.checked) store.set('localStorage', KEY_NAME, key);
-        else store.set('sessionStorage', KEY_NAME, key);
+        store.remove('localStorage', keyName());
+        store.remove('sessionStorage', keyName());
+        if (el.remember.checked) store.set('localStorage', keyName(), key);
+        else store.set('sessionStorage', keyName(), key);
         flash(el.keyFeedback, el.remember.checked ? t('apiKeySavedPersistent') : t('apiKeySavedSession'));
         refreshModels();
     }
 
     function forgetKey() {
-        store.remove('localStorage', KEY_NAME);
-        store.remove('sessionStorage', KEY_NAME);
+        store.remove('localStorage', keyName());
+        store.remove('sessionStorage', keyName());
         el.apiKey.value = '';
         el.remember.checked = false;
         flash(el.keyFeedback, t('apiKeyForgotten'));
@@ -156,17 +170,47 @@
         const key = el.apiKey.value.trim();
         if (!key) return;
         try {
-            const models = await CSC.gemini.listModels(key);
+            const models = await CSC.llm.listModels(state.settings.provider, key);
             if (models.length) {
-                const preferred = CSC.config.FALLBACK_MODELS.filter(m => models.includes(m));
+                const preferred = PROV().models.filter(m => models.includes(m));
+                if (!models.includes(state.settings.model)) { state.settings.model = preferred[0] || models[0]; saveSettings(); updateSettingsStatus(); }
                 renderModelOptions(preferred.concat(models.sort()));
                 flash(el.keyFeedback, t('modelsLoaded'));
             }
         } catch (_) { /* mantém a lista padrão */ }
     }
 
+    function renderProviders() {
+        const sel = $('providerSelect');
+        if (!sel) return;
+        sel.textContent = '';
+        for (const [id, p] of Object.entries(CSC.llm.PROVIDERS)) {
+            const o = document.createElement('option');
+            o.value = id;
+            o.textContent = p.label + (p.free ? (CSC.lang === 'en' ? ' (default, free tier)' : ' (padrão, plano gratuito)') : '');
+            sel.appendChild(o);
+        }
+        sel.value = state.settings.provider in CSC.llm.PROVIDERS ? state.settings.provider : 'gemini';
+        const link = $('apiKeyLink');
+        if (link) link.href = PROV().keyUrl;
+    }
+
+    function setProvider(id) {
+        if (!(id in CSC.llm.PROVIDERS) || id === state.settings.provider) return;
+        state.settings.modelsByProvider = Object.assign({}, state.settings.modelsByProvider, { [state.settings.provider]: state.settings.model });
+        state.settings.provider = id;
+        state.settings.model = (state.settings.modelsByProvider || {})[id] || CSC.llm.PROVIDERS[id].defaultModel;
+        saveSettings();
+        loadKey();
+        renderSettings();
+        updateSettingsStatus();
+        if (el.apiKey.value) refreshModels();
+        document.dispatchEvent(new CustomEvent('csc:language'));
+    }
+
     function renderSettings() {
-        renderModelOptions(CSC.config.FALLBACK_MODELS);
+        renderProviders();
+        renderModelOptions(PROV().models);
         el.temperature.value = String(state.settings.temperature);
         el.temperatureValue.textContent = Number(state.settings.temperature).toFixed(1);
         el.rounds.value = String(state.settings.rounds);
@@ -228,9 +272,9 @@
 
     /** Escolhe outro modelo disponível para a chave quando o atual não existe. */
     async function switchToAvailableModel(apiKey) {
-        const available = await CSC.gemini.listModels(apiKey);
-        const preferred = CSC.config.FALLBACK_MODELS.find(m => available.includes(m) && m !== state.settings.model)
-            || available.find(m => /flash/.test(m) && m !== state.settings.model);
+        const available = await CSC.llm.listModels(state.settings.provider, apiKey);
+        const preferred = PROV().models.find(m => available.includes(m) && m !== state.settings.model)
+            || available.find(m => m !== state.settings.model);
         if (!preferred) return null;
         const from = state.settings.model;
         state.settings.model = preferred;
@@ -248,7 +292,8 @@
             e.code = 'no-key';
             throw e;
         }
-        const call = () => CSC.gemini.generate({
+        const call = () => CSC.llm.generate({
+            provider: state.settings.provider,
             apiKey,
             model: state.settings.model,
             system: request.system,
@@ -261,6 +306,7 @@
         let res;
         try {
             res = await call();
+            state.aiUsed = true;
         } catch (err) {
             if (err && err.code === 'model-not-found' && await switchToAvailableModel(apiKey).catch(() => null)) {
                 res = await call();
@@ -310,7 +356,12 @@
         try {
             return await task();
         } catch (err) {
-            showError(err && err.code === 'no-key' ? t('errNoKey') : errorMessage(err));
+            if (err && err.code === 'no-key') {
+                showError(t('errNoKeyOpened'));
+                $('settingsPanel').open = true;
+                $('settingsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => el.apiKey.focus({ preventScroll: true }), 400);
+            } else showError(errorMessage(err));
             return null;
         } finally {
             if (loading) loading.hidden = true;
@@ -336,9 +387,46 @@
         onCodeChanged();
     }
 
+    /** Legenda colorida acima do código: um botão por cláusula, que rola até a seção correspondente. */
+    function renderCodeLegend() {
+        const box = $('codeLegend');
+        if (!box) return;
+        box.textContent = '';
+        const cur = state.history[state.index];
+        const tp = state.templatePlan;
+        if (!cur || cur.origin !== 'blocks' || !tp || tp.kind !== 'blocks') { box.hidden = true; return; }
+        let leg;
+        try { leg = CSC.blocks.legend(tp.model, tp.lang); } catch (_) { box.hidden = true; return; }
+        const mk = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+        box.appendChild(mk('span', 'muted', t('codeLegendLabel')));
+        for (const c of leg.clausulas) {
+            const b = mk('button', 'k' + c.cor);
+            b.type = 'button';
+            b.title = t('codeLegendTitle', { name: c.numero });
+            b.appendChild(mk('span', 'k-dot'));
+            b.appendChild(document.createTextNode(c.numero + ' · ' + c.rotulo));
+            b.addEventListener('click', () => scrollCodeTo('// ' + c.numero + ' — '));
+            box.appendChild(b);
+        }
+        box.hidden = false;
+    }
+
+    function scrollCodeTo(marker) {
+        const ta = el.code;
+        const i = ta.value.indexOf(marker);
+        if (i < 0) return;
+        const line = ta.value.slice(0, i).split('\n').length - 1;
+        const lh = parseFloat(getComputedStyle(ta).lineHeight) || 18;
+        ta.scrollTop = Math.max(0, (line - 2) * lh);
+        ta.focus({ preventScroll: true });
+        const end = ta.value.indexOf('\n', i);
+        ta.setSelectionRange(i, end < 0 ? i : end);
+    }
+
     function onCodeChanged() {
         saveDraft();
         updateCodeUI();
+        renderCodeLegend();
         runScan();
         renderCompile();
         if (state.compile && state.compile.code !== currentCode() && state.settings.autoCompile && CSC.compiler.isLoaded()) {
@@ -347,7 +435,7 @@
     }
 
     function originLabel(origin) {
-        return t({ generated: 'originGenerated', optimized: 'originOptimized', refined: 'originRefined', fixed: 'originFixed', autofixed: 'originAutoFixed', manual: 'originManual', template: 'originTemplate', adapted: 'originAdapted' }[origin] || 'originManual');
+        return t({ generated: 'originGenerated', optimized: 'originOptimized', refined: 'originRefined', fixed: 'originFixed', autofixed: 'originAutoFixed', manual: 'originManual', template: 'originTemplate', adapted: 'originAdapted', blocks: 'originBlocks' }[origin] || 'originManual');
     }
 
     function updateCodeUI() {
@@ -398,14 +486,15 @@
     function saveDraft() {
         store.set('sessionStorage', DRAFT_KEY, JSON.stringify({
             clause: el.clause.value, history: state.history.slice(-20), index: Math.min(state.index, 19),
-            template: state.template, templatePlan: state.templatePlan
+            template: state.template, templatePlan: state.templatePlan, composer: CSC.composer.model()
         }));
     }
     function loadDraft() {
         const d = safeJson(store.get('sessionStorage', DRAFT_KEY));
         if (d.clause) el.clause.value = d.clause;
         if (d.template && d.template.id) state.template = Object.assign(state.template, d.template);
-        if (d.templatePlan && d.templatePlan.id) state.templatePlan = d.templatePlan;
+        if (d.templatePlan && (d.templatePlan.id || d.templatePlan.kind === 'blocks')) state.templatePlan = d.templatePlan;
+        state.draftComposer = d.composer && Array.isArray(d.composer.blocks) ? d.composer : null;
         if (Array.isArray(d.history) && d.history.length) {
             state.history = d.history;
             state.index = Math.max(0, Math.min(d.index ?? d.history.length - 1, d.history.length - 1));
@@ -640,16 +729,67 @@
     const TPL = CSC.templates;
 
     function applyMode() {
+        $('modeBlocks').checked = state.mode === 'blocks';
         $('modeTemplate').checked = state.mode === 'template';
         $('modeAI').checked = state.mode === 'ai';
+        $('blocksPanel').hidden = state.mode !== 'blocks';
+        $('clauseInput').hidden = state.mode === 'blocks';
         $('templatePanel').hidden = state.mode !== 'template';
         $('aiPanel').hidden = state.mode !== 'ai';
+        document.querySelector('.spread').classList.toggle('doc-mode', state.mode === 'blocks');
+    }
+
+    /** Texto do contrato para as funções de IA: minuta montada ou texto livre. */
+    function clauseText() {
+        if (state.mode === 'blocks' && CSC.composer.model()) {
+            return CSC.blocks.minuta(CSC.composer.model(), CSC.lang).map(c => c.numero + ' — ' + c.titulo + '. ' + c.texto).join('\n\n');
+        }
+        return el.clause.value.trim();
+    }
+
+    // ---------- Montagem por blocos ----------
+    let blocksTimer = null;
+    function onComposerChange(model) {
+        saveDraft();
+        clearTimeout(blocksTimer);
+        blocksTimer = setTimeout(() => {
+            // O código acompanha o contrato enquanto a versão atual vier da montagem.
+            const cur = state.history[state.index];
+            if (!cur || cur.origin !== 'blocks' || state.busy) return;
+            if (CSC.blocks.validate(model).length) return;
+            const code = CSC.blocks.build(model, CSC.lang);
+            if (code === cur.code) return;
+            cur.code = code;
+            el.code.value = code;
+            state.templatePlan = { kind: 'blocks', model: JSON.parse(JSON.stringify(model)), lang: CSC.lang };
+            onCodeChanged();
+        }, 700);
+    }
+
+    async function generateFromBlocks() {
+        const model = CSC.composer.model();
+        if (!model || state.busy) return;
+        const issues = CSC.blocks.validate(model);
+        if (issues.length) return showError(issues[0][CSC.lang === 'en' ? 'en' : 'pt']);
+        clearError();
+        setBusy(true);
+        $('convertLoadingIndicator').hidden = false;
+        try {
+            resetDerivedOutputs();
+            state.templatePlan = { kind: 'blocks', model: JSON.parse(JSON.stringify(model)), lang: CSC.lang };
+            setCode(CSC.blocks.build(model, CSC.lang), 'blocks');
+            await verifyOnly('blocksGenerated');
+            el.code.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } finally {
+            $('convertLoadingIndicator').hidden = true;
+            setBusy(false);
+        }
     }
 
     function updateSettingsStatus() {
         const st = $('settingsStatus');
         if (!st) return;
-        st.textContent = el.apiKey.value.trim() ? t('settingsWithKey', { model: state.settings.model }) : t('settingsNoKey');
+        st.textContent = el.apiKey.value.trim() ? t('settingsWithKey', { provider: PROV().label, model: state.settings.model }) : t('settingsNoKey');
     }
 
     function renderTemplateSelect() {
@@ -734,7 +874,7 @@
     }
 
     /** Verificação sem IA (verificador local e, se ativado, compilação). */
-    async function verifyOnly() {
+    async function verifyOnly(messageKey) {
         runScan();
         let compileText = t('compileNotRun');
         if (state.settings.autoCompile) {
@@ -748,7 +888,7 @@
         const n = blockingFindings().length;
         el.pipelineSummary.hidden = false;
         el.pipelineSummary.className = 'status-line ' + (n ? 'status-warn' : 'status-ok');
-        el.pipelineSummary.textContent = t('templateGenerated', { scan: n ? t('scanIssues', { n }) : t('scanClean'), compile: compileText });
+        el.pipelineSummary.textContent = t(messageKey || 'templateGenerated', { scan: n ? t('scanIssues', { n }) : t('scanClean'), compile: compileText });
     }
 
     async function generateFromTemplate() {
@@ -802,7 +942,8 @@
             const c = await compiledForLab();
             if (!c) return;
             const tp = state.templatePlan;
-            const plan = TPL.plan(tp.id, tp.values, tp.lang);
+            const plan = tp.kind === 'blocks' ? CSC.blocks.plan(tp.model, tp.lang) : TPL.plan(tp.id, tp.values, tp.lang);
+            CSC.lab.setScale(planScale());
             const chosen = CSC.lab.pickContract(c.result.contracts, plan.contrato);
             if (!chosen) return CSC.lab.setStatus(t('labNoDeployable'), 'error');
             $('labScenariosPanel').hidden = false;
@@ -850,6 +991,13 @@
         return c;
     }
 
+    /** Escala R$/ETH usada na geração do código atual (se houver). */
+    function planScale() {
+        const tp = state.templatePlan;
+        if (!tp) return null;
+        return tp.kind === 'blocks' ? Number(tp.model.scale) || 1000 : Number((tp.values && tp.values.escala) || 1000);
+    }
+
     async function labStart() {
         if (state.busy) return;
         setBusy(true);
@@ -859,7 +1007,15 @@
             const chosen = CSC.lab.pickContract(c.result.contracts);
             if (!chosen) return CSC.lab.setStatus(t('labNoDeployable'), 'error');
             CSC.lab.setStatus('', '');
-            CSC.lab.prepare(Object.assign({ source: currentCode() }, chosen));
+            const tp = state.templatePlan;
+            const plan = tp ? (tp.kind === 'blocks' ? CSC.blocks.plan(tp.model, tp.lang) : TPL.plan(tp.id, tp.values, tp.lang)) : null;
+            CSC.lab.setScale(planScale());
+            CSC.lab.setSeries(tp && tp.kind === 'blocks' ? tp.model.blocks.filter(b => b.type === 'oraculoValor' && Array.isArray(b.serie) && b.serie.length).map(b => ({
+                fn: (tp.lang === 'en' ? 'report' : 'informar') + CSC.blocks.names.pascal(b.label),
+                from: (tp.model.roles.find(r => r.id === b.params.fonte) || {}).label,
+                points: b.serie
+            })) : []);
+            CSC.lab.prepare(Object.assign({ source: currentCode() }, chosen), plan);
         } finally {
             setBusy(false);
         }
@@ -874,7 +1030,7 @@
             if (!chosenDefault) return CSC.lab.setStatus(t('labNoDeployable'), 'error');
             if (regenerate || !CSC.lab.hasPlan()) {
                 $('labLoadingText').textContent = t('labGeneratingScenarios');
-                const res = await askAI(CSC.prompts.scenarios(el.clause.value.trim(), currentCode(), CSC.lab.abiSummary(chosenDefault.abi), CSC.lang));
+                const res = await askAI(CSC.prompts.scenarios(clauseText(), currentCode(), CSC.lab.abiSummary(chosenDefault.abi), CSC.lang));
                 plan = res.data;
                 if (!plan || !Array.isArray(plan.cenarios)) throw Object.assign(new Error('scenarios'), { code: 'bad-json' });
             }
@@ -988,7 +1144,7 @@
     function openRemix() {
         const code = currentCode();
         copyCode(true);
-        let url = 'https://remix.ethereum.org/#code=' + encodeURIComponent(toBase64Utf8(code)) + '&autoCompile=true';
+        let url = 'https://remix.ethereum.org/#code=' + encodeURIComponent(toBase64Utf8(code)) + '&autoCompile=true&optimize=true&runs=200&evmVersion=cancun';
         const v = CSC.compiler.version();
         const m = v && /^(\d+\.\d+\.\d+\+commit\.[0-9a-f]+)/.exec(v);
         if (m) url += '&version=soljson-v' + m[1] + '.js';
@@ -1001,10 +1157,20 @@
         const code = currentCode();
         lines.push('# ' + t('reportTitle'), '');
         lines.push('- ' + t('reportGenerated') + ': ' + now.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR'));
-        lines.push('- ' + t('reportModel') + ': ' + state.settings.model + ' (temperatura ' + state.settings.temperature + ')');
+        const origin = state.history[state.index] ? state.history[state.index].origin : '';
+        lines.push('- ' + t('reportOrigin') + ': ' + originLabel(origin));
+        if (state.aiUsed) lines.push('- ' + t('reportModel') + ': ' + PROV().label + ' · ' + state.settings.model + ' (' + t('temperatureLabel').toLowerCase() + ' ' + state.settings.temperature + ')');
+        else lines.push('- ' + t('reportNoAI'));
         lines.push('- solc: ' + CSC.config.SOLC_VERSION, '');
-        lines.push('> ' + t('reportDisclaimer'), '');
-        if (el.clause.value.trim()) lines.push('## ' + t('reportClause'), '', el.clause.value.trim().split('\n').map(l => '> ' + l).join('\n'), '');
+        lines.push('> ' + (state.aiUsed ? t('reportDisclaimer') : t('reportDisclaimerNoAI')), '');
+        if (clauseText()) lines.push('## ' + t('reportClause'), '', clauseText().split('\n').map(l => '> ' + l).join('\n'), '');
+        const cm = state.mode === 'blocks' && CSC.composer.model();
+        if (cm && cm.roles.some(r => r.carteira || r.nome || r.documento)) {
+            lines.push('## ' + t('reportParties'), '');
+            cm.roles.forEach(r => lines.push('- ' + r.label + (r.nome ? ' — ' + r.nome : '') + (r.documento ? ' — ' + r.documento : '') + (r.carteira ? ': `' + r.carteira + '`' : '')));
+            lines.push('');
+        }
+        if (cm && cm.blocks.some(b => b.type === 'assinaturas')) lines.push('- ' + t('printSigHash') + ': `' + CSC.blocks.hashDoTexto(cm, CSC.lang) + '`', '');
         const sections = [['risk', 'riskAnalysisTitle'], ['suggest', 'suggestClausesTitle']];
         for (const [k, title] of sections) if (state.outputs[k]) lines.push('## ' + t(title), '', state.outputs[k], '');
         lines.push('## ' + t('reportCode'), '', '```solidity', code.trimEnd(), '```', '');
@@ -1036,6 +1202,11 @@
                 lines.push('');
             }
         }
+        const txs = CSC.lab.timelineForReport ? CSC.lab.timelineForReport() : [];
+        if (txs.length) {
+            lines.push('', '## ' + t('labTimeline'), '');
+            txs.forEach((tx, i) => lines.push((i + 1) + '. ' + tx));
+        }
         for (const [k, title] of [['review', 'securityReviewTitle'], ['explain', 'explanationTitle'], ['optimize', 'optimizationTitle']]) {
             if (state.outputs[k]) lines.push('', '## ' + t(title), '', state.outputs[k]);
         }
@@ -1052,6 +1223,7 @@
     el.apiKey.addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
 
     el.model.addEventListener('change', () => { state.settings.model = el.model.value; saveSettings(); updateSettingsStatus(); });
+    if ($('providerSelect')) $('providerSelect').addEventListener('change', e => setProvider(e.target.value));
     el.temperature.addEventListener('input', () => {
         state.settings.temperature = Number(el.temperature.value);
         el.temperatureValue.textContent = state.settings.temperature.toFixed(1);
@@ -1088,7 +1260,7 @@
         el.clause._t = setTimeout(() => { runExtraction(); saveDraft(); }, 400);
     });
     document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', () => {
-        state.mode = r.value === 'ai' ? 'ai' : 'template';
+        state.mode = ['ai', 'template', 'blocks'].includes(r.value) ? r.value : 'blocks';
         store.set('localStorage', MODE_KEY, state.mode);
         applyMode();
     }));
@@ -1100,10 +1272,11 @@
     });
     $('scaleInput').addEventListener('input', () => { state.template.scale = Number(String($('scaleInput').value).replace(',', '.')) || 1000; saveDraft(); });
     $('templateGenerateButton').addEventListener('click', generateFromTemplate);
+    $('blocksGenerateButton').addEventListener('click', generateFromBlocks);
     $('aiExtractButton').addEventListener('click', aiExtract);
     $('labTemplateTestsButton').addEventListener('click', runTemplateTests);
     $('adaptButton').addEventListener('click', async () => {
-        const clause = el.clause.value.trim();
+        const clause = clauseText();
         if (!clause) return showError(t('errNoClause'));
         const ok = await applyAICode(CSC.prompts.adapt(currentCode(), clause, CSC.lang), 'adapted', 'adaptLoadingIndicator', 'convertProgressText', true);
         if (ok && state.templatePlan) await runTemplateTests();
@@ -1112,7 +1285,7 @@
     $('convertButton').addEventListener('click', generate);
 
     $('analyzeRiskButton').addEventListener('click', () => {
-        const clause = el.clause.value.trim();
+        const clause = clauseText();
         if (!clause) return showError(t('errNoClause'));
         runTask('riskLoadingIndicator', async () => {
             const res = await askAI(CSC.prompts.risk(clause, CSC.lang));
@@ -1121,7 +1294,7 @@
     });
 
     $('suggestClausesButton').addEventListener('click', () => {
-        const clause = el.clause.value.trim();
+        const clause = clauseText();
         if (!clause) return showError(t('errNoClause'));
         runTask('suggestClausesLoadingIndicator', async () => {
             const res = await askAI(CSC.prompts.suggest(clause, CSC.lang));
@@ -1134,8 +1307,59 @@
     $('remixShortButton').addEventListener('click', openRemix);
     $('remixButton').addEventListener('click', openRemix);
     const report = () => downloadFile('relatorio-' + contractName(currentCode()) + '.md', buildReport(), 'text/markdown;charset=utf-8');
+    /** Versão para imprimir ou salvar em PDF (pela janela de impressão do navegador). */
+    /** Contrato pronto para assinatura: texto integral com a qualificação, a impressão digital e as linhas de assinatura. */
+    function printContract() {
+        const m = CSC.composer.model();
+        if (!m) return;
+        const B = CSC.blocks;
+        // Montado com textContent (sem Markdown): nenhum texto do contrato é interpretado como formatação.
+        const mk = (tag, text, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+        let area = $('printArea');
+        if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+        area.textContent = '';
+        const title = String(m.name || '').trim();
+        if (title) area.appendChild(mk('h1', title.toUpperCase()));
+        const parts = B.minuta(m, CSC.lang);
+        const q = B.qualificacao(m, CSC.lang);
+        if (q) parts[0] = Object.assign({}, parts[0], { texto: q });
+        for (const c of parts) {
+            const p = mk('p');
+            p.appendChild(mk('strong', c.numero + ' — ' + c.titulo));
+            p.appendChild(document.createElement('br'));
+            p.appendChild(document.createTextNode(c.texto));
+            area.appendChild(p);
+        }
+        if (m.blocks.some(b => b.type === 'assinaturas')) area.appendChild(mk('p', t('printSigHash') + ': ' + B.hashDoTexto(m, CSC.lang), 'print-hash'));
+        area.appendChild(mk('h2', t('printSigTitle')));
+        const witnesses = new Set(m.blocks.filter(b => b.type === 'testemunha').map(b => b.params.testemunha));
+        for (const r of m.roles) {
+            area.appendChild(mk('p', '_______________________________________________', 'print-line'));
+            area.appendChild(mk('p', (witnesses.has(r.id) ? t('printWitness') + ' — ' : '') + r.label + (r.nome ? ' — ' + r.nome : '') + (r.documento ? ' — ' + r.documento : '')));
+        }
+        area.appendChild(mk('p', t('printNoteSig'), 'print-note'));
+        document.body.classList.add('printing');
+        const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+        window.addEventListener('afterprint', done);
+        window.print();
+        setTimeout(done, 1000);
+    }
+
+    function printReport() {
+        let area = $('printArea');
+        if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+        area.innerHTML = CSC.markdown.render(buildReport());
+        document.body.classList.add('printing');
+        const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+        window.addEventListener('afterprint', done);
+        window.print();
+        setTimeout(done, 1000);
+    }
     $('reportButton').addEventListener('click', report);
     $('reportButton2').addEventListener('click', report);
+    $('printButton').addEventListener('click', printReport);
+    if ($('docPrint')) $('docPrint').addEventListener('click', printContract);
+    $('printButton2').addEventListener('click', printReport);
 
     $('compileButton').addEventListener('click', async () => {
         if (state.busy) return;
@@ -1167,14 +1391,14 @@
     $('explainSolidityButton').addEventListener('click', () => {
         const code = currentCode();
         runTask('explanationLoadingIndicator', async () => {
-            const res = await askAI(CSC.prompts.explain(code, el.clause.value.trim(), CSC.lang));
+            const res = await askAI(CSC.prompts.explain(code, clauseText(), CSC.lang));
             showMarkdown('explanationOutputContainer', 'explanationOutput', res.text, 'explain');
         });
     });
 
     $('mappingButton').addEventListener('click', () => {
         const code = currentCode();
-        const clause = el.clause.value.trim();
+        const clause = clauseText();
         if (!clause) return showError(t('errNoClause'));
         runTask('mappingLoadingIndicator', async () => {
             const res = await askAI(CSC.prompts.mapping(clause, code, CSC.lang));
@@ -1225,6 +1449,186 @@
         if (ok) el.code.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
+    // ---------- Cotação do Ether ----------
+    const ratesEl = { panel: $('ratesPanel'), status: $('ratesStatus'), info: $('ratesInfo'), eth: $('rateEth'), brl: $('rateBrl'), usd: $('rateUsd'), btc: $('rateBtc') };
+    let ratesDriver = 'eth';
+    const locale = () => (CSC.lang === 'en' ? 'en-US' : 'pt-BR');
+    const fmtMoney = (v, cur) => Number(v).toLocaleString(locale(), { style: 'currency', currency: cur, maximumFractionDigits: 2 });
+    const parseNum = v => {
+        const s = String(v || '').trim().replace(/\s/g, '');
+        if (!s) return NaN;
+        // Aceita "1.234,56" (pt) e "1,234.56" (en).
+        const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+        const norm = lc > ld ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+        return Number(norm);
+    };
+    const fmtNum = (v, digits) => Number(v).toLocaleString(locale(), { maximumFractionDigits: digits, useGrouping: false });
+
+    function syncRates() {
+        const q = CSC.rates.current();
+        if (!q) return;
+        const eth = ratesDriver === 'eth' ? parseNum(ratesEl.eth.value)
+            : ratesDriver === 'brl' ? parseNum(ratesEl.brl.value) / q.brl
+            : ratesDriver === 'usd' ? parseNum(ratesEl.usd.value) / q.usd
+            : parseNum(ratesEl.btc.value) / q.btc;
+        if (!Number.isFinite(eth)) return;
+        if (ratesDriver !== 'eth') ratesEl.eth.value = fmtNum(eth, 8);
+        if (ratesDriver !== 'brl') ratesEl.brl.value = fmtNum(eth * q.brl, 2);
+        if (ratesDriver !== 'usd') ratesEl.usd.value = fmtNum(eth * q.usd, 2);
+        if (ratesDriver !== 'btc') ratesEl.btc.value = q.btc ? fmtNum(eth * q.btc, 8) : '—';
+    }
+
+    function renderRates() {
+        const q = CSC.rates.current();
+        const err = CSC.rates.error();
+        if (!q) {
+            ratesEl.status.textContent = ratesEl.panel.open ? (err ? '—' : t('ratesLoading')) : t('ratesClosed');
+            ratesEl.info.textContent = err ? t('ratesError', { msg: err }) : (ratesEl.panel.open ? t('ratesLoading') : '');
+            return;
+        }
+        ratesEl.status.textContent = t('ratesStatus', { brl: fmtMoney(q.brl, 'BRL'), usd: fmtMoney(q.usd, 'USD'), btc: q.btc ? fmtNum(q.btc, 6) + ' BTC' : '—' });
+        const time = new Date(q.fetched).toLocaleTimeString(locale());
+        const g = CSC.rates.gasInfo();
+        ratesEl.info.textContent = t('ratesInfo', { source: q.source, kind: q.source === 'CoinGecko' ? t('ratesKindAgg') : t('ratesKindEx'), time })
+            + (g ? ' ' + t('gasPriceInfo', { gwei: (Number(g.wei) / 1e9).toLocaleString(locale(), { maximumFractionDigits: 3 }), source: g.source }) : '')
+            + (CSC.rates.isStale() ? ' ' + t('ratesStale') : '') + (err ? ' ' + t('ratesError', { msg: err }) : '');
+        syncRates();
+        CSC.lab.rerender && state.ratesRerenderLab && CSC.lab.rerender();
+    }
+
+    CSC.rates.subscribe(renderRates);
+    ratesEl.panel.addEventListener('toggle', () => {
+        if (ratesEl.panel.open) CSC.rates.hold(); else CSC.rates.release();
+        renderRates();
+    });
+    ['eth', 'brl', 'usd', 'btc'].forEach(k => ratesEl[k].addEventListener('input', () => { ratesDriver = k; syncRates(); }));
+    $('ratesRefresh').addEventListener('click', () => { CSC.rates.refresh(); renderRates(); });
+    $('ratesUseScale').addEventListener('click', () => {
+        const q = CSC.rates.current();
+        if (!q) return flash(el.keyFeedback, t('ratesNeedQuote')) || showNotice(t('ratesNeedQuote'));
+        const brl = Math.round(q.brl * 100) / 100;
+        const model = CSC.composer.model();
+        if (model) {
+            model.scale = brl;
+            model.cotacao = { brl, fonte: q.source, data: new Date(q.fetched).toISOString() };
+            CSC.composer.render();
+            onComposerChange(model);
+        }
+        state.template.scale = brl;
+        $('scaleInput').value = String(brl);
+        showNotice(t('ratesApplied', { brl: brl.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }));
+        saveDraft();
+    });
+
+    // ---------- Tutoriais guiados ----------
+    const L = (pt, en) => (CSC.lang === 'en' ? en : pt);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    async function waitFor(fn, timeout) {
+        const start = Date.now();
+        while (Date.now() - start < (timeout || 30000)) { if (fn()) return true; await sleep(150); }
+        return false;
+    }
+    function setMode(mode) {
+        state.mode = mode;
+        store.set('localStorage', MODE_KEY, mode);
+        applyMode();
+    }
+    async function ensureBlocksCode() {
+        setMode('blocks');
+        const model = CSC.composer.model();
+        if (!model || !model.blocks.length || CSC.blocks.validate(model).length) CSC.composer.load(CSC.blocks.preset('locacao', CSC.lang));
+        const cur = state.history[state.index];
+        if (!cur || cur.origin !== 'blocks' || !state.templatePlan) await generateFromBlocks();
+        await waitFor(() => !state.busy, 120000);
+    }
+    const $q = sel => document.querySelector(sel);
+
+    function tour1() {
+        CSC.tour.start([
+            { target: () => $('modeBlocks').closest('.mode-option'), before: () => setMode('blocks'),
+                title: L('Escolha o modo "Montar contrato"', 'Choose "Build a contract"'),
+                text: L('Neste modo, você monta o contrato cláusula por cláusula, sem IA. Cada cláusula é um bloco revisado e testado.', 'In this mode you build the contract clause by clause, without AI. Each clause is a reviewed, tested block.') },
+            { target: '#docPresets', before: () => { const m = CSC.composer.model(); if (!m || !m.blocks.length) CSC.composer.load(CSC.blocks.preset('locacao', CSC.lang)); },
+                title: L('Comece de um exemplo', 'Start from an example'),
+                text: L('Escolha aqui um contrato pronto para servir de base (locação, compra parcelada, serviços...). Já deixamos um exemplo carregado abaixo.', 'Pick a ready-made contract as a starting point (lease, installment sale, services...). An example is already loaded below.') },
+            { target: () => $q('#docBody .clause:not(.clause-parties):not(.clause-final)'),
+                title: L('Edite o texto livremente', 'Edit the text freely'),
+                text: L('Clique em qualquer parte do texto para reescrevê-lo. Os trechos destacados (partes, valores e prazos) são os que o código executa; altere-os nos próprios campos.', 'Click anywhere in the text to rewrite it. The highlighted parts (parties, amounts, deadlines) are what the code executes; change them in the fields themselves.') },
+            { target: '.add-clause',
+                title: L('Acrescente cláusulas', 'Add clauses'),
+                text: L('Inclua pagamentos, multa e juros, garantias, rescisão, vigência, cláusulas livres ou blocos que você salvou em "Meus blocos". As setas reordenam e o × remove.', 'Add payments, late fees, guarantees, termination, term, free clauses or blocks you saved in "My blocks". Arrows reorder and × removes.') },
+            { target: '#docIssues',
+                title: L('Pendências e avisos', 'Issues and warnings'),
+                text: L('Aqui aparecem os problemas do contrato (por exemplo, a mesma parte como devedora e credora) e os valores escritos fora das lacunas, que não serão executados.', 'Contract problems (e.g. the same party as debtor and creditor) and amounts written outside the blanks, which will not be executed, appear here.') },
+            { target: '#blocksGenerateButton',
+                title: L('Gere o "smart contract"', 'Generate the smart contract'),
+                text: L('Ao clicar em "Próximo", o código será gerado a partir do contrato. Depois disso, ele acompanha automaticamente as alterações que você fizer no texto.', 'When you click "Next", the code is generated from the contract. After that, it automatically follows your changes.') },
+            { target: '#solidityCode', before: ensureBlocksCode,
+                title: L('O código por trás do contrato', 'The code behind the contract'),
+                text: L('Este é o código Solidity. Cada seção traz, em comentário, a cláusula que implementa. Você pode copiá-lo, baixá-lo ou abri-lo no Remix.', 'This is the Solidity code. Each section quotes, as a comment, the clause it implements. You can copy it, download it or open it in Remix.') },
+            { target: '#securitySection',
+                title: L('Verificação de segurança', 'Security check'),
+                text: L('O verificador aponta padrões perigosos, e o compilador oficial confirma que o código compila. Nos modelos e blocos revisados, não deve haver achados relevantes.', 'The checker flags dangerous patterns and the official compiler confirms the code compiles. Reviewed templates and blocks should show no relevant findings.') },
+            { target: '#labTemplateTestsButton',
+                title: L('Teste o contrato', 'Test the contract'),
+                text: L('Ao clicar em "Próximo", os testes predefinidos serão executados numa "blockchain" simulada: fluxos normais, tentativas de ataque e conferência de solvência.', 'When you click "Next", the predefined tests run on a simulated blockchain: normal flows, attack attempts and a solvency check.') },
+            { target: '#labScenariosPanel', before: async () => { if ($('labScenariosPanel').hidden) { await runTemplateTests(); await waitFor(() => !state.busy, 120000); } },
+                title: L('Resultado dos testes', 'Test results'),
+                text: L('Cada cenário mostra os passos, o resultado e a explicação. Se algo falhar depois de você editar o contrato, o placar indica o problema. Próximo tutorial: testar na prática, como cada parte.', 'Each scenario shows its steps, result and explanation. If something fails after you edit the contract, the score shows the problem. Next tutorial: hands-on testing as each party.') }
+        ]);
+    }
+
+    function tour2() {
+        CSC.tour.start([
+            { target: '#labStartButton', before: ensureBlocksCode,
+                title: L('Implante o contrato no Laboratório', 'Deploy the contract to the Lab'),
+                text: L('O Laboratório é uma "blockchain" que roda só no seu navegador: sem carteira, sem custo e sem risco. Cada parte recebe uma conta fictícia, e há sempre um "Atacante".', 'The Lab is a blockchain running only in your browser: no wallet, no cost, no risk. Each party gets a fictitious account, and there is always an "Attacker".') },
+            { target: '#labDeployForm', before: async () => { await labStart(); await waitFor(() => !$('labDeployForm').hidden, 60000); },
+                title: L('Implantação', 'Deployment'),
+                text: L('Aqui ficam as contas e quem implanta o contrato. Ao clicar em "Próximo", o contrato será implantado.', 'Here are the accounts and who deploys the contract. When you click "Next", the contract is deployed.') },
+            { target: '#labAccounts', before: async () => { const b = $q('#labDeployForm .btn-ink'); if (b && $('labWorkspace').hidden) b.click(); await waitFor(() => !$('labWorkspace').hidden, 30000); },
+                title: L('Contas e saldos', 'Accounts and balances'),
+                text: L('Cada parte começa com Ether de teste. Os saldos mudam a cada pagamento e saque. Se você consultou a cotação no topo da página, aparece o equivalente em reais.', 'Each party starts with test Ether. Balances change with every payment and withdrawal. If you checked the price at the top, the BRL equivalent is shown.') },
+            { target: () => $q('.fn-card'),
+                title: L('Funções do contrato', 'Contract functions'),
+                text: L('Escolha em "Como" quem chama a função e clique em "Executar". Funções "payable" recebem Ether: informe o valor no campo ao lado.', 'Choose in "As" who calls the function and click "Run". "payable" functions receive Ether: enter the amount next to it.') },
+            { target: () => $q('.fn-card .info-btn'),
+                title: L('O botão "i"', 'The "i" button'),
+                text: L('Explica cada função: a cláusula que ela implementa, quem pode chamá-la, quando e por quais motivos pode ser recusada.', 'Explains each function: the clause it implements, who can call it, when, and why it may be rejected.') },
+            { target: '.clock-buttons',
+                title: L('Avance o tempo', 'Move time forward'),
+                text: L('Use estes botões para simular a passagem do tempo e testar atrasos, multas, juros, prazos de garantia e vencimento antecipado.', 'Use these buttons to simulate time passing and test delays, fees, interest, guarantee deadlines and acceleration.') },
+            { target: '#labTimelinePanel',
+                title: L('Registro de transações', 'Transaction log'),
+                text: L('Cada operação fica registrada: quem fez, o que fez, o valor, os eventos e, se recusada, o motivo. Experimente agir como "Atacante" e veja a recusa.', 'Every operation is recorded: who, what, amount, events and, if rejected, why. Try acting as the "Attacker" and watch it get rejected.') }
+        ]);
+    }
+
+    function tour3() {
+        CSC.tour.start([
+            { target: '#settingsPanel', before: () => { $('settingsPanel').open = true; },
+                title: L('Chave da API (opcional)', 'API key (optional)'),
+                text: L('Para usar a IA, obtenha uma chave gratuita no Google AI Studio (link no painel), cole-a aqui e clique em "Salvar chave". Sem chave, todo o resto funciona.', 'To use AI, get a free key at Google AI Studio (link in the panel), paste it here and click "Save key". Without a key, everything else works.') },
+            { target: '#aiParams',
+                title: L('Parâmetros da IA', 'AI parameters'),
+                text: L('O modelo leve sugerido tem a maior cota gratuita. Temperatura baixa deixa o código mais previsível; 2 ou 3 rodadas de autocorreção ajudam modelos leves.', 'The suggested lightweight model has the largest free quota. Low temperature makes code more predictable; 2 or 3 self-correction rounds help lightweight models.') },
+            { target: () => ($('adaptRow').hidden ? $('blocksGenerateButton') : $('adaptRow')),
+                title: L('Adaptar o contrato com IA', 'Adapt the contract with AI'),
+                text: L('Depois de gerar o código pelo contrato montado, a IA pode acrescentar o que a sua cláusula prevê e os blocos não cobrem. Os testes predefinidos são repetidos automaticamente.', 'After generating the code from the composed contract, the AI can add what your clause requires and the blocks do not cover. Predefined tests run again automatically.') },
+            { target: '.complementary',
+                title: L('Análises complementares', 'Complementary analyses'),
+                text: L('Peça à IA uma análise de riscos ou sugestões de cláusulas. No modo "Montar contrato", ela analisa o próprio contrato montado.', 'Ask the AI for a risk analysis or clause suggestions. In "Build a contract" mode, it analyzes the composed contract.') },
+            { target: () => $('modeAI').closest('.mode-option'),
+                title: L('Texto livre', 'Free text'),
+                text: L('Para cláusulas fora dos blocos, use este modo: a IA redige o contrato, e o aplicativo verifica, compila e corrige automaticamente.', 'For clauses outside the blocks, use this mode: the AI drafts the contract and the app checks, compiles and fixes it automatically.') }
+        ]);
+    }
+
+    $('tour1Button').addEventListener('click', () => { $('guidePanel').open = false; tour1(); });
+    $('tour2Button').addEventListener('click', () => { $('guidePanel').open = false; tour2(); });
+    $('tour3Button').addEventListener('click', () => { $('guidePanel').open = false; tour3(); });
+    if (!store.get('localStorage', 'csc.guideSeen')) { $('guidePanel').open = true; store.set('localStorage', 'csc.guideSeen', '1'); }
+
     // ---------- Contador de requisições ----------
     function renderRequestCount(n) {
         const c = $('requestCount');
@@ -1239,11 +1643,52 @@
         accounts: $('labAccounts'), state: $('labState'), functions: $('labFunctions'), timeline: $('labTimelinePanel'),
         scenarios: $('labScenarioResults'), scenarioActions: $('labScenarioActions'), fixFromTests: $('labFixFromTestsButton')
     });
+    CSC.composer.init({
+        doc: $('docBody'), title: $('docTitle'), presets: $('docPresets'), issues: $('docIssues'), myModels: $('docMyModels'),
+        save: $('docSave'), open: $('docOpen'), openFile: $('docOpenFile'),
+        generate: $('blocksGenerateButton'), notice: text => flash(el.toolbarFeedback, text) || showNotice(text)
+    }, onComposerChange);
     loadKey();
     renderSettings();
     loadDraft();
+    CSC.composer.load(state.draftComposer || CSC.blocks.preset('locacao', CSC.lang));
     applyMode();
     if (!state.template.status || !Object.keys(state.template.status).length) runExtraction();
+    // Interface usada pelo assistente de conversa (assets/js/assistant.js).
+    CSC.app = {
+        askAI,
+        hasKey: () => !!el.apiKey.value.trim(),
+        providerLabel: () => PROV().label,
+        openSettings() {
+            $('settingsPanel').open = true;
+            $('settingsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => el.apiKey.focus({ preventScroll: true }), 400);
+        },
+        isBusy: () => state.busy,
+        mode: () => state.mode,
+        code: () => currentCode(),
+        findings: () => state.findings.slice(),
+        compileSummary() {
+            const c = state.compile && state.compile.code === currentCode() ? state.compile : null;
+            if (!c || !c.result) return null;
+            return { erros: compileErrors(c).map(e => e.message).slice(0, 10) };
+        },
+        /** Carrega o contrato proposto, gera o código e executa os testes predefinidos. */
+        async applyModel(raw) {
+            await waitFor(() => !state.busy, 120000);
+            setMode('blocks');
+            CSC.composer.loadSanitized(raw);
+            const issues = CSC.blocks.validate(CSC.composer.model());
+            if (issues.length) return { ok: false, issues };
+            await generateFromBlocks();
+            await waitFor(() => !state.busy, 120000);
+            await runTemplateTests();
+            await waitFor(() => !state.busy, 240000);
+            $('blocksPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return { ok: true, tests: CSC.lab.summaryForReport() };
+        }
+    };
+
     applyLanguage();
     renderRequestCount(CSC.gemini.stats.requests);
     runScan();

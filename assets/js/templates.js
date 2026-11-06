@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * Modo sem IA: modelos de contrato revisados, extração de parâmetros por
  * regras e cenários de teste predefinidos.
@@ -34,6 +35,7 @@
 pragma solidity ${SOLC_VERSION};
 
 // {{ATENÇÃO: esqueleto gerado a partir de modelo revisado (sem IA). Requer revisão profissional antes de qualquer uso.|WARNING: skeleton generated from a reviewed template (no AI). Requires professional review before any use.}}
+// {{Gerado com o Conversor Contratual|Generated with the Contract Converter}} (github.com/EduChacon/conversor_smartcontract)
 
 /// @title ${name}
 /// @notice ${title}
@@ -169,8 +171,8 @@ ${GUARDS}
         uint256 vencimento = proximoVencimento();
         total = valorAluguel;
         if (block.timestamp > vencimento + tolerancia) {
-            // {{dias de atraso contados do vencimento, arredondados para cima|days late counted from the due date, rounded up}}
-            uint256 diasAtraso = (block.timestamp - vencimento + 1 days - 1) / 1 days;
+            // {{dias completos de atraso desde o vencimento (fração de dia não conta)|full days late since the due date (partial days do not count)}}
+            uint256 diasAtraso = (block.timestamp - vencimento) / 1 days;
             uint256 multa = valorAluguel * multaBps / BPS;
             // {{juros simples "pro rata die": multiplica antes de dividir|simple pro rata interest: multiply before dividing}}
             uint256 juros = valorAluguel * jurosMensaisBps * diasAtraso / (BPS * MES);

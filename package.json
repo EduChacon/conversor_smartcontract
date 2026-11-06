@@ -3,7 +3,7 @@
   "private": true,
   "description": "Conversor de cláusulas contratuais em linguagem natural para esqueletos de smart contracts em Solidity (ferramenta educacional).",
   "scripts": {
-    "build": "node tools/build-evm.mjs",
+    "build": "node tools/build-evm.mjs && node tools/build-helpers.mjs",
     "test": "node --test tests/*.test.js tests/*.test.mjs"
   },
   "devDependencies": {

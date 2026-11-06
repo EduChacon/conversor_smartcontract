@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 // Gera assets/vendor/evm-lab.js a partir de src/evm-lab.mjs.
 // Uso: npm install && npm run build
 import { build } from 'esbuild';

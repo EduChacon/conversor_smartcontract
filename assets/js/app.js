@@ -1563,7 +1563,7 @@
         scenarios: $('labScenarioResults'), scenarioActions: $('labScenarioActions'), fixFromTests: $('labFixFromTestsButton')
     });
     CSC.composer.init({
-        doc: $('docBody'), title: $('docTitle'), presets: $('docPresets'), issues: $('docIssues'),
+        doc: $('docBody'), title: $('docTitle'), presets: $('docPresets'), issues: $('docIssues'), myModels: $('docMyModels'),
         save: $('docSave'), open: $('docOpen'), openFile: $('docOpenFile'),
         generate: $('blocksGenerateButton'), notice: text => flash(el.toolbarFeedback, text) || showNotice(text)
     }, onComposerChange);

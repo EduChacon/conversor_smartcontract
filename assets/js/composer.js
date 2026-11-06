@@ -33,6 +33,22 @@
         myBlocksEmpty: 'Nenhum bloco salvo ainda. Use "Salvar como meu bloco" numa cláusula.',
         saveMyBlock: 'Salvar como meu bloco',
         savedMyBlock: 'Bloco salvo em "Meus blocos".',
+        savedMyBlockGroup: 'Bloco salvo em "Meus blocos", com {n} cláusula(s) ligada(s).',
+        withLinked: '+{n} ligada(s)',
+        builtinPresets: 'Exemplos prontos',
+        myModels: 'Meus modelos',
+        myModelsCount: 'Meus modelos ({n})',
+        myModelsEmpty: 'Nenhum modelo salvo ainda. Monte um contrato e clique em "Salvar como meu modelo"; ele ficará disponível na lista "Começar de um exemplo", para reaproveitar em outros contratos.',
+        saveModel: 'Salvar como meu modelo',
+        modelSaved: 'Modelo "{name}" salvo. Ele aparece em "Começar de um exemplo" → "Meus modelos".',
+        modelReplaced: 'Modelo "{name}" atualizado.',
+        modelUse: 'Usar',
+        modelDelete: 'Excluir modelo',
+        modelDeleteConfirm: 'Excluir o modelo "{name}"?',
+        modelsExport: 'Exportar modelos',
+        modelsImport: 'Importar modelos',
+        modelsImported: '{n} modelo(s) importado(s).',
+        modelsHint: 'Os modelos ficam guardados neste navegador. Exporte-os em arquivo para usar em outro computador ou compartilhar. Endereços de carteira não são guardados.',
         deleteMyBlock: 'Excluir',
         exportMyBlocks: 'Exportar meus blocos',
         importMyBlocks: 'Importar blocos',
@@ -100,6 +116,22 @@
         myBlocksEmpty: 'No saved blocks yet. Use "Save as my block" on a clause.',
         saveMyBlock: 'Save as my block',
         savedMyBlock: 'Block saved to "My blocks".',
+        savedMyBlockGroup: 'Block saved to "My blocks", with {n} linked clause(s).',
+        withLinked: '+{n} linked',
+        builtinPresets: 'Ready-made examples',
+        myModels: 'My templates',
+        myModelsCount: 'My templates ({n})',
+        myModelsEmpty: 'No saved templates yet. Build a contract and click "Save as my template"; it will be listed under "Start from an example", ready to reuse in other contracts.',
+        saveModel: 'Save as my template',
+        modelSaved: 'Template "{name}" saved. It is listed under "Start from an example" → "My templates".',
+        modelReplaced: 'Template "{name}" updated.',
+        modelUse: 'Use',
+        modelDelete: 'Delete template',
+        modelDeleteConfirm: 'Delete the template "{name}"?',
+        modelsExport: 'Export templates',
+        modelsImport: 'Import templates',
+        modelsImported: '{n} template(s) imported.',
+        modelsHint: 'Templates are stored in this browser. Export them to a file to use on another computer or to share. Wallet addresses are not stored.',
         deleteMyBlock: 'Delete',
         exportMyBlocks: 'Export my blocks',
         importMyBlocks: 'Import blocks',
@@ -508,7 +540,7 @@
         });
         const mine = store.get();
         const mineItems = mine.length ? mine.map((m, i) => el('span', { class: 'mine-item' }, [
-            el('button', { type: 'button', class: 'palette-item', text: m.label, title: (B().BLOCKS[m.type] || {}).name ? B().BLOCKS[m.type].name[lang] : '', onclick: () => addMine(m) }),
+            el('button', { type: 'button', class: 'palette-item', text: m.label + (Array.isArray(m.ligadas) && m.ligadas.length ? ' ' + t('withLinked', { n: m.ligadas.length }) : ''), title: (B().BLOCKS[m.type] || {}).name ? B().BLOCKS[m.type].name[lang] : '', onclick: () => addMine(m) }),
             el('button', { type: 'button', class: 'icon-btn', title: t('deleteMyBlock'), 'aria-label': t('deleteMyBlock'), text: '×', onclick: () => { const all = store.get(); all.splice(i, 1); store.set(all); render(); } })
         ])) : [el('p', { class: 'hint', text: t('myBlocksEmpty') })];
         const fileInput = el('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: e => importMine(e.target.files[0]) });
@@ -536,24 +568,34 @@
     }
 
     // ---------- Meus blocos ----------
-    function saveMine(block) {
+    /** Serializa um bloco sem referências a partes ou cláusulas específicas. */
+    function packBlock(block, mainUid) {
         const def = B().BLOCKS[block.type];
         const params = {};
         for (const p of def.params) {
             const v = block.params[p.key];
             if (p.kind === 'role') params[p.key] = { roleIndex: Math.max(0, state.model.roles.findIndex(r => r.id === v)) };
-            else if (p.kind === 'ref') params[p.key] = null;
+            else if (p.kind === 'ref') params[p.key] = mainUid && v === mainUid ? '@principal' : null;
             else params[p.key] = v;
         }
+        return { type: block.type, label: block.label, texto: block.texto || null, params };
+    }
+
+    function saveMine(block) {
+        const entry = packBlock(block);
+        // Cláusulas ligadas a esta (multa, cláusula penal, vencimento antecipado...) vão junto.
+        const deps = state.model.blocks.filter(x => x !== block && B().BLOCKS[x.type].attached && x.params.alvo === block.uid);
+        if (deps.length) entry.ligadas = deps.map(d => packBlock(d, block.uid));
         const all = store.get();
-        all.push({ type: block.type, label: block.label, texto: block.texto || null, params });
+        all.push(entry);
         store.set(all);
-        if (state.dom.notice) state.dom.notice(t('savedMyBlock'));
+        if (state.dom.notice) state.dom.notice(deps.length ? t('savedMyBlockGroup', { n: deps.length }) : t('savedMyBlock'));
         render();
     }
 
-    function addMine(m) {
-        if (!B().BLOCKS[m.type]) return;
+    /** Cria um bloco a partir do salvo; '@principal' liga ao bloco indicado. */
+    function unpackBlock(m, mainUid) {
+        if (!B().BLOCKS[m.type]) return null;
         const b = B().newBlock(m.type, state.model.roles, CSC.lang, state.model.blocks);
         const def = B().BLOCKS[m.type];
         for (const p of def.params) {
@@ -562,7 +604,8 @@
             if (p.kind === 'role') {
                 const r = state.model.roles[Math.min(v.roleIndex || 0, state.model.roles.length - 1)];
                 if (r) b.params[p.key] = r.id;
-            } else if (p.kind !== 'ref') b.params[p.key] = v;
+            } else if (p.kind === 'ref') { if (v === '@principal' && mainUid) b.params[p.key] = mainUid; }
+            else b.params[p.key] = v;
         }
         if (m.texto) b.texto = m.texto;
         if (m.label && !def.single) {
@@ -571,9 +614,113 @@
             for (let i = 2; taken.has(B().names.pascal(label)); i++) label = m.label + ' ' + i;
             b.label = label;
         }
+        return b;
+    }
+
+    function addMine(m) {
+        const b = unpackBlock(m);
+        if (!b) return;
         state.model.blocks.push(b);
+        for (const d of (Array.isArray(m.ligadas) ? m.ligadas : [])) {
+            const x = unpackBlock(d, b.uid);
+            if (x) state.model.blocks.push(x);
+        }
         state.paletteOpen = false;
         changed(true);
+    }
+
+    // ---------- Meus modelos (contratos inteiros reutilizáveis) ----------
+    const MODELS_KEY = 'csc.myModels';
+    const models = {
+        get() { try { const v = JSON.parse(localStorage.getItem(MODELS_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; } },
+        set(v) { try { localStorage.setItem(MODELS_KEY, JSON.stringify(v)); } catch (_) { /* indisponível */ } }
+    };
+    /** Cópia do contrato sem endereços de carteira (dados das partes). */
+    function templateCopy(model) {
+        const m = JSON.parse(JSON.stringify(model));
+        for (const r of m.roles || []) delete r.carteira;
+        delete m.cotacao;
+        return m;
+    }
+    function saveModel() {
+        const name = String(state.model.name || '').trim() || t('docBlank');
+        const all = models.get();
+        const i = all.findIndex(x => x.nome.toLowerCase() === name.toLowerCase());
+        const entry = { id: i >= 0 ? all[i].id : 'm' + Date.now().toString(36), nome: name, salvoEm: new Date().toISOString(), modelo: templateCopy(state.model) };
+        if (i >= 0) all[i] = entry; else all.push(entry);
+        models.set(all);
+        if (state.dom.notice) state.dom.notice(t(i >= 0 ? 'modelReplaced' : 'modelSaved', { name }));
+        state.modelsOpen = true;
+        render();
+    }
+    function useModel(id) {
+        const m = models.get().find(x => x.id === id);
+        if (!m) return;
+        try { state.model = sanitizeModel(JSON.parse(JSON.stringify(m.modelo))); } catch (_) { if (state.dom.notice) state.dom.notice(t('importFailed')); return; }
+        state.openWording.clear();
+        changed(true);
+    }
+    function exportModels() {
+        const blob = new Blob([JSON.stringify({ formato: 'conversor-contratual/modelos', versao: 1, modelos: models.get() }, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = el('a', { href: url, download: 'meus-modelos.json' });
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    function importModels(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const data = JSON.parse(reader.result);
+                // Aceita um arquivo de modelos ou um contrato salvo (.json) isolado.
+                const raw = Array.isArray(data.modelos) ? data.modelos
+                    : data.modelo ? [{ nome: data.modelo.name, modelo: data.modelo }] : [];
+                const list = [];
+                for (const x of raw) {
+                    try {
+                        const modelo = templateCopy(sanitizeModel(x.modelo));
+                        list.push({ id: 'm' + Date.now().toString(36) + list.length, nome: String(x.nome || modelo.name || t('docBlank')).slice(0, 80), salvoEm: new Date().toISOString(), modelo });
+                    } catch (_) { /* ignora entrada inválida */ }
+                }
+                if (!list.length) throw new Error('empty');
+                models.set(models.get().concat(list));
+                state.modelsOpen = true;
+                if (state.dom.notice) state.dom.notice(t('modelsImported', { n: list.length }));
+                render();
+            } catch (_) {
+                if (state.dom.notice) state.dom.notice(t('importFailed'));
+            }
+        };
+        reader.readAsText(file);
+    }
+    function myModelsNode() {
+        const all = models.get();
+        const lang = CSC.lang === 'en' ? 'en-US' : 'pt-BR';
+        const fileInput = el('input', { type: 'file', accept: 'application/json,.json', hidden: true, onchange: e => { importModels(e.target.files[0]); e.target.value = ''; } });
+        const list = all.length ? el('ul', { class: 'my-models' }, all.map(m => el('li', {}, [
+            el('strong', { text: m.nome }),
+            el('span', { class: 'muted small', text: ' · ' + new Date(m.salvoEm).toLocaleDateString(lang) + ' · ' + ((m.modelo.blocks || []).length) + ' ' + (CSC.lang === 'en' ? 'clause(s)' : 'cláusula(s)') }),
+            el('button', { type: 'button', class: 'link-btn', text: t('modelUse'), onclick: () => useModel(m.id) }),
+            el('button', { type: 'button', class: 'icon-btn', title: t('modelDelete'), 'aria-label': t('modelDelete') + ': ' + m.nome, text: '×', onclick: () => {
+                if (!window.confirm(t('modelDeleteConfirm', { name: m.nome }))) return;
+                models.set(models.get().filter(x => x.id !== m.id));
+                render();
+            } })
+        ]))) : el('p', { class: 'hint', text: t('myModelsEmpty') });
+        return el('details', { class: 'my-models-panel', open: state.modelsOpen ? true : null, ontoggle: e => { state.modelsOpen = e.target.open; } }, [
+            el('summary', { class: 'link-btn', text: all.length ? t('myModelsCount', { n: all.length }) : t('myModels') }),
+            el('div', { class: 'inline-row' }, [
+                el('button', { type: 'button', class: 'btn btn-quiet', text: t('saveModel'), onclick: saveModel }),
+                all.length ? el('button', { type: 'button', class: 'link-btn', text: t('modelsExport'), onclick: exportModels }) : null,
+                el('button', { type: 'button', class: 'link-btn', text: t('modelsImport'), onclick: () => fileInput.click() }),
+                fileInput
+            ]),
+            list,
+            el('p', { class: 'muted small', text: t('modelsHint') })
+        ]);
     }
 
     function exportMine() {
@@ -593,7 +740,8 @@
             try {
                 const data = JSON.parse(reader.result);
                 const list = (Array.isArray(data) ? data : data.blocos || []).filter(m => m && B().BLOCKS[m.type] && typeof m.label === 'string')
-                    .map(m => ({ type: m.type, label: String(m.label).slice(0, 60), texto: m.texto ? String(m.texto).slice(0, 2000) : null, params: m.params || {} }));
+                    .map(m => ({ type: m.type, label: String(m.label).slice(0, 60), texto: m.texto ? String(m.texto).slice(0, 2000) : null, params: m.params || {},
+                        ligadas: Array.isArray(m.ligadas) ? m.ligadas.filter(d => d && B().BLOCKS[d.type]).slice(0, 10).map(d => ({ type: d.type, label: String(d.label || '').slice(0, 60), texto: d.texto ? String(d.texto).slice(0, 2000) : null, params: d.params || {} })) : undefined }));
                 store.set(store.get().concat(list));
                 if (state.dom.notice) state.dom.notice(t('importDone', { n: list.length }));
                 render();
@@ -709,8 +857,11 @@
         sel.textContent = '';
         sel.appendChild(el('option', { value: '', text: t('docStart') }));
         sel.appendChild(el('option', { value: '__blank', text: t('docBlank') }));
-        for (const p of B().PRESETS) sel.appendChild(el('option', { value: p.id, text: p[lang] }));
+        const mine = models.get();
+        if (mine.length) sel.appendChild(el('optgroup', { label: t('myModels') }, mine.map(m => el('option', { value: 'mine:' + m.id, text: m.nome }))));
+        sel.appendChild(el('optgroup', { label: t('builtinPresets') }, B().PRESETS.map(p => el('option', { value: p.id, text: p[lang] }))));
         sel.value = '';
+        if (state.dom.myModels) { state.dom.myModels.textContent = ''; state.dom.myModels.appendChild(myModelsNode()); }
     }
 
     CSC.composer = {
@@ -726,6 +877,7 @@
             dom.presets.addEventListener('change', () => {
                 const v = dom.presets.value;
                 if (!v) return;
+                if (v.startsWith('mine:')) { useModel(v.slice(5)); return; }
                 state.model = v === '__blank' ? B().emptyModel(CSC.lang) : B().preset(v, CSC.lang);
                 state.openWording.clear();
                 changed(true);

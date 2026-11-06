@@ -1029,6 +1029,17 @@
             });
         },
         load(model) { state.model = B().normalize(model); render(); },
+        /** Carrega um contrato vindo de fora (arquivo ou assistente), sempre saneado. Lança erro se o formato for inválido. */
+        loadSanitized(raw) {
+            const m = sanitizeModel(raw);
+            state.model = m;
+            state.openWording.clear();
+            changed(true);
+            state.dirty = false;
+            return m;
+        },
+        sanitize: raw => sanitizeModel(raw),
+        isDirty: () => !!state.dirty,
         model: () => state.model,
         _parseSeries: parseSeries,
         render,

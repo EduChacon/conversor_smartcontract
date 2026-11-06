@@ -605,3 +605,19 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .legal-check summary { cursor: pointer; font-weight: 600; }
 .issues.legal li { margin: .35rem 0; }
 .legal-ref { color: var(--muted); font-style: italic; }
+
+/* ---------- Assistente de conversa ---------- */
+.asst-body { padding: .2rem 0 .8rem; }
+.asst-quick { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin: .4rem 0 .6rem; font-family: var(--sans); font-size: .82rem; }
+.asst-log { max-height: 26rem; overflow-y: auto; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin: .4rem 0 .6rem; }
+.asst-log:empty { display: none; }
+.asst-msg { padding: .6rem .2rem; border-bottom: 1px dotted var(--rule); }
+.asst-msg:last-child { border-bottom: none; }
+.asst-who { margin: 0 0 .2rem; font-family: var(--sans); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.asst-user .asst-text { white-space: pre-wrap; margin: 0; }
+.asst-assistant .asst-who { color: var(--accent); }
+.asst-text.md > :first-child { margin-top: 0; }
+.asst-proposal { margin-top: .5rem; padding: .5rem .7rem; border: 1px solid var(--rule); background: var(--paper-2); }
+.asst-clauses { margin: .3rem 0 .5rem; padding-left: 1.2rem; }
+.asst-apply-status { font-family: var(--sans); font-size: .82rem; margin: .4rem 0 0; }
+#asstInput { width: 100%; font: inherit; padding: .5rem .6rem; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); resize: vertical; }

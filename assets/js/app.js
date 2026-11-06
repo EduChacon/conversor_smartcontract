@@ -89,6 +89,7 @@
         renderCompile();
         if (state.mapping) renderMapping(state.mapping);
         CSC.lab.rerender();
+        document.dispatchEvent(new CustomEvent('csc:language'));
     }
 
     function renderExamples() {
@@ -1605,6 +1606,40 @@
     CSC.composer.load(state.draftComposer || CSC.blocks.preset('locacao', CSC.lang));
     applyMode();
     if (!state.template.status || !Object.keys(state.template.status).length) runExtraction();
+    // Interface usada pelo assistente de conversa (assets/js/assistant.js).
+    CSC.app = {
+        askAI,
+        hasKey: () => !!el.apiKey.value.trim(),
+        openSettings() {
+            $('settingsPanel').open = true;
+            $('settingsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => el.apiKey.focus({ preventScroll: true }), 400);
+        },
+        isBusy: () => state.busy,
+        mode: () => state.mode,
+        code: () => currentCode(),
+        findings: () => state.findings.slice(),
+        compileSummary() {
+            const c = state.compile && state.compile.code === currentCode() ? state.compile : null;
+            if (!c || !c.result) return null;
+            return { erros: compileErrors(c).map(e => e.message).slice(0, 10) };
+        },
+        /** Carrega o contrato proposto, gera o código e executa os testes predefinidos. */
+        async applyModel(raw) {
+            await waitFor(() => !state.busy, 120000);
+            setMode('blocks');
+            CSC.composer.loadSanitized(raw);
+            const issues = CSC.blocks.validate(CSC.composer.model());
+            if (issues.length) return { ok: false, issues };
+            await generateFromBlocks();
+            await waitFor(() => !state.busy, 120000);
+            await runTemplateTests();
+            await waitFor(() => !state.busy, 240000);
+            $('blocksPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return { ok: true, tests: CSC.lab.summaryForReport() };
+        }
+    };
+
     applyLanguage();
     renderRequestCount(CSC.gemini.stats.requests);
     runScan();

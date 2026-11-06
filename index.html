@@ -151,6 +151,26 @@
             </div>
         </details>
 
+        <details class="settings assistant" id="assistantPanel">
+            <summary>
+                <span class="settings-title" id="asstTitle">Assistente (IA)</span>
+                <span class="settings-status" id="asstStatus"></span>
+            </summary>
+            <div class="asst-body">
+                <p class="hint" id="asstIntro"></p>
+                <div class="asst-quick" id="asstQuick"></div>
+                <div class="asst-log" id="asstLog" role="log" aria-live="polite"></div>
+                <label class="sr-only" for="asstInput">Mensagem</label>
+                <textarea id="asstInput" rows="4" spellcheck="true"></textarea>
+                <div class="inline-row">
+                    <button type="button" class="btn btn-ink" id="asstSend">Enviar</button>
+                    <button type="button" class="link-btn" id="asstClear">Limpar conversa</button>
+                    <span class="muted small">Ctrl+Enter</span>
+                </div>
+                <p class="muted small" id="asstPrivacy"></p>
+            </div>
+        </details>
+
         <main id="main">
             <div class="spread">
                 <!-- § 1 Cláusula -->
@@ -468,5 +488,6 @@
     <script src="assets/js/composer.js"></script>
     <script src="assets/js/tour.js"></script>
     <script src="assets/js/app.js"></script>
+    <script src="assets/js/assistant.js"></script>
 </body>
 </html>

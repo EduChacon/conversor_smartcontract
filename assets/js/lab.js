@@ -94,6 +94,7 @@
         errWrongAmount: 'Valor incorreto: devido {due}; enviado {sent}.',
         seriesApplied: 'valor da série para o dia {d}',
         reentrancyText: 'Contrato atacante → sacar e reentrar ({tries} tentativa(s) de reentrada); recebeu {got}',
+        viaAttacker: 'Contrato atacante (no lugar da parte) → {fn}()',
         reentrancyBlocked: 'Reentradas recusadas: o atacante recebeu apenas o próprio crédito, uma única vez.',
         reentrancyBreach: 'O atacante conseguiu sacar mais de uma vez ou o crédito não foi zerado.',
         tokenSection: '"Stablecoin" de teste (tBRL)',
@@ -226,6 +227,7 @@
         errWrongAmount: 'Wrong amount: due {due}; sent {sent}.',
         seriesApplied: 'series value for day {d}',
         reentrancyText: 'Attacker contract → withdraw and re-enter ({tries} re-entry attempt(s)); received {got}',
+        viaAttacker: 'Attacker contract (in the party\'s place) → {fn}()',
         reentrancyBlocked: 'Re-entries rejected: the attacker received only its own credit, once.',
         reentrancyBreach: 'The attacker withdrew more than once or the credit was not zeroed.',
         tokenSection: 'Test stablecoin (tBRL)',
@@ -604,6 +606,13 @@
         }
         if (input.type === 'bool') return 'true';
         if (input.type === 'string') return 'texto';
+        if (/^bytes\d+$/.test(input.type)) {
+            // Impressão digital do texto: já vem preenchida com a constante do contrato.
+            const m = /(HASH_DO_TEXTO|TEXT_HASH) = (0x[0-9a-fA-F]{64})/.exec((lab.contract && lab.contract.source) || '');
+            if (m && /(hashdotexto|texthash)/.test(name)) return m[2];
+            return '0x' + '00'.repeat(Number(input.type.slice(5)));
+        }
+        if (input.type === 'bytes') return '0x';
         return '';
     }
 
@@ -1214,7 +1223,7 @@
                         const ignore = new Set(step.ignorar || []);
                         const fns = compiled.abi.filter(x => x.type === 'function' && x.stateMutability !== 'view' && x.stateMutability !== 'pure' && !ignore.has(x.name));
                         for (const fn of fns) {
-                            const args = fn.inputs.map(i => /^u?int/.test(i.type) ? 1n : i.type === 'bool' ? true : i.type === 'string' ? 'x' : /^address/.test(i.type) ? attackerAcc.address : /^bytes/.test(i.type) ? '0x' : 0n);
+                            const args = fn.inputs.map(i => /^u?int/.test(i.type) ? 1n : i.type === 'bool' ? true : i.type === 'string' ? 'x' : /^address/.test(i.type) ? attackerAcc.address : /^bytes\d+$/.test(i.type) ? '0x' + '11'.repeat(Number(i.type.slice(5))) : /^bytes/.test(i.type) ? '0x' : 0n);
                             const r = await env.chain.call({ from: attackerAcc.address, to: dep.address, abi: compiled.abi, functionName: fn.name, args });
                             const ok = !r.ok && sameError(r.error, step.erroEsperado);
                             const sub = { explicacao: '', text: attackerAcc.label + ' → ' + fn.name + '()', expected: t('labStepExpectedRevert'),
@@ -1242,6 +1251,22 @@
                         entry.text = t('reentrancyText', { tries: String(tries), got: moneyText(got) });
                         entry.outcome = ok ? '✓ ' + t('reentrancyBlocked') : '✗ ' + t('reentrancyBreach');
                         if (!ok) { entry.note = t('labVulnerability'); status = 'fail'; }
+                        steps.push(entry);
+                        continue;
+                    }
+                    if (step.acao === 'chamarPeloAtacante') {
+                        // A parte substituída pelo contrato atacante pratica um ato legítimo por meio dele (ex.: assinar).
+                        const atk = env.attackerContract;
+                        if (!atk) throw new Error('ContratoAtacante');
+                        const fnAbi = compiled.abi.find(x => x.type === 'function' && x.name === step.funcao);
+                        const args = fnAbi.inputs.map((input, i) => parseArg((step.argumentos || [])[i] ?? '', input));
+                        const callData = window.EvmLab.encodeFunctionData({ abi: compiled.abi, functionName: step.funcao, args });
+                        await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'configurar', args: [dep.address, callData] });
+                        const r = await env.chain.call({ from: atk.owner.address, to: atk.address, abi: atk.abi, functionName: 'atacar', args: [] });
+                        entry.text = t('viaAttacker', { fn: step.funcao });
+                        entry.status = r.ok ? 'pass' : 'fail';
+                        entry.outcome = r.ok ? '✓ ' + t('labTxOk') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error);
+                        if (!r.ok) status = 'fail';
                         steps.push(entry);
                         continue;
                     }

@@ -130,6 +130,10 @@ test('combinações aleatórias de blocos (60 montagens)', async () => {
             const ev = add('oraculoEvento'); ev.params.fonte = 'c';
             const rel = add('liberacaoPorEvento'); rel.params.alvo = cus.uid; rel.params.evento = ev.uid;
         }
+        // Regras de validação: rescisão ao alcance de quem deposita; árbitro não atesta obrigações.
+        const resc = model.blocks.find(b => b.type === 'rescisao');
+        if (resc && model.blocks.some(b => (b.type === 'caucao' && resc.params.quem !== b.params.garantidor) || (b.type === 'etapas' && resc.params.quem !== b.params.contratante))) resc.params.quem = '*';
+        if (arb) for (const o of model.blocks.filter(b => b.params && b.params.verificador === 'c')) o.params.verificador = o.params.credor;
         if (!model.blocks.some(b => b.type === 'arbitro' || b.params.verificador === 'c' || ((b.type === 'oraculoValor' || b.type === 'oraculoEvento') && b.params.fonte === 'c'))) model.roles = roles.slice(0, 2);
         total += await check(model, lang, 'combinação ' + k + ' [' + model.blocks.map(b => b.type).join(', ') + ']');
     }

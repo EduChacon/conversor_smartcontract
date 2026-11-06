@@ -47,7 +47,12 @@
         'total', 'base', 'v', 'livre', 'free', 'destino', 'to', 'motivo', 'reason', 'limite', 'limit', 'saldo', 'balance', 'multa', 'fee',
         'juros', 'interest', 'encargos', 'charges', 'vencimento', 'duedate', 'diasatraso', 'dayslate', 'restante', 'rest', 'aobeneficiario',
         'tobeneficiary', 'descricao', 'description', 'cumprida', 'fulfilled', 'indice', 'index', 'favorbeneficiario', 'favorbeneficiary',
-        'valoraobeneficiario', 'amounttobeneficiary', 'ato', 'act', 'novo', 'next', 'original', 'novoprazo', 'newdeadline']);
+        'valoraobeneficiario', 'amounttobeneficiary', 'ato', 'act', 'novo', 'next', 'original', 'novoprazo', 'newdeadline',
+        'hex', 'unicode', 'indexed', 'anonymous', 'blobhash', 'blobbasefee', 'prevrandao', 'basefee', 'coinbase', 'gaslimit', 'origin', 'sender',
+        'rescindir', 'terminate', 'encerrarpordecursodoprazo', 'closeatterm', 'notificar', 'notify', 'assinar', 'sign', 'registrardocumento',
+        'recorddocument', 'cancelarporfaltadeassinatura', 'cancelformissingsignatures', 'criadoem', 'createdat', 'assinadoem', 'signedat',
+        'assinaturas', 'signaturecount', 'documentoassinado', 'signeddocument', 'notificacoesregistradas', 'recordednotices',
+        'texto', 'text', 'destinatario', 'recipient', 'numero', 'number', 'remetente', 'sender', 'hashdotexto', 'texthash', 'hashdodocumento', 'documenthash']);
 
     function words(label) {
         return String(label || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -83,6 +88,44 @@
         const s = (Number(wei) / 1e18).toFixed(9).replace(/\.?0+$/, '');
         return (s || '0') + ' ether';
     }
+    /** SHA-256 (hexadecimal) de um texto em UTF-8, síncrono e sem dependências. */
+    function sha256Hex(text) {
+        const bytes = [];
+        const str = unescape(encodeURIComponent(String(text)));
+        for (let i = 0; i < str.length; i++) bytes.push(str.charCodeAt(i));
+        const K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+            0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+            0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+            0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+            0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+            0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+        const H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+        const bitLen = bytes.length * 8;
+        bytes.push(0x80);
+        while (bytes.length % 64 !== 56) bytes.push(0);
+        const hi = Math.floor(bitLen / 0x100000000), lo = bitLen >>> 0;
+        bytes.push((hi >>> 24) & 255, (hi >>> 16) & 255, (hi >>> 8) & 255, hi & 255, (lo >>> 24) & 255, (lo >>> 16) & 255, (lo >>> 8) & 255, lo & 255);
+        const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+        const W = new Array(64);
+        for (let off = 0; off < bytes.length; off += 64) {
+            for (let i = 0; i < 16; i++) W[i] = (bytes[off + 4 * i] << 24) | (bytes[off + 4 * i + 1] << 16) | (bytes[off + 4 * i + 2] << 8) | bytes[off + 4 * i + 3];
+            for (let i = 16; i < 64; i++) {
+                const s0 = rotr(W[i - 15], 7) ^ rotr(W[i - 15], 18) ^ (W[i - 15] >>> 3);
+                const s1 = rotr(W[i - 2], 17) ^ rotr(W[i - 2], 19) ^ (W[i - 2] >>> 10);
+                W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+            }
+            let [a, b, c, d, e, f, g, h] = H;
+            for (let i = 0; i < 64; i++) {
+                const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+                const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+                h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+            }
+            H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+            H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+        }
+        return H.map(x => (x >>> 0).toString(16).padStart(8, '0')).join('');
+    }
+
     function money(n, lang) {
         const v = Number(n || 0);
         return 'R$ ' + v.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -361,6 +404,133 @@
                 en: 'Once the event {evento} is attested, the beneficiary of {alvo} may obtain the release of the held amount, regardless of the depositor\'s confirmation.'
             }
         },
+        objeto: {
+            category: 'formalizacao',
+            name: { pt: 'Objeto do contrato', en: 'Subject matter' },
+            defaultLabel: { pt: 'Objeto', en: 'Subject matter' },
+            declarative: true,
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'O presente contrato tem por objeto [descreva o objeto do contrato], nas condições estabelecidas nas cláusulas seguintes.',
+                en: 'The subject matter of this contract is [describe the subject matter], under the terms set out in the following clauses.'
+            }
+        },
+        foro: {
+            category: 'formalizacao',
+            name: { pt: 'Foro de eleição', en: 'Jurisdiction' },
+            defaultLabel: { pt: 'Foro', en: 'Jurisdiction' },
+            declarative: true,
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'Fica eleito o foro da comarca de [cidade/UF], domicílio de [parte], para dirimir as controvérsias oriundas deste contrato.',
+                en: 'The courts of [city/country], where [party] is domiciled, shall have jurisdiction over disputes arising from this contract.'
+            }
+        },
+        localData: {
+            category: 'formalizacao',
+            name: { pt: 'Local e data', en: 'Place and date' },
+            defaultLabel: { pt: 'Local e data', en: 'Place and date' },
+            declarative: true,
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'Firmado em [cidade], na data da última assinatura registrada neste contrato.',
+                en: 'Signed in [city], on the date of the last signature recorded in this contract.'
+            }
+        },
+        comunicacoes: {
+            category: 'formalizacao',
+            name: { pt: 'Comunicações entre as partes', en: 'Notices between the parties' },
+            defaultLabel: { pt: 'Comunicações', en: 'Notices' },
+            declarative: true,
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'As comunicações entre as partes serão feitas por escrito, nos endereços indicados na qualificação, e as notificações registradas neste contrato valerão como prova de seu envio e de sua data.',
+                en: 'Notices between the parties shall be made in writing, to the addresses given in their details, and notices recorded in this contract shall serve as proof of their sending and date.'
+            }
+        },
+        confidencialidade: {
+            category: 'formalizacao',
+            name: { pt: 'Confidencialidade', en: 'Confidentiality' },
+            defaultLabel: { pt: 'Confidencialidade', en: 'Confidentiality' },
+            declarative: true,
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'As partes manterão sigilo sobre as informações não públicas a que tiverem acesso em razão deste contrato, durante sua vigência e por [prazo] após o seu término.',
+                en: 'The parties shall keep confidential any non-public information obtained under this contract, while it is in force and for [period] after it ends.'
+            }
+        },
+        protecaoDados: {
+            category: 'formalizacao',
+            name: { pt: 'Proteção de dados pessoais', en: 'Personal data protection' },
+            defaultLabel: { pt: 'Proteção de dados', en: 'Data protection' },
+            declarative: true,
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'As partes tratarão os dados pessoais relacionados a este contrato em conformidade com a legislação de proteção de dados aplicável. Nenhum dado pessoal será registrado na "blockchain", na qual constam apenas endereços de carteira e a impressão digital dos documentos.',
+                en: 'The parties shall process personal data related to this contract in accordance with the applicable data protection law (such as the LGPD in Brazil or the GDPR in the EU). No personal data shall be recorded on the blockchain, which holds only wallet addresses and document fingerprints.'
+            }
+        },
+        disposicoesGerais: {
+            category: 'formalizacao',
+            name: { pt: 'Disposições gerais', en: 'General provisions' },
+            defaultLabel: { pt: 'Disposições gerais', en: 'General provisions' },
+            declarative: true,
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'A tolerância de qualquer das partes quanto ao descumprimento de cláusula não implica renúncia nem novação. A nulidade de uma cláusula não prejudica as demais. Este contrato obriga as partes e seus sucessores.',
+                en: 'Forbearance by either party regarding a breach does not imply waiver or novation. The invalidity of one clause does not affect the others. This contract binds the parties and their successors.'
+            }
+        },
+        arrependimento: {
+            category: 'garantias',
+            name: { pt: 'Direito de arrependimento', en: 'Right of withdrawal' },
+            attached: true,
+            params: [
+                { key: 'alvo', kind: 'ref', accepts: ['pagamentoUnico', 'custodia'] },
+                { key: 'prazo', kind: 'days', def: 7, min: 1 }
+            ],
+            sentence: {
+                pt: 'Quem pagou {alvo} poderá desistir em até {prazo} dias contados do pagamento, com a devolução integral do valor; até o fim desse prazo, o valor fica retido no contrato.',
+                en: 'Whoever paid {alvo} may withdraw within {prazo} days of payment, with a full refund; until that period ends, the amount is held in the contract.'
+            }
+        },
+        notificacoes: {
+            category: 'formalizacao',
+            name: { pt: 'Notificações registradas', en: 'Recorded notices' },
+            single: true,
+            params: [],
+            sentence: {
+                pt: 'Qualquer das partes poderá registrar neste contrato notificação dirigida à outra, que valerá como prova de seu conteúdo e de sua data. O texto registrado fica público na "blockchain" e não deve conter dados pessoais.',
+                en: 'Either party may record in this contract a notice addressed to the other, which serves as proof of its content and date. The recorded text is public on the blockchain and must not contain personal data.'
+            }
+        },
+        assinaturas: {
+            category: 'formalizacao',
+            name: { pt: 'Assinaturas digitais', en: 'Digital signatures' },
+            single: true,
+            params: [{ key: 'prazo', kind: 'days', def: 15, min: 1 }],
+            sentence: {
+                pt: 'Este contrato entra em vigor quando todos os signatários indicados na Cláusula 1ª, inclusive as testemunhas, se houver, o assinarem digitalmente, cada qual com sua carteira, conferindo a impressão digital (SHA-256) deste texto; os prazos contam da última assinatura. Antes da primeira assinatura, as partes podem registrar no contrato a impressão digital do documento em PDF assinado por serviço de assinatura eletrônica (como o gov.br ou certificado ICP-Brasil, no Brasil, ou serviço estrangeiro equivalente). Não havendo todas as assinaturas em {prazo} dias da implantação, qualquer signatário poderá cancelar o contrato.',
+                en: 'This contract comes into force when all signatories listed in Clause 1, including any witnesses, sign it digitally, each with their own wallet, checking the fingerprint (SHA-256) of this text; deadlines run from the last signature. Before the first signature, the parties may record in the contract the fingerprint of the PDF document signed with an electronic signature service (such as gov.br or an ICP-Brasil certificate in Brazil, a qualified eIDAS certificate in the EU, or an equivalent service). If not all signatures are collected within {prazo} days of deployment, any signatory may cancel the contract.'
+            }
+        },
+        testemunha: {
+            category: 'formalizacao',
+            name: { pt: 'Testemunha', en: 'Witness' },
+            defaultLabel: { pt: 'Primeira testemunha', en: 'First witness' },
+            params: [{ key: 'testemunha', kind: 'role', role: 2 }],
+            sentence: {
+                pt: 'Assina este contrato, na qualidade de testemunha, {testemunha}, que não é parte nem tem interesse no negócio.',
+                en: '{testemunha} signs this contract as a witness, being neither a party nor interested in the transaction.'
+            }
+        },
         clausulaLivre: {
             category: 'livre',
             name: { pt: 'Cláusula livre', en: 'Free clause' },
@@ -368,8 +538,8 @@
             declarative: true,
             params: [],
             sentence: {
-                pt: 'As partes elegem o foro da comarca de São Paulo para dirimir quaisquer controvérsias oriundas deste contrato.',
-                en: 'The parties elect the courts of São Paulo to settle any disputes arising from this contract.'
+                pt: '[Escreva aqui a cláusula.]',
+                en: '[Write the clause here.]'
             }
         },
         vigencia: {
@@ -396,7 +566,7 @@
         garantidor: { pt: 'quem presta a garantia', en: 'guarantor' }, arbitro: { pt: 'árbitro', en: 'arbitrator' }, quem: { pt: 'quem pode rescindir', en: 'who may terminate' },
         duracao: { pt: 'duração (dias)', en: 'duration (days)' },
         fonte: { pt: 'fonte da informação', en: 'data source' }, validade: { pt: 'validade (dias)', en: 'validity (days)' },
-        verificador: { pt: 'quem atesta', en: 'who attests' }, atestacao: { pt: 'prazo para atestar (dias)', en: 'attestation period (days)' },
+        verificador: { pt: 'quem atesta', en: 'who attests' }, testemunha: { pt: 'testemunha', en: 'witness' }, atestacao: { pt: 'prazo para atestar (dias)', en: 'attestation period (days)' },
         indice: { pt: 'índice', en: 'index' }, cotacao: { pt: 'cotação', en: 'price' }, evento: { pt: 'evento', en: 'event' }
     };
     function fieldLabel(key, lang) { const f = FIELD_LABELS[key]; return f ? f[lang === 'en' ? 'en' : 'pt'] : key; }
@@ -409,6 +579,7 @@
         { id: 'disputas', pt: 'Solução de disputas', en: 'Dispute resolution' },
         { id: 'externos', pt: 'Informações externas (oráculos)', en: 'External data (oracles)' },
         { id: 'encerramento', pt: 'Encerramento', en: 'Termination' },
+        { id: 'formalizacao', pt: 'Formalização e assinaturas', en: 'Formalities and signatures' },
         { id: 'livre', pt: 'Redação livre', en: 'Free wording' }
     ];
 
@@ -536,13 +707,27 @@
                 if ([b.params.depositante, b.params.beneficiario, b.params.garantidor].includes(arb.params.arbitro)) add('O árbitro não pode ser parte de "' + b.label + '".', 'The arbitrator cannot be a party to "' + b.label + '".', b.uid);
             }
             for (const b of blocks.filter(x => BLOCKS[x.type] && BLOCKS[x.type].obligation)) {
+                if (b.params.verificador === arb.params.arbitro) add('Em "' + b.label + '", o árbitro não pode ser quem atesta: ele decidiria a contestação da própria recusa.', 'In "' + b.label + '", the arbitrator cannot be the attesting party: they would rule on the challenge to their own rejection.', b.uid);
                 if ([b.params.devedor, b.params.credor].includes(arb.params.arbitro)) add('O árbitro não pode ser parte de "' + b.label + '".', 'The arbitrator cannot be a party to "' + b.label + '".', b.uid);
             }
         }
-        const ends = blocks.some(b => b.type === 'rescisao' || b.type === 'vigencia');
+        const wit = blocks.filter(b => b.type === 'testemunha');
+        if (wit.length && !blocks.some(b => b.type === 'assinaturas')) add('A testemunha assina digitalmente: acrescente o bloco "Assinaturas digitais".', 'Witnesses sign digitally: add the "Digital signatures" block.', wit[0].uid);
+        const seenW = new Set();
+        for (const wb of wit) {
+            const r = wb.params.testemunha;
+            if (seenW.has(r)) add('A mesma pessoa aparece duas vezes como testemunha.', 'The same person appears twice as a witness.', wb.uid);
+            seenW.add(r);
+            const usedElsewhere = blocks.some(x => x !== wb && x.type !== 'testemunha' && BLOCKS[x.type] && BLOCKS[x.type].params.some(p => (p.kind === 'role' || p.kind === 'roleOrAny') && x.params[p.key] === r));
+            if (usedElsewhere) add('A testemunha não pode ser parte, árbitro, fonte de informação nem ter outro papel no contrato.', 'A witness cannot be a party, arbitrator, data source or have any other role in the contract.', wb.uid);
+        }
+        const vig = blocks.some(b => b.type === 'vigencia');
+        const resc0 = blocks.find(b => b.type === 'rescisao');
         for (const b of blocks.filter(x => x.type === 'caucao' || x.type === 'etapas')) {
-            if (!ends) add('Os valores retidos em "' + b.label + '" precisam de uma forma de encerramento do contrato: acrescente "Rescisão" ou "Prazo de vigência".',
-                'Amounts held in "' + b.label + '" need a way to close the contract: add "Termination" or "Term".', b.uid);
+            const owner = b.type === 'caucao' ? b.params.garantidor : b.params.contratante;
+            const ok = vig || (resc0 && (resc0.params.quem === '*' || resc0.params.quem === owner));
+            if (!ok) add('Os valores retidos em "' + b.label + '" precisam de uma forma de encerramento ao alcance de quem os depositou: acrescente "Prazo de vigência" ou uma "Rescisão" que essa parte (ou qualquer das partes) possa exercer.',
+                'Amounts held in "' + b.label + '" need a way to close the contract available to whoever deposited them: add "Term", or a "Termination" that this party (or either party) may exercise.', b.uid);
         }
         if (arb) {
             const a = arb.params.arbitro;
@@ -553,6 +738,48 @@
             }
         }
         return errs;
+    }
+
+    /**
+     * Conferência jurídica indicativa (direito brasileiro): lembretes e avisos com a referência legal.
+     * Não impede a geração e não substitui análise profissional.
+     */
+    function legalCheck(model, lang) {
+        const en = lang === 'en';
+        const out = [];
+        const add = (tipo, pt, enT, ref) => out.push({ tipo, texto: en ? enT : pt, ref });
+        const blocks = model.blocks || [];
+        const has = t => blocks.some(b => b.type === t);
+        const allText = blocks.map(b => String(b.texto || (BLOCKS[b.type] ? BLOCKS[b.type].sentence[en ? 'en' : 'pt'] : ''))).join(' ') + ' ' + (model.name || '');
+        const roles = model.roles || [];
+        if (!roles.every(r => r.nome && r.documento)) add('lembrete', 'Qualifique as partes (nome ou razão social e documento) em "Dados das partes": a carteira não identifica a pessoa, e a capacidade do agente é requisito de validade.', 'Identify the parties (name and ID or company number) under "Party details": a wallet does not identify a person, and legal capacity is a validity requirement.', en ? 'Brazilian Civil Code, art. 104, I' : 'CC, art. 104, I');
+        if (!has('objeto')) add('lembrete', 'Descreva o objeto do contrato (bloco "Objeto do contrato"): o objeto deve ser lícito, possível, determinado ou determinável.', 'Describe the subject matter (block "Subject matter"): it must be lawful, possible and determined or determinable.', en ? 'Brazilian Civil Code, art. 104, II' : 'CC, art. 104, II');
+        if (/\[[^\]]{3,}\]/.test(allText)) add('aviso', 'Há trechos entre colchetes a completar (ex.: "[descreva…]", "[cidade/UF]").', 'There are bracketed passages to complete (e.g. "[describe…]", "[city]").', '');
+        const lease = /(loca[çc][ãa]o|aluguel|locat[áa]rio|lease|rent\b|tenant)/i.test(allText + ' ' + blocks.map(b => b.label).join(' '));
+        if (/(im[óo]vel|terreno|apartamento|real estate|land\b|property)/i.test(allText) && /(compra|venda|aliena|doa[çc][ãa]o|hipoteca|usufruto|escritura|sale|purchase|mortgage|deed)/i.test(allText + ' ' + (model.name || ''))) add('aviso', 'Negócios sobre direitos reais imobiliários acima de 30 salários mínimos exigem escritura pública, e a transferência da propriedade depende de registro: o "smart contract" não os substitui.', 'Brazilian law requires a public deed for real-estate rights above 30 minimum wages, and transfer of title depends on registration: the smart contract does not replace them.', en ? 'Brazilian Civil Code, arts. 108 and 1,245' : 'CC, arts. 108 e 1.245');
+        if (!has('assinaturas')) add('lembrete', 'Para a força executiva do documento particular, prevê-se a assinatura do devedor e de duas testemunhas; considere o bloco "Assinaturas digitais" e, se for o caso, testemunhas.', 'For a private document to be directly enforceable, the debtor\'s signature and two witnesses are required; consider the "Digital signatures" block and, if applicable, witnesses.', en ? 'Brazilian Code of Civil Procedure, art. 784, III' : 'CPC, art. 784, III');
+        else if (blocks.filter(b => b.type === 'testemunha').length < 2) add('lembrete', 'O documento particular assinado pelo devedor e por duas testemunhas é título executivo extrajudicial.', 'A private document signed by the debtor and two witnesses is an extrajudicial enforceable title.', en ? 'Brazilian Code of Civil Procedure, art. 784, III' : 'CPC, art. 784, III');
+        if (has('testemunha')) add('lembrete', 'Não podem ser testemunhas, entre outros, os menores de dezesseis anos, o interessado no litígio e o cônjuge ou parentes próximos das partes.', 'Under Brazilian law, minors under sixteen, interested persons and spouses or close relatives of the parties cannot be witnesses.', en ? 'Brazilian Civil Code, art. 228' : 'CC, art. 228');
+        const payTotal = blocks.filter(b => ['pagamentoUnico', 'pagamentoPeriodico', 'pagamentoToken', 'custodia', 'etapas'].includes(b.type))
+            .reduce((t, b) => t + Number(b.params.valor || 0) * (b.type === 'pagamentoPeriodico' ? Number(b.params.parcelas || 1) : 1), 0);
+        for (const b of blocks.filter(x => x.type === 'clausulaPenal')) {
+            if (payTotal > 0 && Number(b.params.valor) > payTotal) add('aviso', 'A cláusula penal (' + money(b.params.valor, lang) + ') supera o valor das prestações do contrato (' + money(payTotal, lang) + '): o valor da cominação não pode exceder o da obrigação principal.', 'The penalty (' + money(b.params.valor, lang) + ') exceeds the contract payments (' + money(payTotal, lang) + '): under Brazilian law, a penalty cannot exceed the principal obligation.', en ? 'Brazilian Civil Code, arts. 412 and 413' : 'CC, arts. 412 e 413');
+        }
+        for (const b of blocks.filter(x => x.type === 'encargos')) {
+            if (Number(b.params.multa) > 2 && !lease) add('aviso', 'Multa moratória de ' + num(b.params.multa, lang) + '%: nas relações de consumo, limita-se a 2% do valor da prestação.', 'Late fee of ' + num(b.params.multa, lang) + '%: in Brazilian consumer relations it is capped at 2% of the installment.', en ? 'Brazilian Consumer Code, art. 52, § 1' : 'CDC, art. 52, § 1º');
+            if (Number(b.params.juros) > 1) add('aviso', 'Juros de ' + num(b.params.juros, lang) + '% ao mês: fora do sistema financeiro, os juros convencionais têm limite legal.', 'Interest of ' + num(b.params.juros, lang) + '% per month: outside the financial system, Brazilian law caps contractual interest.', en ? 'Brazilian Decree 22,626/1933; Civil Code, art. 591' : 'Decreto nº 22.626/1933; CC, art. 591');
+        }
+        if (lease) {
+            const rent = blocks.find(b => b.type === 'pagamentoPeriodico');
+            for (const c of blocks.filter(b => b.type === 'caucao')) if (rent && Number(c.params.valor) > 3 * Number(rent.params.valor)) add('aviso', 'Na locação de imóvel urbano, a caução em dinheiro não pode exceder três meses de aluguel.', 'In Brazilian urban leases, a cash security deposit cannot exceed three months of rent.', en ? 'Brazilian Law 8,245/1991, art. 38, § 2' : 'Lei nº 8.245/1991, art. 38, § 2º');
+            if (blocks.filter(b => b.type === 'caucao' || b.type === 'custodia').length > 1) add('aviso', 'Na locação, é vedada mais de uma modalidade de garantia no mesmo contrato.', 'Brazilian lease law forbids more than one type of guarantee in the same contract.', en ? 'Brazilian Law 8,245/1991, art. 37, sole paragraph' : 'Lei nº 8.245/1991, art. 37, parágrafo único');
+        }
+        if (has('arbitro')) add('lembrete', 'O bloco "Árbitro" funciona como terceiro que decide divergências no contrato; arbitragem propriamente dita exige convenção de arbitragem por escrito (e, em contrato de adesão, destaque e concordância específica).', 'The "Arbitrator" block is a third party deciding disputes within the contract; arbitration proper requires a written arbitration agreement (and, in adhesion contracts, specific highlighted consent).', en ? 'Brazilian Law 9,307/1996, art. 4' : 'Lei nº 9.307/1996, art. 4º');
+        if (!has('foro')) add('lembrete', 'Considere a cláusula de eleição de foro (bloco "Foro de eleição").', 'Consider a jurisdiction clause (block "Jurisdiction").', en ? 'Brazilian Code of Civil Procedure, art. 63' : 'CPC, art. 63');
+        if (blocks.some(b => ['pagamentoUnico', 'pagamentoPeriodico'].includes(b.type)) && !blocks.some(b => b.type === 'conversaoCambial')) add('lembrete', 'As dívidas em dinheiro pagam-se em moeda corrente: convém fixar o valor em reais (os valores do contrato já são escritos em reais e convertidos em Ether pela escala ou pela cotação).', 'Money debts are paid in legal tender: it is advisable to fix the amount in reais (contract amounts are written in BRL and converted to Ether by the scale or the price).', en ? 'Brazilian Civil Code, arts. 315 and 318' : 'CC, arts. 315 e 318');
+        if (!lease && !has('arrependimento') && blocks.some(b => ['pagamentoUnico', 'custodia'].includes(b.type))) add('lembrete', 'Se for relação de consumo contratada fora do estabelecimento comercial (por exemplo, pela internet), o consumidor pode desistir em 7 dias: considere o bloco "Direito de arrependimento".', 'If this is a consumer contract made outside a business establishment (e.g. online), Brazilian law gives the consumer 7 days to withdraw: consider the "Right of withdrawal" block.', en ? 'Brazilian Consumer Code, art. 49' : 'CDC, art. 49');
+        if (/(\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b|[\w.+-]+@[\w-]+\.[\w.]+)/.test(allText)) add('aviso', 'O texto das cláusulas parece conter CPF, CNPJ ou e-mail: esse texto também vai para os comentários do código, que pode se tornar público. Use os "Dados das partes", que ficam só no documento assinado.', 'The clause text seems to contain an ID number or e-mail: this text also goes into the code comments, which may become public. Use "Party details", which stay only in the signed document.', en ? 'Data protection law (LGPD/GDPR)' : 'Lei nº 13.709/2018 (LGPD)');
+        return out;
     }
 
     /** Avisos que não impedem a geração: riscos de equilíbrio entre as partes. */
@@ -583,14 +810,22 @@
     function makeCtx(model, lang) {
         const en = lang === 'en';
         const w = (pt, e) => (en ? e : pt);
-        const roles = (model.roles || []).map(r => ({ id: r.id, label: r.label, v: camel(r.label), P: pascal(r.label) }));
+        // A variável de cada parte não pode coincidir com nomes gerados a partir das cláusulas (ex.: "precoEstado") nem com modificadores.
+        const blockPrefixes = (model.blocks || []).map(b => camel(b.label));
+        const roleVar = label => {
+            const v = camel(label);
+            const clash = blockPrefixes.some(pr => v !== pr && v.startsWith(pr)) || /^(apenas|only|na|in)[A-Z]/.test(v) || /^(saldo|valor|vencimento|proximo|prazo|ler|informar|atestar|pagar|depositar|liberar|reaver|sacar)[A-Z]/.test(v);
+            return clash && !v.endsWith('Parte') ? v + 'Parte' : v;
+        };
+        const roles = (model.roles || []).map(r => ({ id: r.id, label: r.label, v: roleVar(r.label), P: pascal(r.label) }));
         const roleById = id => roles.find(r => r.id === id);
         // I: sufixo dos nomes de função e evento, separado do ato por sublinhado (pagar_Aluguel).
         const blocks = (model.blocks || []).map(b => Object.assign({}, b, { I: '_' + pascal(b.label), i: camel(b.label), U: upper(b.label) }));
         const byUid = uid => blocks.find(b => b.uid === uid);
         const arb = blocks.find(b => b.type === 'arbitro');
         const arbRole = arb ? roleById(arb.params.arbitro) : null;
-        const partyRoles = roles.filter(r => !arbRole || r.id !== arbRole.id);
+        const witnessIds = new Set((model.blocks || []).filter(b => b.type === 'testemunha').map(b => b.params.testemunha));
+        const partyRoles = roles.filter(r => (!arbRole || r.id !== arbRole.id) && !witnessIds.has(r.id));
         const N = {
             Situacao: w('Situacao', 'Status'), situacao: w('situacao', 'status'), Ativo: w('Ativo', 'Active'), Encerrado: w('Encerrado', 'Closed'),
             EstadoGarantia: w('EstadoGarantia', 'HoldState'), Aguardando: w('AguardandoDeposito', 'AwaitingDeposit'), Depositado: w('Depositado', 'Deposited'),
@@ -605,6 +840,7 @@
             EstadoObrigacao: w('EstadoObrigacao', 'ObligationState'), Pendente: w('Pendente', 'Pending'), Informado: w('CumprimentoInformado', 'PerformanceReported'),
             Cumprida: w('Cumprida', 'Fulfilled'), Descumprida: w('Descumprida', 'Breached'), EmDisputaObr: w('EmDisputa', 'Disputed'), SemDecisao: w('SemDecisao', 'Unresolved'),
             PRAZO_ARB: w('PRAZO_ARBITRO', 'ARBITRATION_PERIOD'),
+            Aguardando_: w('AguardandoAssinaturas', 'AwaitingSignatures'), criadoEm: w('criadoEm', 'createdAt'), HASH: w('HASH_DO_TEXTO', 'TEXT_HASH'),
             SemSaldo: w('SemSaldo', 'NothingToWithdraw'), FalhaNoEnvio: w('FalhaNoEnvio', 'TransferFailed'), Reentrada: w('Reentrada', 'Reentrancy'),
             ContratoEncerrado: w('ContratoEncerrado', 'AgreementClosed'), Saque: w('Saque', 'Withdrawal'),
             devido: w('devido', 'due'), enviado: w('enviado', 'sent'), limite: w('limite', 'limit'), valor: w('valor', 'amount'), credor: w('credor', 'payee'), quando: w('quando', 'when')
@@ -675,6 +911,31 @@
         return out;
     }
 
+    /** Qualificação das partes (só no documento assinado; nunca no código). */
+    function qualificacao(model, lang) {
+        const en = lang === 'en';
+        const roles = (model.roles || []).filter(r => r.nome || r.documento || r.endereco);
+        if (!roles.length) return null;
+        const items = (model.roles || []).map(r => {
+            const parts = [r.label];
+            if (r.nome) parts.push(r.nome);
+            if (r.documento) parts.push((en ? 'ID/tax no. ' : 'documento nº ') + r.documento);
+            if (r.endereco) parts.push((en ? 'address: ' : 'com endereço em ') + r.endereco);
+            return parts.join(', ');
+        });
+        return (en ? 'The parties to this contract are: ' : 'Figuram neste contrato: ') + items.join('; ') +
+            (en ? '; each also identified by their blockchain address, given at deployment.' : '; cada qual identificado também por seu endereço na "blockchain", informado na implantação.');
+    }
+
+    /** Texto integral do contrato, cuja impressão digital (SHA-256) é registrada no código. */
+    function textoParaAssinatura(model, lang) {
+        const head = String(model.name || '').trim().toUpperCase();
+        const parts = minuta(model, lang);
+        const q = qualificacao(model, lang);
+        if (q) parts[0] = Object.assign({}, parts[0], { texto: q });
+        return (head ? head + '\n\n' : '') + parts.map(c => c.numero + ' — ' + c.titulo + '\n' + c.texto).join('\n\n') + '\n';
+    }
+
     function commentBlock(text, indent) {
         // Quebra o texto em linhas de até ~96 colunas, como comentário NatSpec.
         const max = 96;
@@ -693,6 +954,7 @@
     function build(model, lang) {
         const ctx = makeCtx(model, lang);
         const { N, w, blocks, roleById } = ctx;
+        const sig = blocks.find(b => b.type === 'assinaturas');
         const I8 = '        ';
         const sections = [];   // blocos de código por cláusula
         const constants = [];
@@ -734,6 +996,8 @@
         const fxOf = b => blocks.find(x => x.type === 'conversaoCambial' && x.params.alvo === b.uid);
         const relOf = b => blocks.find(x => x.type === 'liberacaoPorEvento' && x.params.alvo === b.uid);
         const penOf = b => blocks.find(x => x.type === 'clausulaPenal' && x.params.alvo === b.uid);
+        const arrOf = b => blocks.find(x => x.type === 'arrependimento' && x.params.alvo === b.uid);
+        const subHeader = x => `\n    // ${'-'.repeat(70)}\n    // ${ordinal(blocks.indexOf(x) + 2, lang)} — ${clauseTitle(x, ctx)}\n${commentBlock(fillSentence(x, ctx), '    ')}\n    // ${'-'.repeat(70)}\n`;
 
         /** Valor-base de um pagamento: constante, reajustada por índice e/ou convertida pela cotação. */
         function baseOf(b, P) {
@@ -783,8 +1047,11 @@
                 const dev = roleById(b.params.devedor), cre = roleById(b.params.credor);
                 const paid = b.i + w('Pago', 'Paid');
                 const base = baseOf(b, P);
+                const arr = arrOf(b);
+                const arrHeld = b.i + w('EmArrependimento', 'InWithdrawalPeriod'), arrAt = b.i + w('PagoEm', 'PaidAt');
                 constants.push(`    uint256 public constant ${P}_${w('PRAZO', 'DEADLINE')} = ${Math.round(b.params.prazo)} days;`);
                 state.push(`    bool public ${paid};`);
+                if (arr) state.push(`    uint256 public ${arrHeld};`, `    uint256 public ${arrAt};`);
                 events.push(`    event ${w('Pagamento', 'Payment')}${b.I}(address indexed ${w('pagador', 'payer')}, uint256 ${N.valor}, uint256 ${w('encargos', 'charges')});`);
                 const dm = useMod(dev);
                 code.push(`${base.code}    /// @notice ${w('Vencimento do pagamento.', 'Payment due date.')}
@@ -803,11 +1070,48 @@
         (uint256 total, uint256 ${w('encargos', 'charges')}) = ${w('valorDevido', 'amountDue')}${b.I}();
         if (msg.value != total) revert ${N.ValorIncorreto}(total, msg.value);
         ${paid} = true;
-        ${credit(cre, 'msg.value')}
+        ${arr ? `${arrHeld} = msg.value; // ${w('retido durante o prazo de arrependimento', 'held during the withdrawal period')}
+        ${arrAt} = block.timestamp;` : credit(cre, 'msg.value')}
         emit ${w('Pagamento', 'Payment')}${b.I}(msg.sender, msg.value, ${w('encargos', 'charges')});
         ${N.verificar}();
     }`);
                 if (!encOf(b)) code[0] = code[0].replace(`returns (uint256 total, uint256 ${w('encargos', 'charges')}) {\n        total = `, `returns (uint256 total, uint256 ${w('encargos', 'charges')}) {\n        ${w('encargos', 'charges')} = 0;\n        total = `);
+                if (arr) {
+                    const AP = `${P}_${w('PRAZO_ARREPENDIMENTO', 'WITHDRAWAL_PERIOD')}`;
+                    constants.push(`    uint256 public constant ${AP} = ${Math.round(arr.params.prazo)} days;`);
+                    events.push(`    event ${w('Arrependimento', 'Withdrawal')}${b.I}(address indexed ${w('destino', 'to')}, uint256 ${N.valor});`);
+                    const pm = usePair(dev, cre);
+                    code.push(`${subHeader(arr)}
+    /// @notice ${w('Desistência do pagamento dentro do prazo de arrependimento, com devolução integral.', 'Withdrawal from the payment within the withdrawal period, with a full refund.')}
+    function ${w('arrepender', 'withdrawFrom')}${b.I}() external ${dm} {
+        if (${arrHeld} == 0) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${arrAt} + ${AP};
+        if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
+        uint256 ${N.valor} = ${arrHeld};
+        ${arrHeld} = 0;
+        ${N.saldos}[${dev.v}] += ${N.valor};
+        emit ${w('Arrependimento', 'Withdrawal')}${b.I}(${dev.v}, ${N.valor});
+        ${N.verificar}();
+    }
+
+    /// @notice ${w('Esgotado o prazo de arrependimento, qualquer das partes confirma o pagamento, que passa ao credor.', 'After the withdrawal period, either party confirms the payment, which goes to the payee.')}
+    function ${w('confirmarPagamento', 'confirmPayment')}${b.I}() external ${pm} {
+        if (${arrHeld} == 0) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${arrAt} + ${AP};
+        if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
+        uint256 ${N.valor} = ${arrHeld};
+        ${arrHeld} = 0;
+        ${N.saldos}[${cre.v}] += ${N.valor};
+        ${N.verificar}();
+    }`);
+                    retained.push(arrHeld);
+                    onClose.push(`        if (${arrHeld} > 0) {
+            // ${w('no encerramento: dentro do prazo de arrependimento, volta ao pagador; depois dele, vai ao credor', 'on closing: within the withdrawal period it returns to the payer; afterwards it goes to the payee')}
+            ${N.saldos}[block.timestamp > ${arrAt} + ${P}_${w('PRAZO_ARREPENDIMENTO', 'WITHDRAWAL_PERIOD')} ? ${cre.v} : ${dev.v}] += ${arrHeld};
+            ${arrHeld} = 0;
+        }`);
+                    concluded.push(`${arrHeld} == 0`);
+                }
                 concluded.push(paid);
             }
 
@@ -877,11 +1181,18 @@
 ${commentBlock(fillSentence(acc, ctx), '    ')}
     // ${'-'.repeat(70)}
 
-    /// @notice ${w('Saldo devedor: parcelas ainda não pagas, mais os encargos da parcela em atraso.', 'Outstanding balance: unpaid installments, plus charges on the overdue installment.')}
-    function ${w('saldoDevedor', 'outstanding')}${b.I}() public view returns (uint256) {
-        if (${pagas} == ${P}_${w('PARCELAS', 'INSTALLMENTS')}) return 0;
-        (, uint256 ${w('encargos', 'charges')}) = ${w('valorDevido', 'amountDue')}${b.I}();
-        return (${P}_${w('PARCELAS', 'INSTALLMENTS')} - ${pagas}) * ${base.expr} + ${w('encargos', 'charges')};
+    /// @notice ${w('Saldo devedor: parcelas ainda não pagas, mais os encargos de cada parcela em atraso.', 'Outstanding balance: unpaid installments, plus charges on each overdue installment.')}
+    /// @dev ${w('Laço limitado ao número de parcelas (no máximo 360).', 'Loop bounded by the number of installments (at most 360).')}
+    function ${w('saldoDevedor', 'outstanding')}${b.I}() public view returns (uint256 total) {
+        uint256 ${w('base', 'base')}${b.I} = ${base.expr};
+        for (uint256 k = ${pagas}; k < ${P}_${w('PARCELAS', 'INSTALLMENTS')}; k++) {
+            total += ${w('base', 'base')}${b.I};${encOf(b) ? `
+            uint256 ${w('venc', 'due')} = ${N.inicio} + (k + 1) * ${P}_${w('PERIODO', 'PERIOD')};
+            if (block.timestamp > ${w('venc', 'due')} + ${P}_${w('TOLERANCIA', 'GRACE_PERIOD')}) {
+                uint256 ${w('dias', 'daysLate')} = (block.timestamp - ${w('venc', 'due')}) / 1 days;
+                total += ${w('base', 'base')}${b.I} * ${P}_${w('MULTA_BPS', 'LATE_FEE_BPS')} / BPS + ${w('base', 'base')}${b.I} * ${P}_${w('JUROS_MENSAIS_BPS', 'MONTHLY_INTEREST_BPS')} * ${w('dias', 'daysLate')} / (BPS * 30);
+            }` : ''}
+        }
     }
 
     /// @notice ${w('Vencimento antecipado, se a parcela em aberto estiver atrasada além do limite.', 'Acceleration, if the open installment is late beyond the limit.')}
@@ -915,11 +1226,19 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                 constants.push(`    uint256 public constant ${P}_${w('PRAZO', 'DEADLINE')} = ${Math.round(b.params.prazo)} days;`);
                 state.push(`    ${N.EstadoGarantia} public ${st};`, `    uint256 public ${held};`, `    uint256 public ${dl};`);
                 const cdisp = b.i + w('DisputaEm', 'DisputedAt');
+                const carr = arrOf(b);
+                if (carr) {
+                    state.push(`    uint256 public ${b.i}${w('DepositadoEm', 'DepositedAt')};`);
+                    constants.push(`    uint256 public constant ${P}_${w('PRAZO_ARREPENDIMENTO', 'WITHDRAWAL_PERIOD')} = ${Math.round(carr.params.prazo)} days;`);
+                }
                 if (ctx.arbRole) state.push(`    uint256 public ${cdisp};`);
                 const relB = relOf(b), evB = relB ? ctx.byUid(relB.params.evento) : null;
-                // Com liberação por evento, o depositante não reaver o valor se o evento já foi atestado ou está pendente de atestação ou decisão.
-                const evBlock = evB ? (evB.type === 'oraculoEvento' ? `${evB.i}${w('Confirmado', 'Confirmed')}`
-                    : `(${evB.i}${w('Estado', 'State')} == ${N.EstadoObrigacao}.${N.Cumprida} || ${evB.i}${w('Estado', 'State')} == ${N.EstadoObrigacao}.${N.Informado} || ${evB.i}${w('Estado', 'State')} == ${N.EstadoObrigacao}.${N.EmDisputaObr})`) : null;
+                // Com liberação por evento: o evento ocorreu (libera ao beneficiário), falhou (permite a devolução) ou aguarda resolução.
+                const EO = N.EstadoObrigacao, est = evB ? `${evB.i}${w('Estado', 'State')}` : null;
+                const evReleased = !evB ? null : evB.type === 'oraculoEvento' ? `${evB.i}${w('Confirmado', 'Confirmed')}` : `${est} == ${EO}.${N.Cumprida}`;
+                const evFailed = !evB ? null : evB.type === 'oraculoEvento' ? `!${evB.i}${w('Confirmado', 'Confirmed')}`
+                    : `(${est} == ${EO}.${N.Descumprida} || ${est} == ${EO}.${N.SemDecisao} || (${est} == ${EO}.${N.Pendente} && block.timestamp > ${w('prazoFinal', 'finalDeadline')}${evB.I}()))`;
+                const evPending = !evB || evB.type === 'oraculoEvento' ? null : `(${est} == ${EO}.${N.Informado} || ${est} == ${EO}.${N.EmDisputaObr})`;
                 events.push(`    event ${w('Deposito', 'Deposit')}${b.I}(address indexed ${w('depositante', 'depositor')}, uint256 ${N.valor}, uint256 ${w('prazoFinal', 'deadline')});`);
                 events.push(`    event ${w('Destinacao', 'Allocation')}${b.I}(address indexed ${w('beneficiario', 'beneficiary')}, uint256 ${N.valor});`);
                 const dm = useMod(dep);
@@ -929,7 +1248,8 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         if (msg.value != ${P}_${w('VALOR', 'AMOUNT')}) revert ${N.ValorIncorreto}(${P}_${w('VALOR', 'AMOUNT')}, msg.value);
         ${st} = ${N.EstadoGarantia}.${N.Depositado};
         ${held} = msg.value;
-        ${dl} = block.timestamp + ${P}_${w('PRAZO', 'DEADLINE')};
+        ${dl} = block.timestamp + ${P}_${w('PRAZO', 'DEADLINE')};${arrOf(b) ? `
+        ${b.i}${w('DepositadoEm', 'DepositedAt')} = block.timestamp;` : ''}
         emit ${w('Deposito', 'Deposit')}${b.I}(msg.sender, msg.value, ${dl});
     }
 
@@ -940,11 +1260,12 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         _${w('destinar', 'allocate')}${b.I}(${ben.v});
     }
 
-    /// @notice ${w('Devolução ao depositante, esgotado o prazo sem confirmação nem disputa.', 'Refund to the depositor after the deadline without confirmation or dispute.')}
-    function ${w('reaver', 'refund')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+    /// @notice ${w('Devolução ao depositante, esgotado o prazo sem confirmação nem disputa.', 'Refund to the depositor after the deadline without confirmation or dispute.')}${evB ? `
+    /// @dev ${w('Com liberação por evento, só cabe a devolução se o evento não ocorreu (obrigação descumprida, sem decisão ou com prazo vencido); vale também após o encerramento.', 'With release on event, refund is only possible if the event failed (obligation breached, unresolved or past its deadline); also after closing.')}` : ''}
+    function ${w('reaver', 'refund')}${b.I}() external ${dm}${evB ? '' : ` ${N.naSituacao}(${N.Situacao}.${N.Ativo})`} {
         if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
-        if (block.timestamp <= ${dl}) revert ${N.PrazoNaoEncerrado}(${dl});${evBlock ? `
-        if (${evBlock}) revert ${N.NaoDisponivel}(); // ${w('o evento que libera o valor já ocorreu ou aguarda atestação', 'the releasing event has occurred or awaits attestation')}` : ''}
+        if (${evB ? `${N.situacao} == ${N.Situacao}.${N.Ativo} && ` : ''}block.timestamp <= ${dl}) revert ${N.PrazoNaoEncerrado}(${dl});${evB ? `
+        if (!${evFailed}) revert ${N.NaoDisponivel}(); // ${w('o evento que libera o valor ocorreu ou ainda pode ocorrer', 'the releasing event has occurred or may still occur')}` : ''}
         _${w('destinar', 'allocate')}${b.I}(${dep.v});
     }`);
                 if (ctx.arbRole) {
@@ -953,7 +1274,8 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                     code.push(`
     /// @notice ${w('Qualquer das partes submete a divergência ao árbitro.', 'Either party refers the dispute to the arbitrator.')}
     function ${w('abrirDisputa', 'openDispute')}${b.I}() external ${pm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
-        if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
+        if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();${evB ? `
+        if (${evReleased}) revert ${N.NaoDisponivel}(); // ${w('ocorrido o evento, o valor cabe ao beneficiário', 'once the event has occurred, the amount belongs to the beneficiary')}` : ''}
         ${st} = ${N.EstadoGarantia}.${N.EmDisputa};
         ${cdisp} = block.timestamp;
     }
@@ -983,12 +1305,20 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     // ${'-'.repeat(70)}
 
     /// @notice ${evb.type === 'oraculoEvento' ? w('Liberação ao beneficiário depois que a fonte designada atestar o evento.', 'Release to the beneficiary after the designated source attests the event.') : w('Liberação ao beneficiário depois de atestado o cumprimento da obrigação indicada.', 'Release to the beneficiary once the indicated obligation is attested as fulfilled.')}
-    function ${w('liberarPorEvento', 'releaseOnEvent')}${b.I}() external ${bm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+    function ${w('liberarPorEvento', 'releaseOnEvent')}${b.I}() external ${bm} {
         if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
         if (${evb.type === 'oraculoEvento' ? `!${evb.i}${w('Confirmado', 'Confirmed')}` : `${evb.i}${w('Estado', 'State')} != ${N.EstadoObrigacao}.${N.Cumprida}`}) revert ${N.NaoDisponivel}();
         _${w('destinar', 'allocate')}${b.I}(${ben.v});
     }`);
                 }
+                if (carr) code.push(`${subHeader(carr)}
+    /// @notice ${w('Desistência do depositante dentro do prazo de arrependimento, com devolução integral.', 'Withdrawal by the depositor within the withdrawal period, with a full refund.')}
+    function ${w('arrepender', 'withdrawFrom')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+        if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
+        uint256 ${N.limite} = ${b.i}${w('DepositadoEm', 'DepositedAt')} + ${P}_${w('PRAZO_ARREPENDIMENTO', 'WITHDRAWAL_PERIOD')};
+        if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
+        _${w('destinar', 'allocate')}${b.I}(${dep.v});
+    }`);
                 code.push(`
     function _${w('destinar', 'allocate')}${b.I}(address ${w('destino', 'to')}) private {
         uint256 ${N.valor} = ${held};
@@ -1000,7 +1330,19 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     }`);
                 retained.push(held);
                 concluded.push(`${st} == ${N.EstadoGarantia}.${N.Concluido}`);
-                onClose.push(`        if (${held} > 0) {
+                onClose.push(evB ? `        if (${held} > 0) {
+            if (${evReleased}) {
+                ${N.saldos}[${ben.v}] += ${held}; // ${w('o evento ocorreu: o valor cabe ao beneficiário', 'the event occurred: the amount belongs to the beneficiary')}
+                ${held} = 0;
+                ${st} = ${N.EstadoGarantia}.${N.Concluido};
+            } else if (${evPending ? `!${evPending}` : 'true'}) {
+                ${N.saldos}[${dep.v}] += ${held}; // ${w('devolução ao depositante', 'refund to depositor')}
+                ${held} = 0;
+                ${st} = ${N.EstadoGarantia}.${N.Concluido};
+            } else {
+                ${st} = ${N.EstadoGarantia}.${N.Depositado}; // ${w('aguarda a resolução da obrigação, mesmo após o encerramento', 'awaits the outcome of the obligation, even after closing')}
+            }
+        }` : `        if (${held} > 0) {
             ${N.saldos}[${dep.v}] += ${held}; // ${w('devolução ao depositante', 'refund to depositor')}
             ${held} = 0;
             ${st} = ${N.EstadoGarantia}.${N.Concluido};
@@ -1126,6 +1468,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     /// @notice ${w('Pedido de retenção (total ou parcial) pelo beneficiário, submetido ao árbitro.', 'Retention claim (full or partial) by the beneficiary, referred to the arbitrator.')}
     function ${w('reter', 'claim')}${b.I}(uint256 ${N.valor}, string calldata ${w('motivo', 'reason')}) external ${bm} ${N.naSituacao}(${N.Situacao}.${N.Encerrado}) {
         if (${st} != ${N.EstadoGarantia}.${N.Depositado}) revert ${N.NaoDisponivel}();
+        if (block.timestamp > ${N.encerradoEm} + ${PR}) revert ${N.PrazoEncerrado}(${N.encerradoEm} + ${PR});
         if (${N.valor} == 0 || ${N.valor} > ${held} || bytes(${w('motivo', 'reason')}).length == 0) revert ${N.ParametroInvalido}();
         ${claim} = ${N.valor};
         ${st} = ${N.EstadoGarantia}.${N.EmDisputa};
@@ -1272,16 +1615,23 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     /// @dev ${w('LIMITAÇÃO: o contrato não verifica fatos do mundo real; depende da atestação de quem foi designado.', 'LIMITATION: the contract cannot verify real-world facts; it depends on the designated party\'s attestation.')}
     function ${fnAt}${b.I}() external ${vm} {
         if (${st} != ${S('Pendente')} && ${st} != ${S('Informado')} && ${st} != ${S('EmDisputaObr')}) revert ${N.NaoDisponivel}();
-        if (${st} != ${S('EmDisputaObr')} && ${N.situacao} != ${N.Situacao}.${N.Ativo}) revert ${N.SituacaoInvalida}();
+        if (${st} == ${S('Pendente')} && ${N.situacao} != ${N.Situacao}.${N.Ativo}) revert ${N.SituacaoInvalida}();
         _${w('definir', 'settle')}${b.I}(${S('Cumprida')}, "${w('cumprimento atestado', 'performance attested')}");
     }
 
     /// @notice ${w('Recusa fundamentada, dentro do prazo de atestação; reabre ao devedor igual prazo para cumprir.', 'Reasoned rejection within the attestation period; gives the debtor the same period again to perform.')}
-    function ${fnRec}${b.I}(string calldata ${w('motivo', 'reason')}) external ${vm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+    /// @dev ${w('Encerrado o contrato com o cumprimento informado, a recusa ainda cabe no prazo de atestação, mas já não há prazo para cumprir de novo: segue ao árbitro, se houver, ou importa descumprimento.', 'If the contract closed with performance reported, rejection is still possible within the attestation period, but there is no time left to perform again: it goes to the arbitrator, if any, or means breach.')}
+    function ${fnRec}${b.I}(string calldata ${w('motivo', 'reason')}) external ${vm} {
         if (${st} != ${S('Informado')}) revert ${N.NaoDisponivel}();
         uint256 ${N.limite} = ${inf} + ${AT};
         if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
         if (bytes(${w('motivo', 'reason')}).length == 0) revert ${N.ParametroInvalido}();
+        if (${N.situacao} != ${N.Situacao}.${N.Ativo}) {
+            ${arb ? `${st} = ${S('EmDisputaObr')};
+            ${disp} = block.timestamp;
+            emit ${ev}(${w('motivo', 'reason')}, block.timestamp);` : `_${w('definir', 'settle')}${b.I}(${S('Descumprida')}, ${w('motivo', 'reason')});`}
+            return;
+        }
         uint256 ${w('novoPrazo', 'newDeadline')} = block.timestamp + ${AT};
         if (${w('novoPrazo', 'newDeadline')} > ${fin}()) ${reab} = ${w('novoPrazo', 'newDeadline')};
         ${st} = ${S('Pendente')};${arb ? `\n        ${rec} = true;` : ''}
@@ -1289,7 +1639,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     }
 
     /// @notice ${w('Atestação tácita: sem atestação nem recusa no prazo, o cumprimento informado vale como atestado.', 'Tacit attestation: without attestation or rejection in time, the reported performance counts as attested.')}
-    function ${w('atestarTacitamente', 'attestByTimeout')}${b.I}() external ${dm} ${N.naSituacao}(${N.Situacao}.${N.Ativo}) {
+    function ${w('atestarTacitamente', 'attestByTimeout')}${b.I}() external ${dm} {
         if (${st} != ${S('Informado')}) revert ${N.NaoDisponivel}();
         uint256 ${N.limite} = ${inf} + ${AT};
         if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
@@ -1317,14 +1667,16 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                     else code.push(`
     // ${w('LIMITAÇÃO: sem árbitro, a recusa depende da boa-fé de quem atesta; o devedor dispõe apenas do prazo reaberto para cumprir de novo.', 'LIMITATION: without an arbitrator, rejection depends on the attesting party\'s good faith; the debtor only gets the reopened period to perform again.')}`);
                     concluded.push(`(${st} == ${S('Cumprida')} || ${st} == ${S('Descumprida')} || ${st} == ${S('SemDecisao')})`);
-                    if (pen) onClose.push(`        if (${held} > 0 && ${st} != ${S('EmDisputaObr')}) {
+                    // Cumprimento informado dentro do prazo de atestação, ou em disputa: a garantia aguarda a resolução após o encerramento.
+                    if (pen) onClose.push(`        if (${held} > 0 && ${st} != ${S('EmDisputaObr')} && !(${st} == ${S('Informado')} && block.timestamp <= ${inf} + ${AT})) {
             uint256 ${b.i}${w('Garantia', 'Bond')} = ${held};
             ${held} = 0;
             if (${st} == ${S('Pendente')} && block.timestamp > ${fin}()) {
                 ${st} = ${S('Descumprida')}; // ${w('prazo vencido sem cumprimento: inadimplemento', 'deadline passed without performance: default')}
                 ${N.saldos}[${cre.v}] += ${b.i}${w('Garantia', 'Bond')};
             } else {
-                ${N.saldos}[${dev.v}] += ${b.i}${w('Garantia', 'Bond')}; // ${w('obrigação ainda não vencida ou cumprimento informado', 'obligation not yet due or performance reported')}
+                if (${st} == ${S('Informado')}) ${st} = ${S('Cumprida')}; // ${w('prazo de atestação esgotado: atestação tácita', 'attestation period over: tacit attestation')}
+                ${N.saldos}[${dev.v}] += ${b.i}${w('Garantia', 'Bond')}; // ${w('obrigação ainda não vencida ou cumprida', 'obligation not yet due or fulfilled')}
             }
         }`);
                 } else {
@@ -1399,11 +1751,88 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 }
             }
 
+            if (b.type === 'arrependimento') {
+                code.push(`    // ${w('Aplicado na seção da cláusula indicada (funções de arrependimento).', 'Applied in the section of the indicated clause (withdrawal functions).')}`);
+            }
+
             if (b.type === 'reajuste' || b.type === 'conversaoCambial') {
                 code.push(`    // ${w('Aplicado no cálculo do valor-base do pagamento indicado.', 'Applied to the base amount of the indicated payment.')}`);
             }
 
-            if (b.type === 'clausulaLivre') {
+            if (b.type === 'assinaturas') {
+                const hash = '0x' + sha256Hex(textoParaAssinatura(model, lang));
+                const PA = w('PRAZO_ASSINATURAS', 'SIGNATURE_PERIOD'), TS = w('TOTAL_SIGNATARIOS', 'TOTAL_SIGNATORIES');
+                const signed = w('assinadoEm', 'signedAt'), count = w('assinaturas', 'signatureCount'), doc = w('documentoAssinado', 'signedDocument');
+                constants.push(`    /// @notice ${w('Impressão digital (SHA-256) do texto do contrato, conferível com o arquivo de texto baixado na página.', 'Fingerprint (SHA-256) of the contract text, verifiable against the text file downloaded from the page.')}`);
+                constants.push(`    bytes32 public constant ${N.HASH} = ${hash};`);
+                constants.push(`    uint256 public constant ${PA} = ${Math.round(b.params.prazo)} days;`);
+                constants.push(`    uint256 public constant ${TS} = ${ctx.roles.length};`);
+                state.push(`    mapping(address => uint256) public ${signed};`, `    uint256 public ${count};`,
+                    `    bytes32 public ${doc}; // ${w('impressão digital do PDF assinado fora da "blockchain" (opcional)', 'fingerprint of the PDF signed off-chain (optional)')}`);
+                events.push(`    event ${w('Assinatura', 'Signature')}(address indexed ${w('signatario', 'signatory')}, bytes32 ${w('hashDoTexto', 'textHash')}, bytes32 ${w('documento', 'document')});`);
+                events.push(`    event ${w('DocumentoRegistrado', 'DocumentRecorded')}(address indexed ${w('parte', 'party')}, bytes32 ${w('hashDoDocumento', 'documentHash')});`);
+                events.push(`    event ${w('ContratoEmVigor', 'AgreementInForce')}(uint256 ${N.quando});`);
+                const sm = w('apenasSignatarios', 'onlySignatories');
+                modifiers.set(sm, `    modifier ${sm}() {
+        if (${ctx.roles.map(r => `msg.sender != ${r.v}`).join(' && ')}) revert ${N.NaoAutorizado}();
+        _;
+    }`);
+                const AG = `${N.Situacao}.${N.Aguardando_}`;
+                code.push(`    /// @notice ${w('Registra, antes da primeira assinatura, a impressão digital (SHA-256) do PDF assinado por serviço de assinatura eletrônica (gov.br, ICP-Brasil ou equivalente estrangeiro).', 'Records, before the first signature, the fingerprint (SHA-256) of the PDF signed with an electronic signature service (gov.br, ICP-Brasil, eIDAS or equivalent).')}
+    /// @dev ${w('Só a impressão digital vai para a "blockchain"; o documento, com os dados pessoais das partes, fica fora dela.', 'Only the fingerprint goes on-chain; the document, with the parties\' personal data, stays off-chain.')}
+    function ${w('registrarDocumento', 'recordDocument')}(bytes32 ${w('hashDoDocumento', 'documentHash')}) external ${sm} ${N.naSituacao}(${AG}) {
+        if (${count} != 0) revert ${N.NaoDisponivel}();
+        if (${w('hashDoDocumento', 'documentHash')} == bytes32(0)) revert ${N.ParametroInvalido}();
+        ${doc} = ${w('hashDoDocumento', 'documentHash')};
+        emit ${w('DocumentoRegistrado', 'DocumentRecorded')}(msg.sender, ${w('hashDoDocumento', 'documentHash')});
+    }
+
+    /// @notice ${w('Assinatura digital do signatário, que confere a impressão digital do texto; com a última assinatura, o contrato entra em vigor.', 'Digital signature by the signatory, who checks the text fingerprint; with the last signature, the contract comes into force.')}
+    /// @param ${w('hashDoTexto', 'textHash')} ${w('deve ser igual a', 'must equal')} ${N.HASH}
+    function ${w('assinar', 'sign')}(bytes32 ${w('hashDoTexto', 'textHash')}) external ${sm} ${N.naSituacao}(${AG}) {
+        if (${w('hashDoTexto', 'textHash')} != ${N.HASH}) revert ${N.ParametroInvalido}();
+        if (${signed}[msg.sender] != 0) revert ${N.JaConcluido}();
+        uint256 ${N.limite} = ${N.criadoEm} + ${PA};
+        if (block.timestamp > ${N.limite}) revert ${N.PrazoEncerrado}(${N.limite});
+        ${signed}[msg.sender] = block.timestamp;
+        ${count} += 1;
+        emit ${w('Assinatura', 'Signature')}(msg.sender, ${w('hashDoTexto', 'textHash')}, ${doc});
+        if (${count} == ${TS}) {
+            ${N.situacao} = ${N.Situacao}.${N.Ativo};
+            ${N.inicio} = block.timestamp;
+            emit ${w('ContratoEmVigor', 'AgreementInForce')}(block.timestamp);
+        }
+    }
+
+    /// @notice ${w('Sem todas as assinaturas no prazo, qualquer signatário cancela o contrato (nenhum valor terá sido movimentado).', 'Without all signatures in time, any signatory cancels the contract (no amount will have moved).')}
+    function ${w('cancelarPorFaltaDeAssinatura', 'cancelForMissingSignatures')}() external ${sm} ${N.naSituacao}(${AG}) {
+        uint256 ${N.limite} = ${N.criadoEm} + ${PA};
+        if (block.timestamp <= ${N.limite}) revert ${N.PrazoNaoEncerrado}(${N.limite});
+        ${N.encerrar}();
+    }`);
+            }
+
+            if (b.type === 'notificacoes') {
+                const nm = useParties();
+                const cnt = w('notificacoesRegistradas', 'recordedNotices');
+                state.push(`    uint256 public ${cnt};`);
+                events.push(`    event ${w('Notificacao', 'Notice')}(uint256 indexed ${w('numero', 'number')}, address indexed ${w('remetente', 'sender')}, address indexed ${w('destinatario', 'recipient')}, string ${w('texto', 'text')});`);
+                const isParty = x => ctx.partyRoles.map(r => `${x} != ${r.v}`).join(' && ');
+                code.push(`    /// @notice ${w('Registra notificação de uma parte à outra; o registro prova o conteúdo e a data.', 'Records a notice from one party to the other; the record proves its content and date.')}
+    /// @dev ${w('O texto fica público na "blockchain": não inclua dados pessoais.', 'The text is public on the blockchain: do not include personal data.')}
+    function ${w('notificar', 'notify')}(address ${w('destinatario', 'recipient')}, string calldata ${w('texto', 'text')}) external ${nm} {
+        if (${isParty(w('destinatario', 'recipient'))}) revert ${N.ParametroInvalido}();
+        if (${w('destinatario', 'recipient')} == msg.sender || bytes(${w('texto', 'text')}).length == 0) revert ${N.ParametroInvalido}();
+        ${cnt} += 1;
+        emit ${w('Notificacao', 'Notice')}(${cnt}, msg.sender, ${w('destinatario', 'recipient')}, ${w('texto', 'text')});
+    }`);
+            }
+
+            if (b.type === 'testemunha') {
+                code.push(`    // ${w('A testemunha assina pela função de assinatura acima; sem a sua assinatura, o contrato não entra em vigor.', 'The witness signs through the signature function; without their signature, the contract does not come into force.')}`);
+            }
+
+            if (BLOCKS[b.type].declarative) {
                 code.push(`    // ${w('Cláusula declaratória: não é executada pelo contrato. Seu cumprimento depende das partes e, se for o caso, do Poder Judiciário.', 'Declaratory clause: not executed by the contract. Compliance depends on the parties and, where applicable, the courts.')}`);
             }
 
@@ -1461,7 +1890,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         lines.push(`/// @title ${ctx.name}`);
         lines.push('/// @notice ' + L('Contrato montado por blocos. Cada seção abaixo transcreve, em comentário, a cláusula que implementa.', 'Contract assembled from blocks. Each section below quotes, as a comment, the clause it implements.'));
         lines.push(`contract ${ctx.name} {`);
-        lines.push(`    enum ${N.Situacao} { ${N.Ativo}, ${N.Encerrado} }`);
+        lines.push(`    enum ${N.Situacao} { ${N.Ativo}, ${N.Encerrado}${sig ? ', ' + N.Aguardando_ : ''} }`);
         if (needsHold) lines.push(`    enum ${N.EstadoGarantia} { ${N.Aguardando}, ${N.Depositado}, ${N.EmDisputa}, ${N.Concluido} }`);
         if (needsObligation) lines.push(`    enum ${N.EstadoObrigacao} { ${N.Pendente}, ${N.Informado}, ${N.Cumprida}, ${N.Descumprida}, ${N.EmDisputaObr}, ${N.SemDecisao} }`);
         lines.push('');
@@ -1486,7 +1915,10 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         lines.push('    // ' + minutaTxt[0].numero + ' — ' + minutaTxt[0].titulo);
         lines.push(commentBlock(minutaTxt[0].texto, '    '));
         ctx.roles.forEach(r => lines.push(`    address public immutable ${r.v};`));
-        lines.push(`    uint256 public immutable ${N.inicio};`);
+        if (sig) {
+            lines.push(`    uint256 public ${N.inicio}; // ${L('data da última assinatura: início da vigência e dos prazos', 'date of the last signature: start of the term and of all deadlines')}`);
+            lines.push(`    uint256 public immutable ${N.criadoEm};`);
+        } else lines.push(`    uint256 public immutable ${N.inicio};`);
         if (ctx.usesToken) lines.push(`    IERC20Minimo public immutable token; // ${L('"stablecoin" usada nos pagamentos em token', 'stablecoin used for token payments')}`);
         lines.push('');
         if (needsBps) lines.push(`    uint256 private constant BPS = 10_000; // ${L('100% em pontos-base', '100% in basis points')}`);
@@ -1509,7 +1941,10 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         if (distinct.length) lines.push(`        if (${distinct.join(' || ')}) revert ${N.ParametroInvalido}();`);
         ctx.roles.forEach(r => lines.push(`        ${r.v} = _${r.v};`));
         if (ctx.usesToken) lines.push('        token = IERC20Minimo(_token);');
-        lines.push(`        ${N.inicio} = block.timestamp;`);
+        if (sig) {
+            lines.push(`        ${N.situacao} = ${N.Situacao}.${N.Aguardando_};`);
+            lines.push(`        ${N.criadoEm} = block.timestamp;`);
+        } else lines.push(`        ${N.inicio} = block.timestamp;`);
         lines.push('    }');
         lines.push('');
         sections.forEach(s => { lines.push(s); lines.push(''); });
@@ -1645,13 +2080,33 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 const periodic = b.type === 'pagamentoPeriodico';
                 const pay = w('pagar', 'pay') + I;
                 const due = w('valorDevido', 'amountDue') + I;
+                const arrB = !periodic ? blocks.find(x => x.type === 'arrependimento' && x.params.alvo === b.uid) : null;
+                const confirmArr = arrB ? [wait(Math.round(arrB.params.prazo) + 1, w('O prazo de arrependimento se esgota.', 'The withdrawal period ends.')),
+                    call(R(dev), w('confirmarPagamento', 'confirmPayment') + I, [], null, 'sucesso', null, w('Pagamento confirmado.', 'Payment confirmed.'))] : [];
                 scenarios.push(sc(w(`${b.label}: pagamento em dia e saque`, `${b.label}: on-time payment and withdrawal`), 'funcionalidade',
                     w(`${dev.label} paga o valor exato e ${cre.label} saca o crédito.`, `${dev.label} pays the exact amount and ${cre.label} withdraws the credit.`), [
                         call(R(dev), pay, [], amount(b.params.valor), 'sucesso', null, w('Pagamento no prazo.', 'On-time payment.')),
                         periodic ? query(R(cre), b.i + w('ParcelasPagas', 'PaidInstallments'), [], '1', w('Uma parcela registrada.', 'One installment recorded.'))
                             : query(R(cre), b.i + w('Pago', 'Paid'), [], 'true', w('Pagamento registrado.', 'Payment recorded.')),
+                        ...(arrB ? [call(R(cre), N.sacar, [], null, 'reverter', N.SemSaldo, w('Durante o prazo de arrependimento, o valor fica retido.', 'During the withdrawal period, the amount is held.')),
+                            call(R(cre), w('confirmarPagamento', 'confirmPayment') + I, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo de arrependimento.', 'Still within the withdrawal period.')), ...confirmArr] : []),
                         call(R(cre), N.sacar, [], null, 'sucesso', null, w('O credor saca.', 'The payee withdraws.'))
                     ]));
+                if (arrB) {
+                    scenarios.push(Object.assign(sc(w(`${b.label}: arrependimento no prazo`, `${b.label}: withdrawal within the period`), 'funcionalidade',
+                        w('Dentro do prazo, quem pagou desiste e recebe o valor de volta; fora dele, a desistência é recusada.', 'Within the period, the payer withdraws and gets the money back; afterwards, withdrawal is refused.'), [
+                            call(R(dev), pay, [], amount(b.params.valor), 'sucesso', null, w('Pagamento.', 'Payment.')),
+                            call(R(cre), w('arrepender', 'withdrawFrom') + I, [], null, 'reverter', N.NaoAutorizado, w('Só quem pagou pode desistir.', 'Only the payer may withdraw.')),
+                            call(R(dev), w('arrepender', 'withdrawFrom') + I, [], null, 'sucesso', null, w('Desistência.', 'Withdrawal.')),
+                            call(R(dev), N.sacar, [], null, 'sucesso', null, w('Quem pagou recupera o valor.', 'The payer recovers the amount.'))
+                        ]), { bloco: arrB.uid }));
+                    scenarios.push(Object.assign(sc(w(`${b.label}: arrependimento fora do prazo`, `${b.label}: late withdrawal`), 'seguranca',
+                        w('Esgotado o prazo de arrependimento, a desistência é recusada.', 'Once the withdrawal period is over, withdrawal is refused.'), [
+                            call(R(dev), pay, [], amount(b.params.valor), 'sucesso', null, w('Pagamento.', 'Payment.')),
+                            wait(Math.round(arrB.params.prazo) + 1, w('O prazo se esgota.', 'The period ends.')),
+                            call(R(dev), w('arrepender', 'withdrawFrom') + I, [], null, 'reverter', N.PrazoEncerrado, w('Fora do prazo.', 'Too late.'))
+                        ]), { bloco: arrB.uid }));
+                }
                 scenarios.push(sc(w(`${b.label}: valor incorreto`, `${b.label}: wrong amount`), 'seguranca',
                     w('O contrato exige o valor exato; pagamento parcial é recusado.', 'The contract requires the exact amount; partial payment is rejected.'), [
                         call(R(dev), pay, [], half(b.params.valor), 'reverter', N.ValorIncorreto, w('Metade do valor deve ser recusada.', 'Half the amount must be rejected.'))
@@ -1700,6 +2155,13 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
             if (b.type === 'custodia') {
                 const dep = roleById(b.params.depositante), ben = roleById(b.params.beneficiario);
                 const D = w('depositar', 'deposit') + I;
+                const carrB = blocks.find(x => x.type === 'arrependimento' && x.params.alvo === b.uid);
+                if (carrB) scenarios.push(Object.assign(sc(w(`${b.label}: arrependimento do depositante`, `${b.label}: depositor's withdrawal`), 'funcionalidade',
+                    w('Dentro do prazo, o depositante desiste e recupera o valor; fora dele, a desistência é recusada.', 'Within the period, the depositor withdraws and recovers the amount; afterwards, withdrawal is refused.'), [
+                        call(R(dep), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito.', 'Deposit.')),
+                        call(R(dep), w('arrepender', 'withdrawFrom') + I, [], null, 'sucesso', null, w('Desistência.', 'Withdrawal.')),
+                        call(R(dep), N.sacar, [], null, 'sucesso', null, w('O depositante saca.', 'The depositor withdraws.'))
+                    ]), { bloco: carrB.uid }));
                 scenarios.push(sc(w(`${b.label}: depósito e liberação`, `${b.label}: deposit and release`), 'funcionalidade',
                     w(`O valor fica retido e é liberado a ${ben.label} com a confirmação de ${dep.label}.`, `The amount is held and released to ${ben.label} upon ${dep.label}'s confirmation.`), [
                         call(R(dep), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito.', 'Deposit.')),
@@ -2095,6 +2557,20 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 ]));
         }
 
+        const notB = blocks.find(x => x.type === 'notificacoes');
+        if (notB && ctx.partyRoles.length >= 2) {
+            const a = ctx.partyRoles[0], bb = ctx.partyRoles[1];
+            const NT = w('notificar', 'notify');
+            scenarios.push(Object.assign(sc(w('Notificação registrada', 'Recorded notice'), 'funcionalidade',
+                w('Uma parte notifica a outra; o registro fica no contrato. Notificação a si mesmo, a quem não é parte ou sem texto é recusada.', 'One party notifies the other; the record stays in the contract. Notices to oneself, to non-parties or without text are refused.'), [
+                    call(R(a), NT, [R(bb), w('Fica constituído em mora o devedor.', 'The debtor is hereby put on notice of default.')], null, 'sucesso', null, w('Notificação registrada.', 'Notice recorded.')),
+                    call(R(a), NT, [R(a), w('Teste', 'Test')], null, 'reverter', N.ParametroInvalido, w('Não se notifica a si mesmo.', 'Cannot notify oneself.')),
+                    call(R(a), NT, [attacker, w('Teste', 'Test')], null, 'reverter', N.ParametroInvalido, w('Só se notifica quem é parte.', 'Only parties can be notified.')),
+                    call(R(a), NT, [R(bb), ''], null, 'reverter', N.ParametroInvalido, w('Notificação sem texto é recusada.', 'A notice without text is refused.')),
+                    query(R(a), w('notificacoesRegistradas', 'recordedNotices'), [], '1', w('Uma notificação registrada.', 'One notice recorded.'))
+                ]), { bloco: notB.uid }));
+        }
+
         // Ataque de reentrância por contrato malicioso real (crédito em Ether a um credor que é um contrato).
         const ethPay = blocks.find(x => x.type === 'pagamentoUnico' || x.type === 'pagamentoPeriodico');
         if (ethPay) {
@@ -2103,6 +2579,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 w(`Um contrato atacante ocupa o lugar de ${cre.label}, recebe um crédito legítimo e tenta sacá-lo várias vezes, reentrando no saque. A trava de reentrância e a ordem "efeitos antes da interação" devem impedir.`,
                     `An attacker contract takes ${cre.label}'s place, receives a legitimate credit and tries to withdraw it several times by re-entering the withdrawal. The reentrancy lock and the effects-before-interaction order must prevent it.`), [
                     call(R(dev), w('pagar', 'pay') + ethPay.I, [], '=' + w('valorDevido', 'amountDue') + ethPay.I, 'sucesso', null, w('Pagamento legítimo, creditado ao contrato atacante.', 'Legitimate payment, credited to the attacker contract.')),
+                    ...(() => { const ab = blocks.find(x => x.type === 'arrependimento' && x.params.alvo === ethPay.uid); return ab ? [wait(Math.round(ab.params.prazo) + 1, w('O prazo de arrependimento se esgota.', 'The withdrawal period ends.')), call(R(dev), w('confirmarPagamento', 'confirmPayment') + ethPay.I, [], null, 'sucesso', null, w('Pagamento confirmado.', 'Payment confirmed.'))] : []; })(),
                     { acao: 'ataqueReentrancia', conta: attacker, sacar: N.sacar, saldos: N.saldos, explicacao: w('O contrato atacante saca e, ao receber o Ether, tenta sacar de novo.', 'The attacker contract withdraws and, on receiving Ether, tries to withdraw again.') }
                 ]), { contratoAtacante: { papel: R(cre) } }));
         }
@@ -2111,6 +2588,52 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         scenarios.push({ titulo: w('Conta não autorizada tenta executar cada função', 'Unauthorized account tries every function'), tipo: 'seguranca',
             objetivo: w('Toda função que altera o estado deve recusar quem não é a parte legitimada.', 'Every state-changing function must reject anyone who is not the entitled party.'),
             passos: [{ acao: 'atacarTodas', conta: attacker, ignorar: [N.sacar, w('sacarToken', 'withdrawToken')], erroEsperado: N.NaoAutorizado, explicacao: w('Chamada de cada função pela conta do Atacante.', 'Each function called by the Attacker account.') }, solv()] });
+
+        // Assinaturas digitais: cenários próprios e, nos demais, todos assinam antes de começar.
+        const sigB = blocks.find(x => x.type === 'assinaturas');
+        if (sigB) {
+            const HASH = '0x' + sha256Hex(textoParaAssinatura(model, lang));
+            const SIGN = w('assinar', 'sign'), CANCEL = w('cancelarPorFaltaDeAssinatura', 'cancelForMissingSignatures'), DOC = w('registrarDocumento', 'recordDocument');
+            const signAll = except => ctx.roles.filter(r => r !== except).map(r => call(R(r), SIGN, [HASH], null, 'sucesso', null, w(`${r.label} assina.`, `${r.label} signs.`)));
+            const first = ctx.roles[0], last = ctx.roles[ctx.roles.length - 1];
+            const docHash = '0x' + sha256Hex('PDF assinado de teste');
+            const s1 = [
+                call(R(first), SIGN, ['0x' + '0'.repeat(63) + '1'], null, 'reverter', N.ParametroInvalido, w('Assinatura que não confere com o texto é recusada.', 'A signature that does not match the text is rejected.')),
+                call(attacker, SIGN, [HASH], null, 'reverter', N.NaoAutorizado, w('Quem não é signatário não assina.', 'A non-signatory cannot sign.')),
+                ...signAll(last),
+                call(R(first), SIGN, [HASH], null, 'reverter', N.JaConcluido, w('Não se assina duas vezes.', 'Cannot sign twice.')),
+                query(R(first), N.situacao, [], '2', w('Falta uma assinatura: o contrato ainda não está em vigor.', 'One signature is missing: the contract is not yet in force.')),
+                call(R(last), SIGN, [HASH], null, 'sucesso', null, w(`${last.label} assina por último.`, `${last.label} signs last.`)),
+                query(R(first), N.situacao, [], '0', w('Com todas as assinaturas, o contrato entra em vigor.', 'With all signatures, the contract comes into force.'))
+            ];
+            scenarios.unshift(Object.assign(sc(w('Assinaturas: vigência só após todos assinarem', 'Signatures: in force only after everyone signs'), 'seguranca',
+                w('Cada signatário confere a impressão digital do texto; o contrato só entra em vigor com a última assinatura.', 'Each signatory checks the text fingerprint; the contract only comes into force with the last signature.'), s1), { semAssinatura: true, bloco: sigB.uid }));
+            scenarios.splice(1, 0, Object.assign(sc(w('Assinaturas: registro do PDF assinado', 'Signatures: recording the signed PDF'), 'funcionalidade',
+                w('Antes da primeira assinatura, registra-se a impressão digital do PDF assinado por serviço de assinatura eletrônica; depois disso, o registro não muda.', 'Before the first signature, the fingerprint of the PDF signed with an electronic signature service is recorded; afterwards, it cannot change.'), [
+                    call(R(first), DOC, ['0x' + '0'.repeat(64)], null, 'reverter', N.ParametroInvalido, w('Impressão digital vazia é recusada.', 'An empty fingerprint is rejected.')),
+                    call(R(first), DOC, [docHash], null, 'sucesso', null, w('Impressão digital do PDF registrada.', 'PDF fingerprint recorded.')),
+                    query(R(first), w('documentoAssinado', 'signedDocument'), [], docHash, w('O registro consta do contrato.', 'The record is in the contract.')),
+                    call(R(first), SIGN, [HASH], null, 'sucesso', null, w(`${first.label} assina.`, `${first.label} signs.`)),
+                    call(R(last), DOC, [HASH], null, 'reverter', N.NaoDisponivel, w('Depois da primeira assinatura, o documento não pode ser trocado.', 'After the first signature, the document cannot be replaced.'))
+                ]), { semAssinatura: true, bloco: sigB.uid }));
+            scenarios.splice(2, 0, Object.assign(sc(w('Assinaturas: cancelamento por falta de assinatura', 'Signatures: cancellation for missing signatures'), 'funcionalidade',
+                w('Esgotado o prazo sem todas as assinaturas, já não se assina, e qualquer signatário cancela o contrato.', 'After the period without all signatures, no one can sign any more, and any signatory cancels the contract.'), [
+                    call(R(first), SIGN, [HASH], null, 'sucesso', null, w(`${first.label} assina.`, `${first.label} signs.`)),
+                    call(R(first), CANCEL, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo das assinaturas.', 'Still within the signature period.')),
+                    wait(Math.round(sigB.params.prazo) + 1, w('O prazo das assinaturas se esgota.', 'The signature period ends.')),
+                    call(R(last), SIGN, [HASH], null, 'reverter', N.PrazoEncerrado, w('Fora do prazo, a assinatura é recusada.', 'After the period, the signature is rejected.')),
+                    call(R(first), CANCEL, [], null, 'sucesso', null, w('Contrato cancelado.', 'Contract cancelled.')),
+                    query(R(first), N.situacao, [], '1', w('O contrato fica encerrado.', 'The contract is closed.'))
+                ]), { semAssinatura: true, bloco: sigB.uid }));
+            for (const scn of scenarios) {
+                if (scn.semAssinatura) { delete scn.semAssinatura; continue; }
+                const papel = scn.contratoAtacante ? scn.contratoAtacante.papel : null;
+                const pre = ctx.roles.map(r => papel === R(r)
+                    ? { acao: 'chamarPeloAtacante', funcao: SIGN, argumentos: [HASH], explicacao: w(`${r.label} (contrato atacante) assina.`, `${r.label} (attacker contract) signs.`) }
+                    : call(R(r), SIGN, [HASH], null, 'sucesso', null, w(`${r.label} assina.`, `${r.label} signs.`)));
+                scn.passos = pre.concat(scn.passos);
+            }
+        }
 
         if (priceOracles.length) {
             for (const scn of scenarios) {
@@ -2164,7 +2687,9 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                     blk('caucao', en ? 'Security' : 'Caução', { garantidor: 'locatario', beneficiario: 'locador', valor: 6000, prazo: 30 }),
                     blk('arbitro', '', { arbitro: 'arbitro' }),
                     blk('rescisao', '', { quem: '*' }),
-                    Object.assign(blk('clausulaLivre', en ? 'Jurisdiction' : 'Foro', {}), { texto: BLOCKS.clausulaLivre.sentence[en ? 'en' : 'pt'] })
+                    Object.assign(blk('foro', en ? 'Jurisdiction' : 'Foro', {}), { texto: en
+                        ? 'The courts of São Paulo, Brazil, where the property is located, shall have jurisdiction over disputes arising from this contract.'
+                        : 'Fica eleito o foro da comarca de São Paulo/SP, local do imóvel, para dirimir as controvérsias oriundas deste contrato.' })
                 ]
             }),
             compraParcelada: () => ({
@@ -2299,7 +2824,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
 
     return {
         BLOCKS, CATEGORIES, PRESETS, SOLC_VERSION, slots, missingSlots,
-        newBlock, validate, warnings, normalize, minuta, build, plan, preset, emptyModel, legend, colorOf, linksOf, COLORS, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
+        newBlock, validate, warnings, normalize, legalCheck, qualificacao, textoParaAssinatura, hashDoTexto: (model, lang) => '0x' + sha256Hex(textoParaAssinatura(model, lang)), sha256Hex, minuta, build, plan, preset, emptyModel, legend, colorOf, linksOf, COLORS, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
         names: { pascal, camel, upper }, toWei, fieldLabel
     };
 }));

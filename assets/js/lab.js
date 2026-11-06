@@ -91,6 +91,40 @@
         panic_33: 'valor inválido para "enum"',
         panic_50: 'acesso fora dos limites de array',
         errInsufficient: 'A conta não tem saldo suficiente para enviar esse valor.',
+        fnInfoTitle: 'Sobre a função',
+        fnInfoClause: 'Cláusula que esta função implementa',
+        fnInfoWhat: 'O que faz',
+        fnInfoWho: 'Quem pode chamar',
+        fnInfoAnyone: 'Qualquer conta. A função atua sobre o próprio crédito de quem chama.',
+        fnInfoAnyoneRead: 'Qualquer conta (apenas leitura).',
+        fnInfoMoney: 'Dinheiro',
+        fnInfoPayable: 'Recebe Ether junto com a chamada. Informe o valor no campo "Valor (ETH)".',
+        fnInfoNoPayable: 'Não recebe Ether.',
+        fnInfoView: 'É uma consulta: não altera o contrato e não gera transação.',
+        fnInfoWhen: 'Quando pode ser usada',
+        fnInfoStatus: 'Somente com o contrato na situação "{s}".',
+        fnInfoAlways: 'A qualquer tempo, observadas as condições abaixo.',
+        fnInfoGuard: 'Protegida contra reentrância (a função não pode ser reaberta durante a própria execução).',
+        fnInfoErrors: 'Pode ser recusada quando',
+        fnInfoNoErrors: 'Não há recusas previstas no código.',
+        fnInfoEvents: 'Registros (eventos) emitidos',
+        fnInfoSignature: 'Assinatura técnica',
+        fnInfoButton: 'Explicar a função',
+        fnInfoClose: 'Fechar',
+        errDesc_NaoAutorizado: 'quem chama não é a parte autorizada',
+        errDesc_SituacaoInvalida: 'o contrato não está na situação exigida (por exemplo, já foi encerrado)',
+        errDesc_ValorIncorreto: 'o valor enviado é diferente do valor devido',
+        errDesc_JaConcluido: 'a obrigação já foi cumprida',
+        errDesc_NaoDisponivel: 'a ação não está disponível neste momento',
+        errDesc_PrazoNaoEncerrado: 'o prazo ainda não terminou',
+        errDesc_PrazoEncerrado: 'o prazo já terminou',
+        errDesc_SemAtrasoSuficiente: 'o atraso ainda não atingiu o limite contratual',
+        errDesc_SemSaldo: 'não há crédito a sacar',
+        errDesc_FalhaNoEnvio: 'o envio do Ether ao destinatário falhou',
+        errDesc_Reentrada: 'houve tentativa de reabrir a função durante a própria execução (ataque de reentrância)',
+        errDesc_ParametroInvalido: 'algum dado informado é inválido',
+        errDesc_EnderecoInvalido: 'algum endereço informado é inválido',
+        errDesc_ForaDoPrazo: 'a operação ocorreu fora do prazo',
         labSolvencyOk: 'Solvência conferida: saldo do contrato {bal} ETH = créditos das partes {cred} ETH + valores retidos {held} ETH.',
         labSolvencyFail: 'Falha de solvência: saldo do contrato {bal} ETH ≠ créditos {cred} ETH + retidos {held} ETH.',
         errOutOfGas: 'A execução esgotou o limite de "gás".'
@@ -174,6 +208,38 @@
         panic_33: 'invalid enum value',
         panic_50: 'array index out of bounds',
         errInsufficient: 'The account does not have enough balance to send this amount.',
+        fnInfoTitle: 'About the function',
+        fnInfoClause: 'Clause implemented by this function',
+        fnInfoWhat: 'What it does',
+        fnInfoWho: 'Who can call it',
+        fnInfoAnyone: 'Any account. The function acts on the caller\'s own credit.',
+        fnInfoAnyoneRead: 'Any account (read only).',
+        fnInfoMoney: 'Money',
+        fnInfoPayable: 'Receives Ether with the call. Enter the amount in the "Value (ETH)" field.',
+        fnInfoNoPayable: 'Does not receive Ether.',
+        fnInfoView: 'It is a query: it does not change the contract and creates no transaction.',
+        fnInfoWhen: 'When it can be used',
+        fnInfoStatus: 'Only while the contract status is "{s}".',
+        fnInfoAlways: 'At any time, subject to the conditions below.',
+        fnInfoGuard: 'Protected against reentrancy (it cannot be re-entered during its own execution).',
+        fnInfoErrors: 'It may be rejected when',
+        fnInfoNoErrors: 'The code foresees no rejections.',
+        fnInfoEvents: 'Records (events) emitted',
+        fnInfoSignature: 'Technical signature',
+        fnInfoButton: 'Explain the function',
+        fnInfoClose: 'Close',
+        errDesc_Unauthorized: 'the caller is not the authorized party',
+        errDesc_InvalidStatus: 'the contract is not in the required status (for example, already closed)',
+        errDesc_WrongAmount: 'the amount sent differs from the amount due',
+        errDesc_AlreadyCompleted: 'the obligation has already been fulfilled',
+        errDesc_NotAvailable: 'the action is not available at this moment',
+        errDesc_DeadlineNotReached: 'the deadline has not passed yet',
+        errDesc_DeadlinePassed: 'the deadline has already passed',
+        errDesc_NotLateEnough: 'the delay has not reached the contractual limit',
+        errDesc_NothingToWithdraw: 'there is no credit to withdraw',
+        errDesc_TransferFailed: 'sending Ether to the recipient failed',
+        errDesc_Reentrancy: 'the function was re-entered during its own execution (reentrancy attack)',
+        errDesc_InvalidParameter: 'some given data is invalid',
         labSolvencyOk: 'Solvency checked: contract balance {bal} ETH = parties\' credits {cred} ETH + held amounts {held} ETH.',
         labSolvencyFail: 'Solvency failure: contract balance {bal} ETH ≠ credits {cred} ETH + held {held} ETH.',
         errOutOfGas: 'Execution ran out of gas.'
@@ -210,6 +276,14 @@
         const n = Number(s);
         if (!isFinite(n)) return s;
         return n.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { maximumFractionDigits: digits == null ? 4 : digits });
+    }
+
+    /** Equivalente aproximado em reais, se a cotação já tiver sido consultada. */
+    function approxBrl(wei) {
+        const q = CSC.rates && CSC.rates.current();
+        if (!q || !wei) return '';
+        const brl = Number(window.EvmLab.formatEther(wei)) * q.brl;
+        return ' (≈ ' + brl.toLocaleString(CSC.lang === 'en' ? 'en-US' : 'pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) + ')';
     }
 
     function formatDuration(seconds) {
@@ -527,7 +601,7 @@
                 setStatus(t('labDeployFailed', { error: describeRevert(res.error) }), 'error');
                 return;
             }
-            lab.contract = { name: compiled.name, abi: compiled.abi, bytecode: compiled.bytecode, address: res.address, enums: parseEnums(compiled.source || '') };
+            lab.contract = { name: compiled.name, abi: compiled.abi, bytecode: compiled.bytecode, address: res.address, enums: parseEnums(compiled.source || ''), source: compiled.source || '' };
             lab.timeline.push({ ok: true, actor: res.from.label, fn: 'constructor', value: 0n, gas: res.gasUsed, events: res.events || [], time: lab.chain.timestamp });
             setStatus(t('labDeployed', { name: compiled.name, address: shortAddr(res.address) }), 'ok');
             d.workspace.hidden = false;
@@ -547,7 +621,7 @@
             rows.push(el('tr', {}, [
                 el('th', { scope: 'row' }, [el('span', { class: 'party-mark', 'data-color': a.color }), a.label]),
                 el('td', {}, [el('code', { title: a.address, text: shortAddr(a.address) })]),
-                el('td', { class: 'num', text: formatEth(bal) + ' ETH' })
+                el('td', { class: 'num', text: formatEth(bal) + ' ETH' + approxBrl(bal) })
             ]));
         }
         if (lab.contract && lab.contract.address) {
@@ -555,7 +629,7 @@
             rows.push(el('tr', { class: 'row-contract' }, [
                 el('th', { scope: 'row', text: t('labContractRow') + ' ' + lab.contract.name }),
                 el('td', {}, [el('code', { title: lab.contract.address, text: shortAddr(lab.contract.address) })]),
-                el('td', { class: 'num', text: formatEth(bal) + ' ETH' })
+                el('td', { class: 'num', text: formatEth(bal) + ' ETH' + approxBrl(bal) })
             ]));
         }
         d.accounts.appendChild(el('table', { class: 'ledger compact' }, [el('tbody', {}, rows)]));
@@ -594,6 +668,109 @@
         d.state.appendChild(dl);
     }
 
+    // ---------- Explicação de cada função (botão "i") ----------
+    function functionSource(source, name) {
+        const re = new RegExp('\\bfunction\\s+' + name.replace(/[$]/g, '\\$') + '\\s*\\(');
+        const m = re.exec(source);
+        if (!m) return null;
+        const open = source.indexOf('{', m.index);
+        let depth = 0, end = open;
+        for (let i = open; i < source.length; i++) {
+            if (source[i] === '{') depth++;
+            else if (source[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+        }
+        return { start: m.index, header: source.slice(m.index, open), body: source.slice(open + 1, end) };
+    }
+
+    function natspecBefore(source, index) {
+        const lines = source.slice(0, index).split('\n');
+        lines.pop();
+        const out = [];
+        while (lines.length && /^\s*\/\/\//.test(lines[lines.length - 1])) out.unshift(lines.pop().replace(/^\s*\/\/\/\s?/, ''));
+        return out.map(l => l.replace(/^@notice\s*/, '').replace(/^@dev\s*/, '').replace(/^@param\s+/, '')).filter(Boolean);
+    }
+
+    /** Seção de cláusula mais próxima acima da função (código gerado pelo montador). */
+    function clauseBefore(source, index) {
+        const before = source.slice(0, index);
+        const re = /\/\/\s*((?:Cláusula|Clause)\s+\d+ª?\s+—\s+[^\n]+)\n((?:\s*\/\/\/[^\n]*\n)+)/g;
+        let m, last = null;
+        while ((m = re.exec(before)) !== null) last = m;
+        if (!last) return null;
+        return { title: last[1].trim(), text: last[2].split('\n').map(l => l.replace(/^\s*\/\/\/\s?/, '')).join(' ').replace(/\s+/g, ' ').trim() };
+    }
+
+    function roleLabelFromVar(v) {
+        const acc = lab.accounts.find(a => norm(a.label) === norm(v));
+        return acc ? acc.label : v;
+    }
+
+    function describeFunction(fnAbi) {
+        const source = (lab.contract && lab.contract.source) || '';
+        const f = functionSource(source, fnAbi.name);
+        const isView = fnAbi.stateMutability === 'view' || fnAbi.stateMutability === 'pure';
+        const info = { name: fnAbi.name, signature: fnAbi.name + '(' + fnAbi.inputs.map(i => i.type + (i.name ? ' ' + i.name : '')).join(', ') + ')' + (fnAbi.outputs && fnAbi.outputs.length ? ' → ' + fnAbi.outputs.map(o => o.type).join(', ') : ''), isView, payable: fnAbi.stateMutability === 'payable', who: [], status: null, guard: false, errors: [], events: [], notes: [], clause: null };
+        if (!f) return info;
+        info.notes = natspecBefore(source, f.start);
+        info.clause = clauseBefore(source, f.start);
+        const mods = (f.header.replace(/\breturns\s*\([^)]*\)/, '').match(/\b[A-Za-z_]\w*\s*(\([^)]*\))?/g) || []).map(x => x.trim());
+        const errs = new Set();
+        for (const m of mods) {
+            const name = m.replace(/\(.*$/, '');
+            if (/^(public|external|internal|private|view|pure|payable|virtual|override|function)$/.test(name) || name === fnAbi.name) continue;
+            const def = new RegExp('modifier\\s+' + name + '\\s*\\([^)]*\\)\\s*\\{([\\s\\S]*?)\\n\\s*\\}').exec(source);
+            if (!def) continue;
+            const senders = (def[1].match(/msg\.sender\s*!=\s*(\w+)/g) || []).map(x => x.replace(/msg\.sender\s*!=\s*/, ''));
+            if (senders.length) info.who.push(...senders.map(roleLabelFromVar));
+            const st = /\((\w+)\.(\w+)\)/.exec(m);
+            if (st && /situacao|status|naSituacao|inStatus/i.test(def[1] + name)) info.status = st[2];
+            if (/nonReentrant/i.test(name)) info.guard = true;
+            (def[1].match(/revert\s+(\w+)\s*\(/g) || []).forEach(x => errs.add(x.replace(/revert\s+|\s*\(/g, '')));
+        }
+        (f.body.match(/revert\s+(\w+)\s*\(/g) || []).forEach(x => errs.add(x.replace(/revert\s+|\s*\(/g, '')));
+        // Erros de funções privadas chamadas pela função (um nível).
+        (f.body.match(/\b(_\w+)\s*\(/g) || []).forEach(call => {
+            const inner = functionSource(source, call.replace(/\s*\($/, ''));
+            if (inner) (inner.body.match(/revert\s+(\w+)\s*\(/g) || []).forEach(x => errs.add(x.replace(/revert\s+|\s*\(/g, '')));
+        });
+        info.errors = Array.from(errs);
+        info.events = Array.from(new Set((f.body.match(/emit\s+(\w+)/g) || []).map(x => x.replace(/emit\s+/, ''))));
+        info.anyone = !info.who.length && /msg\.sender/.test(f.body);
+        return info;
+    }
+
+    let infoDialog = null;
+    function showFunctionInfo(fnAbi) {
+        const info = describeFunction(fnAbi);
+        if (!infoDialog) {
+            infoDialog = el('dialog', { class: 'fn-dialog', 'aria-labelledby': 'fnDialogTitle' });
+            document.body.appendChild(infoDialog);
+            infoDialog.addEventListener('click', e => { if (e.target === infoDialog) infoDialog.close(); });
+        }
+        infoDialog.textContent = '';
+        const section = (title, content) => el('section', {}, [el('h4', { class: 'field-label', text: title }), ...[].concat(content)]);
+        const errDesc = name => { const k = 'errDesc_' + name; const d = t(k); return d === k ? name : d; };
+        const who = info.isView ? t('fnInfoAnyoneRead') : info.who.length ? Array.from(new Set(info.who)).join(CSC.lang === 'en' ? ' or ' : ' ou ') : info.anyone ? t('fnInfoAnyone') : t('fnInfoAnyone');
+        const when = [info.status ? t('fnInfoStatus', { s: info.status }) : t('fnInfoAlways')];
+        if (info.guard) when.push(t('fnInfoGuard'));
+        infoDialog.append(
+            el('header', { class: 'fn-dialog-head' }, [
+                el('p', { class: 'field-label', text: t('fnInfoTitle') }),
+                el('h3', { id: 'fnDialogTitle', class: 'fn-dialog-title' }, [el('code', { text: info.name })]),
+                el('button', { type: 'button', class: 'icon-btn fn-dialog-close', 'aria-label': t('fnInfoClose'), text: '×', onclick: () => infoDialog.close() })
+            ]),
+            info.clause ? section(t('fnInfoClause'), [el('p', { class: 'fn-dialog-clause' }, [el('strong', { text: info.clause.title + '. ' }), info.clause.text])]) : null,
+            info.notes.length ? section(t('fnInfoWhat'), info.notes.map(n => el('p', { text: n }))) : null,
+            section(t('fnInfoWho'), el('p', { text: who })),
+            section(t('fnInfoMoney'), el('p', { text: info.isView ? t('fnInfoView') : info.payable ? t('fnInfoPayable') : t('fnInfoNoPayable') })),
+            info.isView ? null : section(t('fnInfoWhen'), when.map(w => el('p', { text: w }))),
+            info.isView ? null : section(t('fnInfoErrors'), info.errors.length ? el('ul', {}, info.errors.map(e => el('li', {}, [el('code', { text: e }), ': ' + errDesc(e)]))) : el('p', { text: t('fnInfoNoErrors') })),
+            info.events.length ? section(t('fnInfoEvents'), el('p', {}, info.events.map((e, i) => el('code', { text: (i ? ', ' : '') + e })))) : null,
+            section(t('fnInfoSignature'), el('p', {}, [el('code', { text: info.signature })]))
+        );
+        infoDialog.showModal();
+    }
+
     function renderFunctions() {
         const d = lab.dom;
         d.functions.textContent = '';
@@ -615,6 +792,7 @@
             const card = el('div', { class: 'fn-card' + (isPayable ? ' fn-payable' : '') + (isView ? ' fn-view' : '') }, [
                 el('div', { class: 'fn-head' }, [
                     el('code', { class: 'fn-name', text: fn.name }),
+                    el('button', { type: 'button', class: 'info-btn', title: t('fnInfoButton'), 'aria-label': t('fnInfoButton') + ': ' + fn.name, text: 'i', onclick: () => showFunctionInfo(fn) }),
                     isPayable ? el('span', { class: 'tag tag-payable', text: 'payable' }) : null,
                     isView ? el('span', { class: 'tag tag-view', text: fn.stateMutability }) : null
                 ]),
@@ -993,6 +1171,6 @@
                 passos: result.steps.map(s => ({ status: s.status, texto: s.text, resultado: s.outcome, nota: s.note }))
             }));
         },
-        _internals: { parseArg, parseAmount, describeRevert, runScenario }
+        _internals: { parseArg, parseAmount, describeRevert, runScenario, describeFunction, setContract: c => { lab.contract = c; lab.accounts = c.accounts || []; } }
     };
 })();

@@ -9,7 +9,7 @@
         se conecta à API Gemini. Protege a chave da API contra scripts de
         terceiros.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://generativelanguage.googleapis.com https://api.coingecko.com https://api.coinbase.com; worker-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="description" content="Ferramenta educacional que converte cláusulas contratuais em linguagem natural em esqueletos de smart contracts em Solidity, com modelos revisados, verificação de segurança e testes em blockchain simulada.">
     <meta name="color-scheme" content="light dark">
     <meta name="author" content="Eduardo Chacon (https://github.com/EduChacon)">
@@ -44,6 +44,38 @@
             <p data-i18n-html="warningText"></p>
             <p class="notice-small" data-i18n-html="privacyText"></p>
         </aside>
+
+        <!-- Como usar: tutoriais -->
+        <details class="settings guide" id="guidePanel">
+            <summary>
+                <span class="settings-title" data-i18n="guideTitle">Como usar: tutoriais práticos</span>
+                <span class="settings-status" data-i18n="guideStatus">comece por aqui</span>
+            </summary>
+            <div class="guide-body">
+                <p class="lede" data-i18n="guideIntro"></p>
+                <div class="guide-grid">
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT1Title">1. Primeiro contrato em 5 minutos</h3>
+                        <ol data-i18n-html="guideT1Steps"></ol>
+                        <button type="button" class="btn btn-ink" id="tour1Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
+                    </section>
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT2Title">2. Testar na prática</h3>
+                        <ol data-i18n-html="guideT2Steps"></ol>
+                        <button type="button" class="btn btn-ink" id="tour2Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
+                    </section>
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT3Title">3. IA como complemento</h3>
+                        <ol data-i18n-html="guideT3Steps"></ol>
+                        <button type="button" class="btn btn-quiet" id="tour3Button" data-i18n="tourStart">Fazer com o passo a passo guiado</button>
+                    </section>
+                    <section class="guide-item">
+                        <h3 class="sub-title" data-i18n="guideT4Title">4. Rede de teste real</h3>
+                        <ol data-i18n-html="guideT4Steps"></ol>
+                    </section>
+                </div>
+            </div>
+        </details>
 
         <!-- Configuração da IA (facultativa) -->
         <details class="settings" id="settingsPanel">
@@ -97,22 +129,38 @@
             </div>
         </details>
 
+        <!-- Cotação do Ether -->
+        <details class="settings rates" id="ratesPanel">
+            <summary>
+                <span class="settings-title" data-i18n="ratesTitle">Cotação do Ether (ETH, R$, US$)</span>
+                <span class="settings-status" id="ratesStatus"></span>
+            </summary>
+            <div class="rates-body">
+                <label class="param"><span class="field-label">ETH</span><input type="text" id="rateEth" inputmode="decimal" value="1"></label>
+                <span class="rates-eq" aria-hidden="true">⇄</span>
+                <label class="param"><span class="field-label">R$</span><input type="text" id="rateBrl" inputmode="decimal"></label>
+                <span class="rates-eq" aria-hidden="true">⇄</span>
+                <label class="param"><span class="field-label">US$</span><input type="text" id="rateUsd" inputmode="decimal"></label>
+                <div class="rates-actions">
+                    <button type="button" id="ratesRefresh" class="btn btn-quiet" data-i18n="ratesRefresh">Atualizar agora</button>
+                    <button type="button" id="ratesUseScale" class="btn btn-quiet" data-i18n="ratesUseScale">Usar esta cotação no contrato</button>
+                </div>
+                <p class="hint rates-info" id="ratesInfo" role="status" aria-live="polite"></p>
+            </div>
+        </details>
+
         <main id="main">
             <div class="spread">
                 <!-- § 1 Cláusula -->
                 <section class="sec" aria-labelledby="step1Title">
                     <header class="sec-head"><span class="sec-num">§ 1</span><h2 id="step1Title" data-i18n="step1Title">Cláusula contratual</h2></header>
 
-                    <div class="label-row">
-                        <label for="naturalLanguageClause" class="field-label" data-i18n="naturalClauseLabel">Cláusula ou contrato</label>
-                        <label class="example-field"><span class="sr-only" data-i18n="examplesLabel">Exemplos</span>
-                            <select id="exampleSelect"></select>
-                        </label>
-                    </div>
-                    <textarea id="naturalLanguageClause" class="clause" rows="9" maxlength="20000" data-i18n-placeholder="naturalClausePlaceholder"></textarea>
-
                     <fieldset class="mode-switch">
                         <legend class="field-label" data-i18n="modeLegend">Modo de conversão</legend>
+                        <label class="mode-option">
+                            <input type="radio" name="mode" value="blocks" id="modeBlocks">
+                            <span><strong data-i18n="modeBlocks">Montar contrato</strong> <span class="mode-sub" data-i18n="modeBlocksSub">cláusulas em blocos · sem IA</span></span>
+                        </label>
                         <label class="mode-option">
                             <input type="radio" name="mode" value="template" id="modeTemplate">
                             <span><strong data-i18n="modeTemplate">Modelos revisados</strong> <span class="mode-sub" data-i18n="modeTemplateSub">sem IA · reprodutível</span></span>
@@ -122,6 +170,33 @@
                             <span><strong data-i18n="modeAI">Texto livre</strong> <span class="mode-sub" data-i18n="modeAISub">com IA · qualquer cláusula</span></span>
                         </label>
                     </fieldset>
+
+                    <div id="blocksPanel" class="mode-panel mode-panel-doc">
+                        <p class="hint" data-i18n="modeBlocksHelp"></p>
+                        <div class="inline-row doc-controls">
+                            <label class="sr-only" for="docPresets" data-i18n="docStart">Começar de um exemplo</label>
+                            <select id="docPresets"></select>
+                        </div>
+                        <article class="doc" aria-labelledby="docTitle">
+                            <input type="text" id="docTitle" class="doc-title" maxlength="80" data-i18n-placeholder="docTitlePlaceholder">
+                            <div id="docBody"></div>
+                        </article>
+                        <div id="docIssues" class="doc-issues" role="status" aria-live="polite"></div>
+                        <div class="actions">
+                            <button type="button" id="blocksGenerateButton" class="btn btn-ink btn-wide" data-i18n="blocksGenerate">Gerar o "smart contract"</button>
+                        </div>
+                        <p class="hint" data-i18n="blocksLive"></p>
+                    </div>
+
+                    <div id="clauseInput">
+                        <div class="label-row">
+                            <label for="naturalLanguageClause" class="field-label" data-i18n="naturalClauseLabel">Cláusula ou contrato</label>
+                            <label class="example-field"><span class="sr-only" data-i18n="examplesLabel">Exemplos</span>
+                                <select id="exampleSelect"></select>
+                            </label>
+                        </div>
+                        <textarea id="naturalLanguageClause" class="clause" rows="9" maxlength="20000" data-i18n-placeholder="naturalClausePlaceholder"></textarea>
+                    </div>
 
                     <div id="templatePanel" class="mode-panel">
                         <p class="hint" data-i18n="modeTemplateHelp"></p>
@@ -372,10 +447,14 @@
     <script src="assets/js/markdown.js"></script>
     <script src="assets/js/security-scan.js"></script>
     <script src="assets/js/templates.js"></script>
+    <script src="assets/js/blocks.js"></script>
     <script src="assets/js/gemini.js"></script>
+    <script src="assets/js/rates.js"></script>
     <script src="assets/js/compiler.js"></script>
     <script src="assets/vendor/evm-lab.js"></script>
     <script src="assets/js/lab.js"></script>
+    <script src="assets/js/composer.js"></script>
+    <script src="assets/js/tour.js"></script>
     <script src="assets/js/app.js"></script>
 </body>
 </html>

@@ -387,3 +387,124 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     .tx-meta { margin-left: 0; width: 100%; }
     .score-number { font-size: 2rem; min-width: 4rem; }
 }
+
+/* ---------- Montador de contrato (documento) ---------- */
+.mode-panel-doc { padding: 1rem 1rem 1.2rem; }
+.doc-controls { margin: .3rem 0 .8rem; }
+.doc-controls select { max-width: 100%; }
+.doc {
+    background: var(--code-bg); border: 1px solid var(--rule); box-shadow: 0 1px 0 var(--rule), 0 8px 24px rgba(0, 0, 0, .06);
+    padding: 1.6rem 1.6rem 1.2rem; font-family: var(--serif); font-size: 1rem; line-height: 1.75;
+}
+.doc input.doc-title {
+    display: block; width: 100%; border: none; border-bottom: 1px solid var(--rule); background: transparent;
+    font-family: var(--serif); font-size: 1.35rem; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink); padding: .2rem 0 .6rem; margin-bottom: 1rem;
+}
+.clauses { list-style: none; margin: 0; padding: 0; }
+.clause { position: relative; margin: 0 0 1.1rem; padding-left: .2rem; border-left: 2px solid transparent; }
+.clause:hover, .clause:focus-within { border-left-color: var(--rule); }
+.clause.has-issue { border-left-color: var(--danger); background: var(--danger-soft); }
+.clause-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .4rem; font-weight: 600; }
+.clause-num { font-variant: small-caps; letter-spacing: .02em; }
+.clause-title { font-weight: 600; }
+.clause-kind, .clause-note { font-family: var(--sans); font-size: .74rem; font-weight: 400; color: var(--muted); }
+.clause-note { font-style: italic; }
+.clause-tools { margin-left: auto; display: inline-flex; gap: .55rem; align-items: center; font-family: var(--sans); font-size: .76rem; font-weight: 400; opacity: .35; transition: opacity .15s; }
+.clause:hover .clause-tools, .clause:focus-within .clause-tools { opacity: 1; }
+.clause-text { margin: .25rem 0 0; text-align: justify; hyphens: auto; }
+.clause-free .clause-text { font-style: italic; }
+.doc input.clause-name {
+    font: inherit; font-weight: 600; color: var(--ink); background: transparent; border: none; border-bottom: 1px dotted var(--accent);
+    padding: 0 .1rem; min-width: 4ch;
+}
+.doc input.blank, .doc select.blank, .doc .blank {
+    font: inherit; color: var(--accent); background: var(--accent-soft); border: none; border-bottom: 1px solid var(--accent);
+    border-radius: 0; padding: 0 .2rem; line-height: 1.4; min-width: 2ch;
+}
+.doc select.blank { padding-right: 1.1rem; cursor: pointer; }
+.blank:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.blank-wrap { white-space: nowrap; }
+.party { white-space: nowrap; }
+.icon-btn {
+    font-family: var(--sans); font-size: .9rem; line-height: 1; background: none; border: 1px solid transparent; color: var(--muted);
+    padding: .05rem .3rem; cursor: pointer;
+}
+.icon-btn:hover { color: var(--accent); border-color: var(--rule); }
+.add-party { font-family: var(--sans); font-size: .8rem; margin-left: .3rem; }
+.wording-box { margin: .5rem 0 0; padding: .6rem .7rem; background: var(--paper-2); border-left: 2px solid var(--accent); }
+.wording { font-family: var(--serif); font-size: .95rem; line-height: 1.6; }
+.clause-final .clause-text, .clause-parties .clause-text { color: var(--ink-2); }
+.add-clause { margin-top: .8rem; padding-top: .8rem; border-top: 1px dotted var(--rule); }
+.palette { margin-top: .8rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .8rem 1.2rem; font-family: var(--sans); }
+.palette-group { display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; }
+.palette-item {
+    font-family: var(--serif); font-size: .95rem; background: none; border: none; border-bottom: 1px solid var(--rule);
+    color: var(--ink); cursor: pointer; padding: .1rem 0; text-align: left;
+}
+.palette-item:hover:not(:disabled) { color: var(--accent); border-bottom-color: var(--accent); }
+.palette-item:disabled { color: var(--muted); cursor: not-allowed; text-decoration: line-through; }
+.palette-item::before { content: "+ "; color: var(--accent); }
+.mine-item { display: inline-flex; align-items: baseline; gap: .2rem; }
+.palette-mine { grid-column: 1 / -1; border-top: 1px dotted var(--rule); padding-top: .6rem; }
+.palette-close { grid-column: 1 / -1; justify-self: start; font-size: .82rem; }
+.doc-issues { margin-top: .8rem; font-family: var(--sans); font-size: .86rem; }
+.doc-issues .issues { margin: .2rem 0 0; padding-left: 1.2rem; color: var(--danger); }
+.rights { font-size: .78rem; }
+@media (max-width: 640px) {
+    .doc { padding: 1rem .9rem; }
+    .clause-tools { opacity: 1; margin-left: 0; width: 100%; }
+    .clause-text { text-align: left; }
+}
+
+/* No modo "Montar contrato", o documento ocupa a largura principal e o código fica abaixo. */
+.spread.doc-mode { grid-template-columns: minmax(0, 1fr); }
+.spread.doc-mode > .sec { max-width: 54rem; width: 100%; margin-left: auto; margin-right: auto; }
+.spread.doc-mode > .sec + .sec { margin-top: 2.5rem; }
+.doc input.blank { padding: 0 .15rem; height: auto; }
+.doc input.doc-title { border-radius: 0; }
+
+/* Texto editável das cláusulas e lacunas destacadas ("peças" executadas pelo código). */
+.doc .clause-text[contenteditable="true"] { outline: none; border-radius: 2px; padding: .1rem .2rem; margin-left: -.2rem; cursor: text; }
+.doc .clause-text[contenteditable="true"]:hover { background: var(--paper-2); }
+.doc .clause-text[contenteditable="true"]:focus { background: var(--paper-2); box-shadow: inset 0 -1px 0 var(--rule); }
+.chip { display: inline; white-space: nowrap; }
+.doc-hint { margin: -.4rem 0 1rem; text-align: center; }
+.issues.warnings { color: var(--warn); }
+
+/* Botão "i" e janela de explicação das funções */
+.info-btn {
+    width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 1px solid var(--accent); background: transparent; color: var(--accent);
+    font-family: var(--serif); font-style: italic; font-weight: 700; font-size: .78rem; line-height: 1; cursor: pointer; padding: 0;
+}
+.info-btn:hover { background: var(--accent); color: #fff; }
+.fn-dialog {
+    max-width: min(40rem, 92vw); width: 100%; border: 1px solid var(--rule-strong); border-top: 4px solid var(--accent);
+    background: var(--sheet); color: var(--ink); padding: 1.2rem 1.4rem 1rem; font-family: var(--serif); box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+}
+.fn-dialog::backdrop { background: rgba(20, 16, 10, .45); }
+.fn-dialog-head { position: relative; padding-right: 2rem; border-bottom: 1px solid var(--rule); padding-bottom: .5rem; margin-bottom: .6rem; }
+.fn-dialog-title { font-size: 1.25rem; margin: .1rem 0 0; }
+.fn-dialog-close { position: absolute; top: 0; right: 0; font-size: 1.4rem; }
+.fn-dialog section { margin: .7rem 0; }
+.fn-dialog section p { margin: .2rem 0; }
+.fn-dialog ul { margin: .2rem 0; padding-left: 1.2rem; }
+.fn-dialog-clause { font-style: italic; border-left: 2px solid var(--accent); padding-left: .7rem; }
+
+/* Tutoriais */
+.guide-body { padding: .4rem 0 1.2rem; }
+.guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem 2rem; }
+.guide-item ol { padding-left: 1.2rem; font-size: .93rem; }
+.guide-item li { margin: .3rem 0; }
+.guide-item .sub-title { margin-top: .6rem; }
+.tour-target { position: relative; z-index: 30; outline: 3px solid var(--accent) !important; outline-offset: 4px; box-shadow: 0 0 0 9999px rgba(20, 16, 10, .28); border-radius: 2px; }
+.tour-card {
+    position: fixed; z-index: 40; left: 50%; bottom: 1rem; transform: translateX(-50%); width: min(34rem, calc(100vw - 2rem));
+    background: var(--sheet); color: var(--ink); border: 1px solid var(--rule-strong); border-top: 4px solid var(--accent);
+    padding: .9rem 1.1rem; box-shadow: 0 16px 50px rgba(0, 0, 0, .35); font-family: var(--serif);
+}
+.tour-count { font-family: var(--sans); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.tour-title { font-weight: 700; font-size: 1.08rem; margin: .2rem 0; }
+.tour-text { margin: .2rem 0 .7rem; font-size: .96rem; }
+.tour-nav { display: flex; gap: .6rem; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+.tour-nav .link-btn { margin-right: auto; font-family: var(--sans); font-size: .82rem; }

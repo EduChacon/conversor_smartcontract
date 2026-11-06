@@ -61,9 +61,10 @@
         return wei;
     }
     function weiLiteral(wei) {
-        if (wei % 10n ** 18n === 0n) return (wei / 10n ** 18n).toString() + ' ether';
-        if (wei % 10n ** 9n === 0n) return (wei / 10n ** 9n).toString() + ' gwei';
-        return wei.toString();
+        // Literal decimal em ether (ex.: "2.5 ether"), aceito pelo Solidity quando o resultado é inteiro em wei.
+        const whole = wei / 10n ** 18n;
+        const frac = (wei % 10n ** 18n).toString().padStart(18, '0').replace(/0+$/, '');
+        return whole.toString() + (frac ? '.' + frac : '') + ' ether';
     }
     function etherString(wei) {
         const s = (Number(wei) / 1e18).toFixed(9).replace(/\.?0+$/, '');
@@ -115,6 +116,7 @@
         },
         encargos: {
             category: 'pagamentos',
+            attached: true,
             name: { pt: 'Multa e juros de mora', en: 'Late fee and interest' },
             params: [
                 { key: 'alvo', kind: 'ref', accepts: ['pagamentoUnico', 'pagamentoPeriodico'] },
@@ -129,6 +131,7 @@
         },
         vencimentoAntecipado: {
             category: 'pagamentos',
+            attached: true,
             name: { pt: 'Vencimento antecipado', en: 'Acceleration' },
             params: [
                 { key: 'alvo', kind: 'ref', accepts: ['pagamentoPeriodico'] },
@@ -394,6 +397,10 @@
 
     function clauseTitle(block, ctx) {
         const def = BLOCKS[block.type];
+        if (def.attached) {
+            const target = ctx.byUid(block.params.alvo);
+            return def.name[ctx.lang === 'en' ? 'en' : 'pt'] + (target ? ' (' + target.label + ')' : '');
+        }
         return def.single ? def.name[ctx.lang === 'en' ? 'en' : 'pt'] : block.label + ' (' + def.name[ctx.lang === 'en' ? 'en' : 'pt'].toLowerCase() + ')';
     }
 
@@ -410,10 +417,15 @@
         });
         ctx.blocks.forEach((b, i) => out.push({ numero: ordinal(i + 2, lang), titulo: clauseTitle(b, ctx), texto: fillSentence(b, ctx), uid: b.uid }));
         const n = ctx.blocks.length + 2;
+        const q = model.cotacao && Number(model.cotacao.brl) === Number(ctx.scale) ? model.cotacao : null;
+        const when = q ? new Date(q.data).toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
         out.push({
             numero: ordinal(n, lang), titulo: ctx.w('Pagamentos e saques', 'Payments and withdrawals'),
-            texto: ctx.w('Os valores devidos a cada parte ficam registrados no contrato e são sacados pelo próprio titular. Os valores em reais foram representados em Ether de teste pela escala de R$ ' + num(ctx.scale, lang) + ' por 1 ETH, convenção didática que não corresponde a cotação.',
-                'Amounts owed to each party are recorded in the contract and withdrawn by their owner. Amounts in BRL are represented in test Ether at R$ ' + num(ctx.scale, lang) + ' per 1 ETH, a didactic convention, not a quotation.')
+            texto: q
+                ? ctx.w('Os valores devidos a cada parte ficam registrados no contrato e são sacados pelo próprio titular. Os valores em reais foram convertidos em Ether à cotação de R$ ' + num(ctx.scale, lang) + ' por 1 ETH, obtida em ' + when + ' (fonte: ' + q.fonte + '); como a cotação varia, o valor em Ether fica fixado na geração do código.',
+                    'Amounts owed to each party are recorded in the contract and withdrawn by their owner. Amounts in BRL were converted into Ether at R$ ' + num(ctx.scale, lang) + ' per 1 ETH, obtained on ' + when + ' (source: ' + q.fonte + '); as the price varies, the Ether amount is fixed when the code is generated.')
+                : ctx.w('Os valores devidos a cada parte ficam registrados no contrato e são sacados pelo próprio titular. Os valores em reais foram representados em Ether de teste pela escala de R$ ' + num(ctx.scale, lang) + ' por 1 ETH, convenção didática que não corresponde a cotação.',
+                    'Amounts owed to each party are recorded in the contract and withdrawn by their owner. Amounts in BRL are represented in test Ether at R$ ' + num(ctx.scale, lang) + ' per 1 ETH, a didactic convention, not a quotation.')
         });
         return out;
     }
@@ -748,7 +760,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
                 constants.push(`    uint256 public constant ${P}_${w('PRAZO_DEVOLUCAO', 'RETURN_PERIOD')} = ${Math.round(b.params.prazo)} days;`);
                 state.push(`    ${N.EstadoGarantia} public ${st};`, `    uint256 public ${held};`);
                 if (ctx.arbRole) state.push(`    uint256 public ${claim};`);
-                events.push(`    event ${w('Caucao', 'Security')}${b.I}(string ${w('ato', 'act')}, address indexed ${w('destino', 'to')}, uint256 ${N.valor});`);
+                events.push(`    event ${w('Movimento', 'Movement')}${b.I}(string ${w('ato', 'act')}, address indexed ${w('destino', 'to')}, uint256 ${N.valor});`);
                 const gm = useMod(gar), bm = useMod(ben);
                 const PR = `${P}_${w('PRAZO_DEVOLUCAO', 'RETURN_PERIOD')}`;
                 code.push(`    /// @notice ${w('Prestação da caução durante a vigência do contrato.', 'Provision of the security deposit while the contract is active.')}
@@ -757,7 +769,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         if (msg.value != ${P}_${w('VALOR', 'AMOUNT')}) revert ${N.ValorIncorreto}(${P}_${w('VALOR', 'AMOUNT')}, msg.value);
         ${st} = ${N.EstadoGarantia}.${N.Depositado};
         ${held} = msg.value;
-        emit ${w('Caucao', 'Security')}${b.I}("${w('deposito', 'deposit')}", address(this), msg.value);
+        emit ${w('Movimento', 'Movement')}${b.I}("${w('deposito', 'deposit')}", address(this), msg.value);
     }
 
     /// @notice ${w('Devolução integral pelo beneficiário, após o término do contrato.', 'Full return by the beneficiary after the contract ends.')}
@@ -781,7 +793,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         if (${N.valor} == 0 || ${N.valor} > ${held} || bytes(${w('motivo', 'reason')}).length == 0) revert ${N.ParametroInvalido}();
         ${claim} = ${N.valor};
         ${st} = ${N.EstadoGarantia}.${N.EmDisputa};
-        emit ${w('Caucao', 'Security')}${b.I}(${w('motivo', 'reason')}, ${ben.v}, ${N.valor});
+        emit ${w('Movimento', 'Movement')}${b.I}(${w('motivo', 'reason')}, ${ben.v}, ${N.valor});
     }
 
     /// @notice ${w('Decisão do árbitro: quanto da caução cabe ao beneficiário (até o valor reclamado).', 'Arbitrator\'s decision: how much of the deposit goes to the beneficiary (up to the claim).')}
@@ -801,7 +813,7 @@ ${commentBlock(fillSentence(acc, ctx), '    ')}
         ${st} = ${N.EstadoGarantia}.${N.Concluido};
         ${N.saldos}[${ben.v}] += ${w('aoBeneficiario', 'toBeneficiary')};
         ${N.saldos}[${gar.v}] += ${w('restante', 'rest')};
-        emit ${w('Caucao', 'Security')}${b.I}("${w('destinacao', 'allocation')}", ${gar.v}, ${w('restante', 'rest')});
+        emit ${w('Movimento', 'Movement')}${b.I}("${w('destinacao', 'allocation')}", ${gar.v}, ${w('restante', 'rest')});
     }`);
                 retained.push(held);
             }

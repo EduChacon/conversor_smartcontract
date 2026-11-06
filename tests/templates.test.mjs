@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 // Testes dos modelos sem IA: para cada modelo e idioma, o código deve
 // compilar, não ter achados altos/médios e passar em todos os cenários
 // predefinidos executados na EVM simulada (mesmo executor da página).

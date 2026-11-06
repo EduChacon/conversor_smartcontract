@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * Laboratório: implanta o contrato compilado numa "blockchain" simulada
  * (assets/vendor/evm-lab.js), com contas fictícias, e permite:
@@ -90,6 +91,8 @@
         panic_33: 'valor inválido para "enum"',
         panic_50: 'acesso fora dos limites de array',
         errInsufficient: 'A conta não tem saldo suficiente para enviar esse valor.',
+        labSolvencyOk: 'Solvência conferida: saldo do contrato {bal} ETH = créditos das partes {cred} ETH + valores retidos {held} ETH.',
+        labSolvencyFail: 'Falha de solvência: saldo do contrato {bal} ETH ≠ créditos {cred} ETH + retidos {held} ETH.',
         errOutOfGas: 'A execução esgotou o limite de "gás".'
     });
     Object.assign(CSC.texts.en, {
@@ -171,6 +174,8 @@
         panic_33: 'invalid enum value',
         panic_50: 'array index out of bounds',
         errInsufficient: 'The account does not have enough balance to send this amount.',
+        labSolvencyOk: 'Solvency checked: contract balance {bal} ETH = parties\' credits {cred} ETH + held amounts {held} ETH.',
+        labSolvencyFail: 'Solvency failure: contract balance {bal} ETH ≠ credits {cred} ETH + held {held} ETH.',
         errOutOfGas: 'Execution ran out of gas.'
     });
 
@@ -367,6 +372,7 @@
 
     function sameError(got, expected) {
         if (!expected) return true;
+        if (String(expected).includes('|')) return String(expected).split('|').some(e => sameError(got, e.trim()));
         const g = norm(got && got.name);
         const e = norm(String(expected).replace(/\(.*$/, ''));
         if (g === e) return true;
@@ -755,6 +761,39 @@
             for (const step of scenario.passos || []) {
                 const entry = { explicacao: step.explicacao || '' };
                 try {
+                    if (step.acao === 'verificarSolvencia') {
+                        // Saldo do contrato = créditos das partes + valores retidos.
+                        const bal = await env.chain.balanceOf(dep.address);
+                        let credits = 0n;
+                        for (const acc of env.accounts) {
+                            const r = await env.chain.call({ from: acc.address, to: dep.address, abi: compiled.abi, functionName: step.saldos, args: [acc.address] });
+                            if (r.ok) credits += BigInt(r.result);
+                        }
+                        const h = await env.chain.call({ from: env.accounts[0].address, to: dep.address, abi: compiled.abi, functionName: step.retido, args: [] });
+                        const held = h.ok ? BigInt(h.result) : 0n;
+                        const ok = bal === credits + held;
+                        entry.status = ok ? 'pass' : 'fail';
+                        entry.text = t(ok ? 'labSolvencyOk' : 'labSolvencyFail', { bal: formatEth(bal, 6), cred: formatEth(credits, 6), held: formatEth(held, 6) });
+                        steps.push(entry);
+                        if (!ok) status = 'fail';
+                        continue;
+                    }
+                    if (step.acao === 'atacarTodas') {
+                        const attackerAcc = accountByName(step.conta);
+                        const ignore = new Set(step.ignorar || []);
+                        const fns = compiled.abi.filter(x => x.type === 'function' && x.stateMutability !== 'view' && x.stateMutability !== 'pure' && !ignore.has(x.name));
+                        for (const fn of fns) {
+                            const args = fn.inputs.map(i => /^u?int/.test(i.type) ? 1n : i.type === 'bool' ? true : i.type === 'string' ? 'x' : /^address/.test(i.type) ? attackerAcc.address : /^bytes/.test(i.type) ? '0x' : 0n);
+                            const r = await env.chain.call({ from: attackerAcc.address, to: dep.address, abi: compiled.abi, functionName: fn.name, args });
+                            const ok = !r.ok && sameError(r.error, step.erroEsperado);
+                            const sub = { explicacao: '', text: attackerAcc.label + ' → ' + fn.name + '()', expected: t('labStepExpectedRevert'),
+                                outcome: r.ok ? '✓ ' + t('labTxOk') : '✗ ' + t('labTxReverted') + ': ' + describeRevert(r.error), status: ok ? 'pass' : 'fail' };
+                            if (!ok) sub.note = r.ok ? t('labVulnerability') : t('labWrongError', { got: describeRevert(r.error), expected: step.erroEsperado });
+                            steps.push(sub);
+                            if (!ok) status = 'fail';
+                        }
+                        continue;
+                    }
                     if (step.acao === 'avancarTempo') {
                         const secs = parseAmount(step.segundos || '0', 'seconds');
                         env.chain.advanceTime(secs);

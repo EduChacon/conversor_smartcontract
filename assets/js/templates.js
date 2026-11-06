@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * Modo sem IA: modelos de contrato revisados, extração de parâmetros por
  * regras e cenários de teste predefinidos.
@@ -34,6 +35,7 @@
 pragma solidity ${SOLC_VERSION};
 
 // {{ATENÇÃO: esqueleto gerado a partir de modelo revisado (sem IA). Requer revisão profissional antes de qualquer uso.|WARNING: skeleton generated from a reviewed template (no AI). Requires professional review before any use.}}
+// {{Gerado com o Conversor Contratual|Generated with the Contract Converter}} (github.com/EduChacon/conversor_smartcontract)
 
 /// @title ${name}
 /// @notice ${title}

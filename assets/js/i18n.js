@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /* Textos da interface (português e inglês). Conteúdo estático e confiável. */
 (function () {
     'use strict';
@@ -48,6 +49,7 @@
             labTemplateTestsButton: 'Executar os testes do modelo',
             labNoTemplatePlan: 'Os testes predefinidos existem apenas para código gerado a partir de um modelo. Gere pelo modelo ou use "Gerar testes com IA".',
             footerCredit: 'Feito por ETCS.',
+            footerRights: '© 2025-2026 ETCS. Todos os direitos reservados. Uso sujeito à licença do repositório.',
             pageTitle: 'Conversor Contratual para Esqueleto Solidity',
             mainTitle: 'Conversor Contratual para Esqueleto Solidity',
             subTitle: 'Da cláusula em linguagem natural ao esqueleto de "smart contract" em Solidity, com verificação de segurança e testes em "blockchain" simulada.',
@@ -277,6 +279,7 @@
             labTemplateTestsButton: 'Run the template tests',
             labNoTemplatePlan: 'Predefined tests exist only for code generated from a template. Generate from a template or use "Generate tests with AI".',
             footerCredit: 'Made by ETCS.',
+            footerRights: '© 2025-2026 ETCS. All rights reserved. Use subject to the repository license.',
             pageTitle: 'Contract Clause to Solidity Skeleton Converter',
             mainTitle: 'Contract Clause to Solidity Skeleton Converter',
             subTitle: 'From a natural-language clause to a Solidity smart contract skeleton, with security checks and tests on a simulated blockchain.',

@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * Instruções enviadas ao modelo de IA.
  *
@@ -16,7 +17,9 @@
         // Modelos de entrada (plano gratuito) primeiro; a lista real vem da chave.
         DEFAULT_MODEL: 'gemini-flash-lite-latest',
         FALLBACK_MODELS: ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-pro'],
-        REQUEST_TIMEOUT_MS: 120000
+        REQUEST_TIMEOUT_MS: 120000,
+        // Marca de autoria (base64).
+        _autoria: 'RWR1YXJkbyBDaGFjb24gwrcgZ2l0aHViLmNvbS9FZHVDaGFjb24gwrcgY29udmVyc29yX3NtYXJ0Y29udHJhY3QgwrcgMjAyNQ=='
     };
 
     const LANG_NAME = { pt: 'português do Brasil', en: 'English' };

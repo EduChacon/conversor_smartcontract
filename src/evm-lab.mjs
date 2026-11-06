@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * "Blockchain" simulada para o Laboratório (fonte do pacote
  * assets/vendor/evm-lab.js, gerado por "npm run build").

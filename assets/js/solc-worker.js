@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 /*
  * "Web Worker" que carrega o compilador oficial do Solidity (soljson, versão
  * WebAssembly) e compila o código fora da linha principal da página.

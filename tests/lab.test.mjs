@@ -1,3 +1,4 @@
+/*! Conversor Contratual para Esqueleto Solidity — © 2025-2026 Eduardo Chacon (github.com/EduChacon). Todos os direitos reservados. Uso sujeito a LICENSE. */
 // Teste de integração: compila com o solc oficial e executa na EVM simulada
 // (mesmo pacote usado pela página). Requer "npm install".
 import test from 'node:test';

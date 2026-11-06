@@ -129,6 +129,14 @@ contract ContratoExemplo {
 FORMATO DA SAÍDA: devolva APENAS o código Solidity completo, dentro de um único bloco \`\`\`solidity ... \`\`\`, sem texto fora do bloco.
 Mantenha, logo após o "pragma", o comentário "${SKELETON_NOTICE_TOP[lang]}" e, ao final do arquivo, "${SKELETON_NOTICE_BOTTOM[lang]}".`;
 
+    /** Blocos que a ferramenta oferece, para que as sugestões da IA apontem recursos existentes. */
+    function toolBlocks() {
+        const B = CSC.blocks;
+        if (!B || !B.BLOCKS) return '';
+        return '\nRECURSOS DA FERRAMENTA: o contrato é montado com estes blocos (cite-os pelo nome quando forem úteis): ' +
+            Object.values(B.BLOCKS).map(d => d.name.pt).join('; ') + '. Há ainda conferência jurídica automática, assinaturas digitais com impressão digital do texto e registro do PDF assinado (gov.br, ICP-Brasil ou equivalente), e testes automáticos de funcionalidade, segurança e solvência.';
+    }
+
     function block(tag, content) {
         return `<<<INICIO_${tag}>>>\n${content}\n<<<FIM_${tag}>>>`;
     }
@@ -162,7 +170,7 @@ ${CODE_OUTPUT_RULE(lang)}`,
 ${languageRule(lang)}
 ${DATA_RULE}
 Tarefa: identificar riscos, ambiguidades, omissões e pontos de litígio da cláusula, além das dificuldades específicas de automatizá-la em "smart contract" (dependência de fatos externos, moeda fiduciária, prova, irreversibilidade das transações).
-Formato: tópicos numerados em Markdown, cada um com o risco e a sugestão de melhoria. Sem saudação, introdução ou conclusão. Não preste aconselhamento jurídico definitivo.`,
+Formato: tópicos numerados em Markdown, cada um com o risco e a sugestão de melhoria. Sem saudação, introdução ou conclusão. Não preste aconselhamento jurídico definitivo.${toolBlocks()}`,
                 user: block('CLAUSULA', clause)
             };
         },
@@ -174,7 +182,7 @@ Formato: tópicos numerados em Markdown, cada um com o risco e a sugestão de me
 ${languageRule(lang)}
 ${DATA_RULE}
 Tarefa: sugerir de 2 a 3 cláusulas complementares relevantes para um contrato que contenha a cláusula fornecida, inclusive quanto à execução automatizada (ex.: árbitro/oráculo, solução de falhas técnicas, conversão de moeda).
-Formato Markdown, para cada sugestão: "**Sugestão N: título**", uma redação-modelo curta e "Justificativa:" em 1 a 2 frases. Sem saudação, introdução ou conclusão.`,
+Formato Markdown, para cada sugestão: "**Sugestão N: título**", uma redação-modelo curta e "Justificativa:" em 1 a 2 frases. Sem saudação, introdução ou conclusão. Quando houver bloco correspondente na ferramenta, indique-o ("bloco: …").${toolBlocks()}`,
                 user: block('CLAUSULA', clause)
             };
         },

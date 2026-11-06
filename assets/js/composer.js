@@ -48,7 +48,7 @@
         modelsExport: 'Exportar modelos',
         modelsImport: 'Importar modelos',
         modelsImported: '{n} modelo(s) importado(s).',
-        modelsHint: 'Os modelos ficam guardados neste navegador. Exporte-os em arquivo para usar em outro computador ou compartilhar. Endereços de carteira não são guardados.',
+        modelsHint: 'Os modelos ficam guardados neste navegador. Exporte-os em arquivo para usar em outro computador ou compartilhar. Dados das partes (qualificação e carteiras) não são guardados.',
         deleteMyBlock: 'Excluir',
         exportMyBlocks: 'Exportar meus blocos',
         importMyBlocks: 'Importar blocos',
@@ -79,8 +79,25 @@
         linkMapHint: 'Cada cláusula tem uma cor, repetida no código, no Laboratório e nos testes. As cláusulas recuadas dependem da cláusula acima delas.',
         alsoLinked: 'também ligada a',
         partiesData: 'Dados das partes (opcional)',
-        partiesDataHelp: 'Endereço de carteira de cada parte, para o relatório e para a implantação numa rede de teste. Não inclua dados pessoais sensíveis: o arquivo do contrato fica com quem o salvar.',
+        partiesDataHelp: 'Qualificação de cada parte, para o documento a ser assinado, e endereço de carteira, para a implantação. A qualificação entra no texto assinado e na sua impressão digital, mas nunca no código publicado na "blockchain". O arquivo do contrato e o relatório ficam com quem os salvar.',
         partyWallet: 'Endereço de carteira',
+        partyName: 'Nome completo ou razão social',
+        partyDoc: 'CPF, CNPJ ou documento estrangeiro',
+        partyAddress: 'Endereço',
+        sigHashLabel: 'Impressão digital (SHA-256) do texto do contrato:',
+        sigHashHint: 'É o valor que cada signatário confere ao assinar. Ele muda a cada alteração do texto ou da qualificação das partes.',
+        sigDownload: 'Baixar o texto do contrato (.txt)',
+        sigPdfTitle: 'Assinatura com validade jurídica (gov.br, certificado digital ou serviço estrangeiro)',
+        sigPdfSteps: 'a) Gere o PDF em "Imprimir para assinatura (PDF)". b) Assine-o no serviço de sua escolha: no Brasil, gov.br (assinador do ITI) ou certificado ICP-Brasil; no exterior, serviço equivalente (por exemplo, certificado qualificado eIDAS). c) Calcule abaixo a impressão digital do PDF assinado. d) No Laboratório ou na rede, chame registrarDocumento com esse valor antes da primeira assinatura.',
+        sigPdfPick: 'Calcular a impressão digital de um PDF assinado',
+        sigPdfResult: 'Impressão digital do arquivo "{name}":',
+        sigPdfLocal: 'O arquivo é lido apenas no seu navegador; nada é enviado.',
+        copy: 'Copiar',
+        copied: 'Copiado.',
+        legalTitle: 'Conferência jurídica ({n})',
+        legalHint: 'Conferência automática e indicativa, com base no direito brasileiro. Não substitui a análise de um profissional.',
+        legalWarn: 'Aviso',
+        legalNote: 'Lembrete',
         walletInvalid: 'O endereço de carteira de "{name}" não parece válido (deve começar com 0x e ter 42 caracteres).',
         seriesNone: 'Opcional: carregue uma série de dados (por exemplo, o índice mês a mês) para o Laboratório atualizar esta informação automaticamente ao avançar o tempo.',
         seriesSummary: 'Série carregada: {n} valores, do dia {d0} ao dia {d1} do contrato ({v0} a {v1}). No Laboratório, a fonte informa o valor de cada data automaticamente.',
@@ -132,7 +149,7 @@
         modelsExport: 'Export templates',
         modelsImport: 'Import templates',
         modelsImported: '{n} template(s) imported.',
-        modelsHint: 'Templates are stored in this browser. Export them to a file to use on another computer or to share. Wallet addresses are not stored.',
+        modelsHint: 'Templates are stored in this browser. Export them to a file to use on another computer or to share. Party details (identification and wallets) are not stored.',
         deleteMyBlock: 'Delete',
         exportMyBlocks: 'Export my blocks',
         importMyBlocks: 'Import blocks',
@@ -163,8 +180,25 @@
         linkMapHint: 'Each clause has a color, repeated in the code, the Lab and the tests. Indented clauses depend on the clause above them.',
         alsoLinked: 'also linked to',
         partiesData: 'Party details (optional)',
-        partiesDataHelp: 'Each party\'s wallet address, for the report and for testnet deployment. Do not include sensitive personal data: the contract file stays with whoever saves it.',
+        partiesDataHelp: 'Each party\'s details, for the document to be signed, and wallet address, for deployment. The details go into the signed text and its fingerprint, but never into the code published on the blockchain. The contract file and the report stay with whoever saves them.',
         partyWallet: 'Wallet address',
+        partyName: 'Full name or company name',
+        partyDoc: 'Tax ID, company number or passport',
+        partyAddress: 'Address',
+        sigHashLabel: 'Fingerprint (SHA-256) of the contract text:',
+        sigHashHint: 'This is the value each signatory checks when signing. It changes whenever the text or the party details change.',
+        sigDownload: 'Download the contract text (.txt)',
+        sigPdfTitle: 'Legally valid signature (gov.br, digital certificate or foreign service)',
+        sigPdfSteps: 'a) Generate the PDF with "Print for signature (PDF)". b) Sign it with the service of your choice: in Brazil, gov.br (ITI signer) or an ICP-Brasil certificate; elsewhere, an equivalent service (e.g. a qualified eIDAS certificate). c) Compute below the fingerprint of the signed PDF. d) In the Lab or on the network, call recordDocument with this value before the first signature.',
+        sigPdfPick: 'Compute the fingerprint of a signed PDF',
+        sigPdfResult: 'Fingerprint of the file "{name}":',
+        sigPdfLocal: 'The file is read only in your browser; nothing is sent.',
+        copy: 'Copy',
+        copied: 'Copied.',
+        legalTitle: 'Legal check ({n})',
+        legalHint: 'Automatic, indicative check based on Brazilian law. It does not replace professional advice.',
+        legalWarn: 'Warning',
+        legalNote: 'Reminder',
         walletInvalid: 'The wallet address of "{name}" does not look valid (it must start with 0x and have 42 characters).',
         seriesNone: 'Optional: load a data series (e.g. a monthly index) so the Lab updates this data automatically as time moves forward.',
         seriesSummary: 'Series loaded: {n} values, from day {d0} to day {d1} of the contract ({v0} to {v1}). In the Lab, the source reports each date\'s value automatically.',
@@ -352,6 +386,7 @@
             sentenceNode(block)
         ]);
         if (block.type === 'oraculoValor') li.appendChild(seriesNode(block));
+        if (block.type === 'assinaturas') li.appendChild(signatureNode());
         return li;
     }
 
@@ -401,6 +436,45 @@
         return out.slice(0, 1000);
     }
 
+    /** Painel da cláusula de assinaturas: impressão digital do texto, download e cálculo do hash de um PDF assinado. */
+    function signatureNode() {
+        const hashCode = el('code', { class: 'sig-hash', text: B().hashDoTexto(state.model, CSC.lang) });
+        const copyBtn = value => el('button', { type: 'button', class: 'link-btn', text: t('copy'), onclick: e => {
+            try { navigator.clipboard.writeText(typeof value === 'function' ? value() : value); e.target.textContent = t('copied'); } catch (_) { /* sem área de transferência */ }
+        } });
+        const result = el('div', { class: 'sig-result', role: 'status', 'aria-live': 'polite' });
+        const file = el('input', { type: 'file', accept: 'application/pdf,.pdf', hidden: true, onchange: async e => {
+            const f = e.target.files[0];
+            e.target.value = '';
+            if (!f) return;
+            const buf = await f.arrayBuffer();
+            const dig = await crypto.subtle.digest('SHA-256', buf);
+            const hex = '0x' + Array.from(new Uint8Array(dig)).map(x => x.toString(16).padStart(2, '0')).join('');
+            result.textContent = '';
+            result.appendChild(el('span', { class: 'muted small', text: t('sigPdfResult', { name: f.name.slice(0, 80) }) + ' ' }));
+            result.appendChild(el('code', { class: 'sig-hash', text: hex }));
+            result.appendChild(copyBtn(hex));
+        } });
+        return el('div', { class: 'sig-panel' }, [
+            el('p', { class: 'small' }, [el('strong', { text: t('sigHashLabel') + ' ' }), hashCode, ' ', copyBtn(() => hashCode.textContent)]),
+            el('p', { class: 'muted small', text: t('sigHashHint') }),
+            el('button', { type: 'button', class: 'link-btn', text: t('sigDownload'), onclick: () => {
+                const blob = new Blob([B().textoParaAssinatura(state.model, CSC.lang)], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = el('a', { href: url, download: 'contrato.txt' });
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } }),
+            el('details', { class: 'sig-pdf' }, [
+                el('summary', { class: 'link-btn', text: t('sigPdfTitle') }),
+                el('p', { class: 'small', text: t('sigPdfSteps') }),
+                el('button', { type: 'button', class: 'btn btn-quiet', text: t('sigPdfPick'), onclick: () => file.click() }), file,
+                el('p', { class: 'muted small', text: t('sigPdfLocal') }),
+                result
+            ])
+        ]);
+    }
+
     function seriesNode(block) {
         const fileInput = el('input', { type: 'file', accept: '.csv,.txt,.json,text/csv,application/json', hidden: true, onchange: e => {
             const f = e.target.files[0];
@@ -446,7 +520,8 @@
     function sanitizeModel(m) {
         if (!m || !Array.isArray(m.roles) || !Array.isArray(m.blocks)) throw new Error('format');
         const str = (v, n) => String(v == null ? '' : v).slice(0, n);
-        const roles = m.roles.slice(0, 8).map((r, i) => ({ id: str(r.id || 'p' + (i + 1), 40), label: str(r.label, 60), carteira: r.carteira ? str(r.carteira, 42) : undefined }));
+        const roles = m.roles.slice(0, 8).map((r, i) => ({ id: str(r.id || 'p' + (i + 1), 40), label: str(r.label, 60), carteira: r.carteira ? str(r.carteira, 42) : undefined,
+            nome: r.nome ? str(r.nome, 120) : undefined, documento: r.documento ? str(r.documento, 40) : undefined, endereco: r.endereco ? str(r.endereco, 200) : undefined }));
         const blocks = m.blocks.slice(0, 60).filter(b => b && B().BLOCKS[b.type]).map(b => {
             const out = { uid: str(b.uid, 60), type: b.type, label: str(b.label, 80), params: {} };
             for (const p of B().BLOCKS[b.type].params) out.params[p.key] = typeof b.params[p.key] === 'number' ? b.params[p.key] : str(b.params[p.key], 80);
@@ -497,13 +572,20 @@
         const data = el('details', { class: 'parties-data' }, [
             el('summary', { class: 'link-btn', text: t('partiesData') }),
             el('p', { class: 'hint', text: t('partiesDataHelp') }),
-            ...roles.map(r => el('label', { class: 'party-row' }, [
-                el('span', { class: 'party-row-name', text: r.label }),
-                el('input', { type: 'text', class: 'party-wallet', placeholder: '0x…', spellcheck: 'false', value: r.carteira || '', 'aria-label': t('partyWallet') + ' — ' + r.label,
+            ...roles.map(r => el('fieldset', { class: 'party-row' }, [
+                el('legend', { class: 'party-row-name', text: r.label }),
+                el('input', { type: 'text', class: 'party-q', placeholder: t('partyName'), value: r.nome || '', maxlength: '120', 'aria-label': t('partyName') + ' — ' + r.label,
+                    oninput: e => { r.nome = e.target.value; changed(false); } }),
+                el('input', { type: 'text', class: 'party-q', placeholder: t('partyDoc'), value: r.documento || '', maxlength: '40', 'aria-label': t('partyDoc') + ' — ' + r.label,
+                    oninput: e => { r.documento = e.target.value; changed(false); } }),
+                el('input', { type: 'text', class: 'party-q party-q-wide', placeholder: t('partyAddress'), value: r.endereco || '', maxlength: '200', 'aria-label': t('partyAddress') + ' — ' + r.label,
+                    oninput: e => { r.endereco = e.target.value; changed(false); } }),
+                el('input', { type: 'text', class: 'party-wallet', placeholder: t('partyWallet') + ' (0x…)', spellcheck: 'false', value: r.carteira || '', 'aria-label': t('partyWallet') + ' — ' + r.label,
                     oninput: e => { r.carteira = e.target.value.trim(); changed(false); } })
             ]))
         ]);
-        if (roles.some(r => r.carteira)) data.open = true;
+        if (roles.some(r => r.carteira || r.nome || r.documento)) data.open = state.partiesOpen !== false;
+        data.addEventListener('toggle', () => { state.partiesOpen = data.open; });
         return el('li', { class: 'clause clause-parties' }, [
             el('div', { class: 'clause-head' }, [el('span', { class: 'clause-num', text: ordinal(1) }), ' — ', el('span', { class: 'clause-title', text: t('partiesTitle') })]),
             el('p', { class: 'clause-text' }, [t('partiesIntro') + ' ', ...chips, t('partiesOutro').startsWith(',') ? t('partiesOutro') : ' ' + t('partiesOutro'), ' ', add]),
@@ -643,7 +725,7 @@
     /** Cópia do contrato sem endereços de carteira (dados das partes). */
     function templateCopy(model) {
         const m = JSON.parse(JSON.stringify(model));
-        for (const r of m.roles || []) delete r.carteira;
+        for (const r of m.roles || []) { delete r.carteira; delete r.nome; delete r.documento; delete r.endereco; }
         delete m.cotacao;
         return m;
     }
@@ -790,6 +872,21 @@
             box.appendChild(el('p', { class: 'field-label', text: t('docWarnings') }));
             box.appendChild(el('ul', { class: 'issues warnings' }, warnings.map(w => el('li', { text: w }))));
         }
+        const legal = B().legalCheck(state.model, CSC.lang);
+        if (legal.length) {
+            const det = el('details', { class: 'legal-check', open: state.legalOpen ? true : null }, [
+                el('summary', { class: 'link-btn', text: t('legalTitle', { n: legal.length }) }),
+                el('p', { class: 'muted small', text: t('legalHint') }),
+                el('ul', { class: 'issues legal' }, legal.map(x => el('li', { class: 'legal-' + x.tipo }, [
+                    el('span', { class: 'tag ' + (x.tipo === 'aviso' ? 'tag-security' : 'tag-functional'), text: x.tipo === 'aviso' ? t('legalWarn') : t('legalNote') }), ' ',
+                    x.texto, x.ref ? el('span', { class: 'legal-ref', text: ' (' + x.ref + ')' }) : null
+                ])))
+            ]);
+            det.addEventListener('toggle', () => { state.legalOpen = det.open; });
+            box.appendChild(det);
+        }
+        const sh = state.dom.doc.querySelector('.sig-hash');
+        if (sh) try { sh.textContent = B().hashDoTexto(state.model, CSC.lang); } catch (_) { /* montagem incompleta */ }
         if (state.dom.generate) state.dom.generate.disabled = issues.length > 0;
         return issues;
     }

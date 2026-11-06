@@ -1124,11 +1124,12 @@
         lines.push('> ' + (state.aiUsed ? t('reportDisclaimer') : t('reportDisclaimerNoAI')), '');
         if (clauseText()) lines.push('## ' + t('reportClause'), '', clauseText().split('\n').map(l => '> ' + l).join('\n'), '');
         const cm = state.mode === 'blocks' && CSC.composer.model();
-        if (cm && cm.roles.some(r => r.carteira)) {
+        if (cm && cm.roles.some(r => r.carteira || r.nome || r.documento)) {
             lines.push('## ' + t('reportParties'), '');
-            cm.roles.forEach(r => lines.push('- ' + r.label + (r.carteira ? ': `' + r.carteira + '`' : '')));
+            cm.roles.forEach(r => lines.push('- ' + r.label + (r.nome ? ' — ' + r.nome : '') + (r.documento ? ' — ' + r.documento : '') + (r.carteira ? ': `' + r.carteira + '`' : '')));
             lines.push('');
         }
+        if (cm && cm.blocks.some(b => b.type === 'assinaturas')) lines.push('- ' + t('printSigHash') + ': `' + CSC.blocks.hashDoTexto(cm, CSC.lang) + '`', '');
         const sections = [['risk', 'riskAnalysisTitle'], ['suggest', 'suggestClausesTitle']];
         for (const [k, title] of sections) if (state.outputs[k]) lines.push('## ' + t(title), '', state.outputs[k], '');
         lines.push('## ' + t('reportCode'), '', '```solidity', code.trimEnd(), '```', '');
@@ -1265,6 +1266,36 @@
     $('remixButton').addEventListener('click', openRemix);
     const report = () => downloadFile('relatorio-' + contractName(currentCode()) + '.md', buildReport(), 'text/markdown;charset=utf-8');
     /** Versão para imprimir ou salvar em PDF (pela janela de impressão do navegador). */
+    /** Contrato pronto para assinatura: texto integral com a qualificação, a impressão digital e as linhas de assinatura. */
+    function printContract() {
+        const m = CSC.composer.model();
+        if (!m) return;
+        const B = CSC.blocks;
+        const lines = [];
+        const title = String(m.name || '').trim();
+        if (title) lines.push('# ' + title, '');
+        const parts = B.minuta(m, CSC.lang);
+        const q = B.qualificacao(m, CSC.lang);
+        if (q) parts[0] = Object.assign({}, parts[0], { texto: q });
+        for (const c of parts) lines.push('**' + c.numero + ' — ' + c.titulo + '.** ' + c.texto, '');
+        if (m.blocks.some(b => b.type === 'assinaturas')) lines.push('> ' + t('printSigHash') + ': `' + B.hashDoTexto(m, CSC.lang) + '`', '');
+        lines.push('## ' + t('printSigTitle'), '');
+        const witnesses = new Set(m.blocks.filter(b => b.type === 'testemunha').map(b => b.params.testemunha));
+        for (const r of m.roles) {
+            lines.push('', '_______________________________________________', '');
+            lines.push('**' + (witnesses.has(r.id) ? t('printWitness') + ' — ' : '') + r.label + '**' + (r.nome ? ' — ' + r.nome : '') + (r.documento ? ' — ' + r.documento : ''), '');
+        }
+        lines.push('', '> ' + t('printNoteSig'));
+        let area = $('printArea');
+        if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
+        area.innerHTML = CSC.markdown.render(lines.join('\n'));
+        document.body.classList.add('printing');
+        const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+        window.addEventListener('afterprint', done);
+        window.print();
+        setTimeout(done, 1000);
+    }
+
     function printReport() {
         let area = $('printArea');
         if (!area) { area = document.createElement('div'); area.id = 'printArea'; document.body.appendChild(area); }
@@ -1278,6 +1309,7 @@
     $('reportButton').addEventListener('click', report);
     $('reportButton2').addEventListener('click', report);
     $('printButton').addEventListener('click', printReport);
+    if ($('docPrint')) $('docPrint').addEventListener('click', printContract);
     $('printButton2').addEventListener('click', printReport);
 
     $('compileButton').addEventListener('click', async () => {

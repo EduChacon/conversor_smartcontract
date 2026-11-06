@@ -786,6 +786,12 @@
     function warnings(model) {
         const out = [];
         const blocks = model.blocks || [];
+        for (const r of blocks.filter(x => x.type === 'liberacaoPorEvento')) {
+            const c = blocks.find(x => x.uid === r.params.alvo), e = blocks.find(x => x.uid === r.params.evento);
+            if (c && e && e.params.prazo && Number(c.params.prazo) < Number(e.params.prazo) + Number(e.params.atestacao || 0)) out.push({ uid: c.uid,
+                pt: 'O prazo de "' + c.label + '" (' + c.params.prazo + ' dias) é menor que o prazo de "' + e.label + '" somado ao prazo de atestação: o depositante só poderá reaver o valor depois de vencida a obrigação.',
+                en: 'The deadline of "' + c.label + '" (' + c.params.prazo + ' days) is shorter than the deadline of "' + e.label + '" plus the attestation period: the depositor can only recover the amount once the obligation is overdue.' });
+        }
         const hasArb = blocks.some(b => b.type === 'arbitro');
         for (const b of blocks.filter(x => BLOCKS[x.type] && BLOCKS[x.type].obligation)) {
             const pen = blocks.some(x => x.type === 'clausulaPenal' && x.params.alvo === b.uid);
@@ -2174,7 +2180,8 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                     w('Antes do prazo a devolução é recusada; depois, o depositante reaver o valor.', 'Before the deadline the refund is rejected; afterwards the depositor recovers the amount.'), [
                         call(R(dep), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito.', 'Deposit.')),
                         call(R(dep), w('reaver', 'refund') + I, [], null, 'reverter', N.PrazoNaoEncerrado, w('Ainda no prazo.', 'Still within the deadline.')),
-                        wait(Math.round(b.params.prazo) + 1, w('O prazo se esgota.', 'The deadline passes.')),
+                        wait(Math.max(Math.round(b.params.prazo), (() => { const rl = blocks.find(x => x.type === 'liberacaoPorEvento' && x.params.alvo === b.uid); const ev = rl && ctx.byUid(rl.params.evento); return ev && ev.params.prazo ? Math.round(ev.params.prazo) : 0; })()) + 1,
+                            w('O prazo se esgota (e, havendo obrigação vinculada, também o dela, sem cumprimento).', 'The deadline passes (and, with a linked obligation, so does its deadline, without performance).')),
                         call(R(dep), w('reaver', 'refund') + I, [], null, 'sucesso', null, w('Devolução.', 'Refund.')),
                         call(R(dep), N.sacar, [], null, 'sucesso', null, w('O depositante saca.', 'The depositor withdraws.'))
                     ]));
@@ -2776,6 +2783,32 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                     blk('arbitro', '', { arbitro: 'arbitro' })
                 ]
             }),
+            compraFormal: () => ({
+                name: en ? 'Sale Agreement with Signatures' : 'Compra e Venda com Assinaturas', scale: 1000,
+                roles: [r('vendedor', 'Vendedor', 'Seller'), r('comprador', 'Comprador', 'Buyer'), r('testemunha1', 'Primeira testemunha', 'First witness'), r('testemunha2', 'Segunda testemunha', 'Second witness')],
+                blocks: [
+                    Object.assign(blk('objeto', en ? 'Subject matter' : 'Objeto', {}), { texto: en
+                        ? 'The subject matter of this contract is the sale of a used 2018 hatchback car, in the condition seen by the buyer, under the terms set out in the following clauses.'
+                        : 'O presente contrato tem por objeto a compra e venda de um automóvel usado, modelo 2018, no estado em que se encontra e foi vistoriado pelo comprador, nas condições estabelecidas nas cláusulas seguintes.' }),
+                    blk('pagamentoUnico', en ? 'Price' : 'Preço', { devedor: 'comprador', credor: 'vendedor', valor: 30000, prazo: 10 }),
+                    blk('arrependimento', '', { alvo: 'x' + (en ? 'Price' : 'Preco'), prazo: 7 }),
+                    Object.assign(blk('obrigacaoDar', en ? 'Car' : 'Veículo', { devedor: 'vendedor', credor: 'comprador', prazo: 20, verificador: 'comprador', atestacao: 5 }), { texto: en
+                        ? '{devedor} shall deliver to {credor} the car described in the subject matter clause, with its documents and keys, within {prazo} days of deployment. Once delivery is reported, {verificador} has {atestacao} days to attest receipt or reject it with reasons; silence counts as attestation, and a rejection gives the debtor the same period again to perform. If the deadline passes with no performance reported, either party may declare default.'
+                        : '{devedor} entregará a {credor} o veículo descrito na cláusula do objeto, com seus documentos e chaves, até {prazo} dias após a implantação. Informada a entrega, {verificador} terá {atestacao} dias para atestar o recebimento ou recusá-lo fundamentadamente; o silêncio importará atestação, e a recusa reabrirá ao devedor igual prazo para cumprir. Vencido o prazo sem cumprimento informado, qualquer das partes poderá declarar o inadimplemento.' }),
+                    blk('clausulaPenal', en ? 'Delivery penalty' : 'Multa pela entrega', { alvo: 'x' + (en ? 'Car' : 'Veiculo'), valor: 3000 }),
+                    blk('notificacoes', '', {}),
+                    Object.assign(blk('protecaoDados', en ? 'Data protection' : 'Proteção de dados', {}), { texto: BLOCKS.protecaoDados.sentence[en ? 'en' : 'pt'] }),
+                    Object.assign(blk('foro', en ? 'Jurisdiction' : 'Foro', {}), { texto: en
+                        ? 'The courts of São Paulo, Brazil, where the buyer is domiciled, shall have jurisdiction over disputes arising from this contract.'
+                        : 'Fica eleito o foro da comarca de São Paulo/SP, domicílio do comprador, para dirimir as controvérsias oriundas deste contrato.' }),
+                    Object.assign(blk('localData', en ? 'Place and date' : 'Local e data', {}), { texto: en
+                        ? 'Signed in São Paulo, on the date of the last signature recorded in this contract.'
+                        : 'Firmado em São Paulo/SP, na data da última assinatura registrada neste contrato.' }),
+                    blk('assinaturas', '', { prazo: 15 }),
+                    blk('testemunha', en ? 'First witness' : 'Primeira testemunha', { testemunha: 'testemunha1' }),
+                    blk('testemunha', en ? 'Second witness' : 'Segunda testemunha', { testemunha: 'testemunha2' })
+                ]
+            }),
             assinatura: () => ({
                 name: en ? 'Subscription' : 'Assinatura de Serviço', scale: 1000,
                 roles: [r('fornecedor', 'Fornecedor', 'Provider'), r('cliente', 'Cliente', 'Customer')],
@@ -2814,6 +2847,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
         { id: 'entregaEvento', pt: 'Compra com liberação ao confirmar a entrega (oráculo de evento)', en: 'Purchase released on delivery confirmation (event oracle)' },
         { id: 'servicoObrigacoes', pt: 'Prestação de serviço (fazer) com cláusula penal e não concorrência (não fazer)', en: 'Service (to do) with penalty clause and non-compete (not to do)' },
         { id: 'compraEntrega', pt: 'Compra com entrega do bem (dar) atestada pelo comprador e cláusula penal', en: 'Purchase with delivery (to give) attested by the buyer and penalty clause' },
+        { id: 'compraFormal', pt: 'Compra e venda formal: objeto, arrependimento, entrega com cláusula penal, foro, assinaturas e testemunhas', en: 'Formal sale: subject matter, withdrawal right, delivery with penalty, jurisdiction, signatures and witnesses' },
         { id: 'assinatura', pt: 'Assinatura mensal com encargos, vigência e rescisão pelo cliente', en: 'Monthly subscription with charges, term and customer termination' }
     ];
 

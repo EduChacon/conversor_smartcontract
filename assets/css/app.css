@@ -543,7 +543,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .parties-data { margin-top: .3rem; font-family: var(--sans); font-size: .85rem; }
 .parties-data > summary { cursor: pointer; list-style: none; display: inline; }
 .parties-data > summary::-webkit-details-marker { display: none; }
-.party-row { display: grid; grid-template-columns: minmax(7rem, 12rem) 1fr; gap: .5rem; align-items: center; margin: .3rem 0; }
+.party-row { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .5rem; margin: .5rem 0; padding: .4rem .6rem .6rem; border: 1px solid var(--rule); }
+.party-row legend { padding: 0 .3rem; font-weight: 600; }
+.party-row .party-q-wide, .party-row .party-wallet { grid-column: 1 / -1; }
+@media (max-width: 560px) { .party-row { grid-template-columns: 1fr; } }
 .party-wallet { font-family: var(--mono); font-size: .8rem; }
 .series { margin-top: .3rem; padding-left: .2rem; border-left: 2px dotted var(--rule); }
 .series .inline-row { font-family: var(--sans); font-size: .82rem; gap: .3rem 1rem; }
@@ -591,3 +594,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 
 .fn-card .fn-name { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 .fn-card { min-width: 0; }
+
+/* ---------- Assinaturas e conferência jurídica ---------- */
+.sig-panel { margin: .6rem 0 0; padding: .6rem .8rem; border: 1px dashed var(--rule); font-family: var(--sans); }
+.sig-hash { font-family: var(--mono); font-size: .78rem; overflow-wrap: anywhere; }
+.sig-pdf { margin-top: .4rem; }
+.sig-pdf summary { cursor: pointer; }
+.sig-result { margin-top: .4rem; }
+.legal-check { margin: .8rem 0 0; font-family: var(--sans); font-size: .88rem; }
+.legal-check summary { cursor: pointer; font-weight: 600; }
+.issues.legal li { margin: .35rem 0; }
+.legal-ref { color: var(--muted); font-style: italic; }

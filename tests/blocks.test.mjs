@@ -117,6 +117,13 @@ test('combinações aleatórias de blocos (60 montagens)', async () => {
                 const rel = add('liberacaoPorEvento'); rel.params.alvo = cus0.uid; rel.params.evento = o.uid;
             }
         }
+        // Formalização: arrependimento, notificações, cláusulas formais, assinaturas e testemunha.
+        const arrT = model.blocks.find(b => b.type === 'pagamentoUnico' || b.type === 'custodia');
+        if (arrT && rand() < 0.4) { const x = add('arrependimento'); x.params.alvo = arrT.uid; x.params.prazo = 1 + Math.floor(rand() * 10); }
+        if (rand() < 0.3) add('notificacoes');
+        if (rand() < 0.3) add(pick(['objeto', 'foro', 'localData', 'confidencialidade', 'protecaoDados', 'disposicoesGerais']));
+        const withSig = rand() < 0.4;
+        if (withSig) { const s = add('assinaturas'); s.params.prazo = 1 + Math.floor(rand() * 20); }
         // Informações externas (oráculos) ligadas aos pagamentos e garantias.
         const pays = model.blocks.filter(b => b.type === 'pagamentoUnico' || b.type === 'pagamentoPeriodico');
         if (pays.length && rand() < 0.5) {
@@ -134,7 +141,13 @@ test('combinações aleatórias de blocos (60 montagens)', async () => {
         const resc = model.blocks.find(b => b.type === 'rescisao');
         if (resc && model.blocks.some(b => (b.type === 'caucao' && resc.params.quem !== b.params.garantidor) || (b.type === 'etapas' && resc.params.quem !== b.params.contratante))) resc.params.quem = '*';
         if (arb) for (const o of model.blocks.filter(b => b.params && b.params.verificador === 'c')) o.params.verificador = o.params.credor;
-        if (!model.blocks.some(b => b.type === 'arbitro' || b.params.verificador === 'c' || ((b.type === 'oraculoValor' || b.type === 'oraculoEvento') && b.params.fonte === 'c'))) model.roles = roles.slice(0, 2);
+        model.blocks = model.blocks.filter(r => {
+            if (r.type !== 'liberacaoPorEvento') return true;
+            const c = model.blocks.find(x => x.uid === r.params.alvo), e = model.blocks.find(x => x.uid === r.params.evento);
+            return !(c && e && e.params.verificador && e.params.verificador === c.params.beneficiario);
+        });
+        if (withSig && rand() < 0.5) { model.roles.push({ id: 'd', label: lang === 'en' ? 'Dave' : 'Diana' }); const t = add('testemunha'); t.params.testemunha = 'd'; }
+        if (!model.blocks.some(b => b.type === 'arbitro' || b.params.verificador === 'c' || ((b.type === 'oraculoValor' || b.type === 'oraculoEvento') && b.params.fonte === 'c'))) model.roles = model.roles.filter(r => r.id !== 'c');
         total += await check(model, lang, 'combinação ' + k + ' [' + model.blocks.map(b => b.type).join(', ') + ']');
     }
     assert.ok(total > 100);

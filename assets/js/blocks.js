@@ -527,7 +527,8 @@
         const w = (pt, e) => (en ? e : pt);
         const roles = (model.roles || []).map(r => ({ id: r.id, label: r.label, v: camel(r.label), P: pascal(r.label) }));
         const roleById = id => roles.find(r => r.id === id);
-        const blocks = (model.blocks || []).map(b => Object.assign({}, b, { I: pascal(b.label), i: camel(b.label), U: upper(b.label) }));
+        // I: sufixo dos nomes de função e evento, separado do ato por sublinhado (pagar_Aluguel).
+        const blocks = (model.blocks || []).map(b => Object.assign({}, b, { I: '_' + pascal(b.label), i: camel(b.label), U: upper(b.label) }));
         const byUid = uid => blocks.find(b => b.uid === uid);
         const arb = blocks.find(b => b.type === 'arbitro');
         const arbRole = arb ? roleById(arb.params.arbitro) : null;
@@ -1412,6 +1413,44 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
     }
 
     // ------------------------------------------------------------------
+    // Legenda: cor de cada cláusula, ligações entre cláusulas e funções
+    // ------------------------------------------------------------------
+    const COLORS = 10;
+    /** Cor (1 a COLORS) de cada cláusula, na ordem do contrato. */
+    function colorOf(model, uid) {
+        const i = (model.blocks || []).findIndex(b => b.uid === uid);
+        return i < 0 ? 0 : (i % COLORS) + 1;
+    }
+    /** Cláusulas a que um bloco se liga (pagamento, obrigação, índice, evento...). */
+    function linksOf(block) {
+        const def = BLOCKS[block.type];
+        if (!def) return [];
+        return def.params.filter(p => p.kind === 'ref' && block.params[p.key]).map(p => ({ campo: p.key, uid: block.params[p.key] }));
+    }
+    /**
+     * Legenda do contrato: { clausulas: [{ uid, numero, titulo, cor, ligacoes }], funcoes: { nome: uid|null } }.
+     * As funções são atribuídas à cláusula em cuja seção do código aparecem.
+     */
+    function legend(model, lang) {
+        const ctx = makeCtx(model, lang);
+        const clausulas = ctx.blocks.map((b, i) => ({
+            uid: b.uid, numero: ordinal(i + 2, lang), titulo: clauseTitle(b, ctx), rotulo: b.label, tipo: b.type,
+            cor: colorOf(model, b.uid), ligacoes: linksOf(b).filter(l => ctx.byUid(l.uid)).map(l => l.uid)
+        }));
+        const funcoes = {};
+        let code = '';
+        try { code = build(model, lang); } catch (_) { /* montagem incompleta */ }
+        let current = null;
+        for (const line of code.split('\n')) {
+            const h = /^ {4}\/\/ (?:Cláusula (\d+)ª|Clause (\d+)) — /.exec(line);
+            if (h) { const n = Number(h[1] || h[2]); current = ctx.blocks[n - 2] ? ctx.blocks[n - 2].uid : null; continue; }
+            const f = /^ {4}function (\w+)\(/.exec(line);
+            if (f) funcoes[f[1]] = current;
+        }
+        return { clausulas, funcoes };
+    }
+
+    // ------------------------------------------------------------------
     // Cenários de teste
     // ------------------------------------------------------------------
     function plan(model, lang) {
@@ -1475,18 +1514,18 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 const enc = blocks.find(x => x.type === 'encargos' && x.params.alvo === b.uid);
                 if (enc && (Number(enc.params.multa) > 0 || Number(enc.params.juros) > 0)) {
                     const late = Math.round(periodic ? b.params.periodo : b.params.prazo) + Math.round(enc.params.tolerancia) + 10;
-                    scenarios.push(sc(w(`${b.label}: atraso com multa e juros`, `${b.label}: late payment with fee and interest`), 'funcionalidade',
+                    scenarios.push(Object.assign(sc(w(`${b.label}: atraso com multa e juros`, `${b.label}: late payment with fee and interest`), 'funcionalidade',
                         w('Após o vencimento e a tolerância, o valor sem encargos é recusado e o valor com encargos é aceito.', 'After the due date and grace period, the amount without charges is rejected and the amount with charges is accepted.'), [
                             wait(late, w('O pagamento atrasa.', 'The payment is late.')),
                             call(R(dev), pay, [], amount(b.params.valor), 'reverter', N.ValorIncorreto, w('Sem os encargos, o pagamento é recusado.', 'Without charges, payment is rejected.')),
                             query(R(dev), due, [], null, w('Consulta do valor atualizado.', 'Query of the updated amount.')),
                             call(R(dev), pay, [], '=' + due, 'sucesso', null, w('Pagamento com encargos.', 'Payment with charges.'))
-                        ]));
+                        ]), { bloco: enc.uid }));
                 }
                 const acc = blocks.find(x => x.type === 'vencimentoAntecipado' && x.params.alvo === b.uid);
                 if (acc && periodic) {
                     const P = Math.round(b.params.periodo), A = Math.round(acc.params.atraso);
-                    scenarios.push(sc(w(`${b.label}: vencimento antecipado`, `${b.label}: acceleration`), 'funcionalidade',
+                    scenarios.push(Object.assign(sc(w(`${b.label}: vencimento antecipado`, `${b.label}: acceleration`), 'funcionalidade',
                         w('Antes do atraso previsto a antecipação é recusada; depois, o credor antecipa e o devedor quita o saldo.', 'Before the contractual delay acceleration is rejected; afterwards the creditor accelerates and the debtor repays the balance.'), [
                             wait(P + Math.max(1, Math.floor(A / 2)), w('Atraso menor que o limite.', 'Delay below the limit.')),
                             call(R(cre), w('declararVencimentoAntecipado', 'declareAcceleration') + I, [], null, 'reverter', N.SemAtraso, w('Ainda não cabe antecipar.', 'Too early to accelerate.')),
@@ -1494,7 +1533,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                             call(R(cre), w('declararVencimentoAntecipado', 'declareAcceleration') + I, [], null, 'sucesso', null, w('Vencimento antecipado declarado.', 'Acceleration declared.')),
                             call(R(dev), pay, [], amount(b.params.valor), 'reverter', N.NaoDisponivel + '|' + N.ValorIncorreto, w('Parcelas avulsas deixam de ser aceitas.', 'Single installments are no longer accepted.')),
                             call(R(dev), w('quitar', 'repay') + I, [], '=' + w('saldoDevedor', 'outstanding') + I, 'sucesso', null, w('Quitação do saldo devedor.', 'Repayment of the balance.'))
-                        ]));
+                        ]), { bloco: acc.uid }));
                 }
                 if (periodic && Number(b.params.parcelas) <= 12) {
                     const steps = [];
@@ -1708,7 +1747,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 if (!t) continue;
                 const dev = roleById(t.params.devedor), cre = roleById(t.params.credor);
                 const D = w('depositarGarantia', 'depositBond') + t.I, X = w('executarClausulaPenal', 'enforcePenalty') + t.I, L = w('liberarGarantia', 'releaseBond') + t.I;
-                scenarios.push(sc(w(`${t.label}: cláusula penal executada`, `${t.label}: penalty enforced`), 'funcionalidade',
+                scenarios.push(Object.assign(sc(w(`${t.label}: cláusula penal executada`, `${t.label}: penalty enforced`), 'funcionalidade',
                     w('O devedor deposita a garantia; sem descumprimento o credor não a recebe; descumprida a obrigação, o credor a recebe e saca.', 'The debtor deposits the bond; without breach the creditor cannot take it; once breached, the creditor receives and withdraws it.'), [
                         call(R(dev), D, [], half(b.params.valor), 'reverter', N.ValorIncorreto, w('Depósito parcial é recusado.', 'A partial deposit is rejected.')),
                         call(R(dev), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito da garantia.', 'Bond deposited.')),
@@ -1717,8 +1756,8 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                         call(R(dev), L, [], null, 'reverter', N.NaoDisponivel, w('Descumprida a obrigação, o devedor não recupera a garantia.', 'Once breached, the debtor cannot recover the bond.')),
                         call(R(cre), X, [], null, 'sucesso', null, w('Cláusula penal executada.', 'Penalty enforced.')),
                         call(R(cre), N.sacar, [], null, 'sucesso', null, w('O credor saca.', 'The creditor withdraws.'))
-                    ]));
-                scenarios.push(sc(w(`${t.label}: garantia devolvida após o cumprimento`, `${t.label}: bond returned after performance`), 'funcionalidade',
+                    ]), { bloco: b.uid }));
+                scenarios.push(Object.assign(sc(w(`${t.label}: garantia devolvida após o cumprimento`, `${t.label}: bond returned after performance`), 'funcionalidade',
                     w('Enquanto a obrigação está em aberto, a garantia fica retida; cumprida a obrigação, volta ao devedor.', 'While the obligation is open, the bond is held; once fulfilled, it returns to the debtor.'), [
                         call(R(dev), D, [], amount(b.params.valor), 'sucesso', null, w('Depósito da garantia.', 'Bond deposited.')),
                         call(R(dev), L, [], null, 'reverter', N.NaoDisponivel, w('Com a obrigação em aberto, a garantia fica retida.', 'While the obligation is open, the bond stays held.')),
@@ -1726,7 +1765,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                         call(R(cre), X, [], null, 'reverter', N.NaoDisponivel, w('Cumprida a obrigação, não há cláusula penal.', 'Once fulfilled, there is no penalty.')),
                         call(R(dev), L, [], null, 'sucesso', null, w('Garantia devolvida.', 'Bond returned.')),
                         call(R(dev), N.sacar, [], null, 'sucesso', null, w('O devedor saca.', 'The debtor withdraws.'))
-                    ]));
+                    ]), { bloco: b.uid }));
             }
         }
 
@@ -1762,29 +1801,29 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                 const pay = ctx.byUid(b.params.alvo), idx = ctx.byUid(b.params.indice);
                 if (pay && idx) {
                     const dev = roleById(pay.params.devedor);
-                    scenarios.push(sc(w(`${pay.label}: reajuste pelo índice`, `${pay.label}: index adjustment`), 'funcionalidade',
+                    scenarios.push(Object.assign(sc(w(`${pay.label}: reajuste pelo índice`, `${pay.label}: index adjustment`), 'funcionalidade',
                         w('Informado um índice de 5%, o valor original passa a ser recusado e o valor reajustado é aceito.', 'Once a 5% index is reported, the original amount is rejected and the adjusted amount is accepted.'), [
                             call(R(roleById(idx.params.fonte)), w('informar', 'report') + idx.I, ['500'], null, 'sucesso', null, w('A fonte informa variação de 5,00%.', 'The source reports a 5.00% change.')),
                             call(R(dev), w('pagar', 'pay') + pay.I, [], amount(pay.params.valor), 'reverter', N.ValorIncorreto, w('O valor sem reajuste é recusado.', 'The unadjusted amount is rejected.')),
                             call(R(dev), w('pagar', 'pay') + pay.I, [], '=' + w('valorDevido', 'amountDue') + pay.I, 'sucesso', null, w('O valor reajustado é aceito.', 'The adjusted amount is accepted.'))
-                        ]));
+                        ]), { bloco: b.uid }));
                 }
             }
             if (b.type === 'conversaoCambial') {
                 const pay = ctx.byUid(b.params.alvo);
                 if (pay) {
                     const dev = roleById(pay.params.devedor);
-                    scenarios.push(Object.assign(sc(w(`${pay.label}: pagamento sem cotação válida`, `${pay.label}: payment without a valid price`), 'seguranca',
+                    scenarios.push(Object.assign(Object.assign(sc(w(`${pay.label}: pagamento sem cotação válida`, `${pay.label}: payment without a valid price`), 'seguranca',
                         w('Sem cotação informada pela fonte, o contrato não converte o valor em reais e recusa o pagamento.', 'Without a price from the source, the contract cannot convert the BRL amount and rejects the payment.'), [
                             call(R(dev), w('pagar', 'pay') + pay.I, [], amount(pay.params.valor), 'reverter', N.DadoIndisponivel, w('Sem cotação, o pagamento é recusado.', 'Without a price, payment is rejected.'))
-                        ]), { semPrelude: true }));
+                        ]), { semPrelude: true }), { bloco: b.uid }));
                 }
             }
             if (b.type === 'liberacaoPorEvento') {
                 const cus = ctx.byUid(b.params.alvo), ev = ctx.byUid(b.params.evento);
                 if (cus && ev) {
                     const dep = roleById(cus.params.depositante), ben = roleById(cus.params.beneficiario);
-                    scenarios.push(sc(w(`${cus.label}: liberação pelo evento`, `${cus.label}: release on event`), 'funcionalidade',
+                    scenarios.push(Object.assign(sc(w(`${cus.label}: liberação pelo evento`, `${cus.label}: release on event`), 'funcionalidade',
                         w('Antes de o evento ser atestado, a liberação é recusada; depois, o beneficiário a obtém sem depender do depositante.', 'Before the event is attested, release is rejected; afterwards the beneficiary obtains it without the depositor.'), [
                             call(R(dep), w('depositar', 'deposit') + cus.I, [], amount(cus.params.valor), 'sucesso', null, w('Depósito.', 'Deposit.')),
                             call(R(ben), w('liberarPorEvento', 'releaseOnEvent') + cus.I, [], null, 'reverter', N.NaoDisponivel, w('Evento ainda não atestado.', 'Event not yet attested.')),
@@ -1793,7 +1832,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
                                 : call(R(roleById(ev.params.verificador)), oblNames(ev).at + ev.I, [], null, 'sucesso', null, w('Atestado o cumprimento da obrigação.', 'Performance of the obligation is attested.')),
                             call(R(ben), w('liberarPorEvento', 'releaseOnEvent') + cus.I, [], null, 'sucesso', null, w('Liberação ao beneficiário.', 'Release to the beneficiary.')),
                             call(R(ben), N.sacar, [], null, 'sucesso', null, w('O beneficiário saca.', 'The beneficiary withdraws.'))
-                        ]));
+                        ]), { bloco: b.uid }));
                 }
             }
         }
@@ -1846,6 +1885,16 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
             }
         }
 
+        // Cada cenário fica associado à cláusula de que trata (para a cor na tela).
+        const byTitle = ctx.blocks.slice().sort((a, b) => b.label.length - a.label.length);
+        for (const scn of scenarios) {
+            if (scn.bloco) continue;
+            const hit = byTitle.find(b => scn.titulo.startsWith(b.label + ':'));
+            if (hit) scn.bloco = hit.uid;
+            else if (rescisao && /^(Rescisão|Termination)/.test(scn.titulo)) scn.bloco = rescisao.uid;
+            else if (vigencia && /(vigência|term)$/.test(scn.titulo)) scn.bloco = vigencia.uid;
+        }
+
         const moneyTotal = ctx.allMoney.reduce((s, b) => s + Number(b.params.valor) * (b.type === 'pagamentoPeriodico' ? Number(b.params.parcelas) : 1), 0);
         const balance = String(Math.max(100, Math.ceil(moneyTotal / ctx.scale * 2 + 10)));
         return {
@@ -1854,6 +1903,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
             implantacao: { conta: R(ctx.roles[0]), argumentos: ctx.roles.map(r => R(r)).concat(ctx.usesToken ? ['@Token'] : []) },
             usaToken: ctx.usesToken,
             cenarios: scenarios,
+            legenda: legend(model, lang),
             origem: 'modelo'
         };
     }
@@ -2010,7 +2060,7 @@ ${commentBlock(fillSentence(rel, ctx), '    ')}
 
     return {
         BLOCKS, CATEGORIES, PRESETS, SOLC_VERSION, slots, missingSlots,
-        newBlock, validate, minuta, build, plan, preset, emptyModel, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
+        newBlock, validate, minuta, build, plan, preset, emptyModel, legend, colorOf, linksOf, COLORS, fillSentence: (b, model, lang) => fillSentence(Object.assign({}, b), makeCtx(model, lang)),
         names: { pascal, camel, upper }, toWei, fieldLabel
     };
 }));

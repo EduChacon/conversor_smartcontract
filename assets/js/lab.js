@@ -786,6 +786,27 @@
         return isBps ? label + ' (%)' : label;
     }
 
+    // ---------- Cores e títulos legíveis (legenda do contrato montado) ----------
+    function legenda() { return lab.scenarioPlan && lab.scenarioPlan.legenda ? lab.scenarioPlan.legenda : null; }
+    function clauseOf(uid) { const l = legenda(); return l && uid ? l.clausulas.find(c => c.uid === uid) || null : null; }
+    function clauseOfFunction(name) { const l = legenda(); return l ? clauseOf(l.funcoes[name]) : null; }
+    const ACCENTS = { clausula: 'cláusula', liberacao: 'liberação', violacao: 'violação', proximo: 'próximo', indice: 'índice', cotacao: 'cotação', devolucao: 'devolução', decisao: 'decisão', etapa: 'etapa', valor: 'valor' };
+    /** "executarClausulaPenal_BemVendido" → "Executar cláusula penal · Bem vendido" (com o rótulo original da cláusula). */
+    function functionTitle(name) {
+        const k = name.indexOf('_', 1);
+        const act = k > 0 ? name.slice(0, k) : name;
+        const words = act.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(' ').map(w => CSC.lang === 'en' ? w : (ACCENTS[w] || w));
+        let title = words.join(' ');
+        title = title.charAt(0).toUpperCase() + title.slice(1);
+        if (k > 0) {
+            const tail = name.slice(k + 1);
+            const P = CSC.blocks && CSC.blocks.names ? CSC.blocks.names.pascal : null;
+            const hit = P && legenda() ? legenda().clausulas.find(x => x.rotulo && P(x.rotulo) === tail) : null;
+            title += ' · ' + (hit ? hit.rotulo : humanLabel(tail));
+        }
+        return title;
+    }
+
     async function renderState() {
         const d = lab.dom;
         d.state.textContent = '';
@@ -931,9 +952,10 @@
     function dueGetter(fn) {
         const views = lab.contract.abi.filter(x => x.type === 'function' && (x.stateMutability === 'view' || x.stateMutability === 'pure') && x.inputs.length === 0).map(x => x.name);
         const has = n => views.find(v => v.toLowerCase() === n.toLowerCase());
-        const rest = fn.name.replace(/^(pagar|pay|quitar|repay|depositar|deposit|fund|liberar|disburse)/i, '');
-        const U = rest.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
-        const cands = /^(quitar|repay)/i.test(fn.name)
+        const bond = /^(depositarGarantia|depositBond)/i.test(fn.name);
+        const rest = fn.name.replace(/^(depositarGarantia|depositBond|pagar|pay|quitar|repay|depositar|deposit|fund|liberar|disburse)/i, '');
+        const U = rest.replace(/^_/, '').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+        const cands = bond ? [U + '_CLAUSULA_PENAL', U + '_PENALTY'] : /^(quitar|repay)/i.test(fn.name)
             ? ['saldoDevedor' + rest, 'outstanding' + rest, 'saldoDevedor', 'outstandingBalance']
             : ['valorDevido' + rest, 'amountDue' + rest, U + '_VALOR', U + '_AMOUNT', U + '_VALOR_TOTAL', U + '_TOTAL',
                 'valorDevido', 'amountDue', 'valor' + rest, rest ? rest.charAt(0).toLowerCase() + rest.slice(1) : '', 'preco', 'price', 'valorTotal', 'totalAmount', 'valorEmprestimo', 'loanAmount', 'valorAluguel', 'rent', 'installmentAmount'];
@@ -961,7 +983,9 @@
         lab.dueFills = [];
         const grid = el('div', { class: 'fn-grid' });
         const tokenGrid = el('div', { class: 'fn-grid' });
-        const items = fns.map(fn => ({ fn, tgt: lab.contract, grid }));
+        // Com a legenda do contrato montado, as funções seguem a ordem das cláusulas.
+        const order = name => { const l = legenda(); if (!l) return 0; const i = l.clausulas.findIndex(c => c.uid === l.funcoes[name]); return i < 0 ? 999 : i; };
+        const items = fns.map((fn, i) => ({ fn, i })).sort((x, y) => order(x.fn.name) - order(y.fn.name) || x.i - y.i).map(({ fn }) => ({ fn, tgt: lab.contract, grid }));
         if (lab.token) {
             for (const name of ['approve', 'transfer', 'balanceOf', 'allowance']) {
                 const fn = lab.token.abi.find(x => x.type === 'function' && x.name === name);
@@ -987,8 +1011,10 @@
             const valueInput = isPayable ? el('input', { type: 'text', class: 'fn-value', value: '0', 'aria-label': t('labValue') }) : null;
             const dueLink = own && isPayable && dueGetter(fn) ? el('button', { type: 'button', class: 'link-btn due-link', text: t('labDueFill') }) : null;
             const output = el('div', { class: 'fn-output', role: 'status', 'aria-live': 'polite' });
-            const card = el('div', { class: 'fn-card' + (isPayable ? ' fn-payable' : '') + (isView ? ' fn-view' : '') }, [
+            const cl = own ? clauseOfFunction(fn.name) : null;
+            const card = el('div', { class: 'fn-card' + (isPayable ? ' fn-payable' : '') + (isView ? ' fn-view' : '') + (cl ? ' k' + cl.cor : '') }, [
                 el('div', { class: 'fn-head' }, [
+                    own && legenda() ? el('span', { class: 'fn-title' }, [cl ? el('span', { class: 'k-dot' }) : null, functionTitle(fn.name), cl ? el('span', { class: 'fn-clause', text: cl.numero }) : null]) : null,
                     el('code', { class: 'fn-name', text: fn.name }),
                     own ? el('button', { type: 'button', class: 'info-btn', title: t('fnInfoButton'), 'aria-label': t('fnInfoButton') + ': ' + fn.name, text: 'i', onclick: () => showFunctionInfo(fn) }) : el('span', { class: 'tag', text: 'tBRL' }),
                     isPayable ? el('span', { class: 'tag tag-payable', text: 'payable' }) : null,
@@ -1314,11 +1340,13 @@
         for (const { scenario, result } of results) {
             const icon = result.status === 'pass' ? '✓' : result.status === 'fail' ? '✗' : '?';
             const label = result.status === 'pass' ? t('labPassed') : result.status === 'fail' ? t('labFailed') : t('labInvalid');
-            const details = el('details', { class: 'scenario scenario-' + result.status, open: result.status === 'fail' ? true : null }, [
+            const sc = clauseOf(scenario.bloco);
+            const details = el('details', { class: 'scenario scenario-' + result.status + (sc ? ' k' + sc.cor : ''), open: result.status === 'fail' ? true : null }, [
                 el('summary', {}, [
                     el('span', { class: 'scenario-icon', text: icon }),
                     el('span', { class: 'tag ' + (scenario.tipo === 'seguranca' ? 'tag-security' : 'tag-functional'), text: scenario.tipo === 'seguranca' ? t('labTypeSecurity') : t('labTypeFunctional') }),
                     el('strong', { class: 'scenario-title', text: scenario.titulo }),
+                    sc ? el('span', { class: 'scenario-clause', text: sc.numero }) : null,
                     el('span', { class: 'scenario-status', text: label })
                 ]),
                 el('p', { class: 'scenario-goal', text: scenario.objetivo }),

@@ -28,6 +28,9 @@
     --serif: 'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif;
     --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* Cores das cláusulas (uma por cláusula, em ordem) */
+    --k1: #2c5d8f; --k2: #2f6b4f; --k3: #a0521a; --k4: #6a4c93; --k5: #1f7373;
+    --k6: #9c3d73; --k7: #5d6b1f; --k8: #b0452f; --k9: #3f4f8f; --k10: #7a5a2b;
 }
 
 [data-theme="dark"] {
@@ -49,6 +52,8 @@
     --danger-soft: rgba(233, 138, 134, .1);
     --code-bg: #120f0c;
     --code-ink: #e6dcc8;
+    --k1: #8db8e6; --k2: #8fc9a8; --k3: #e6a670; --k4: #c0a6e6; --k5: #7fcfcf;
+    --k6: #e69cc4; --k7: #c3cf7f; --k8: #f0a08f; --k9: #a6b2ec; --k10: #d9b98a;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -543,3 +548,36 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .series { margin-top: .3rem; padding-left: .2rem; border-left: 2px dotted var(--rule); }
 .series .inline-row { font-family: var(--sans); font-size: .82rem; gap: .3rem 1rem; }
 .doc-controls { gap: .4rem 1.1rem; font-family: var(--sans); font-size: .85rem; }
+
+/* ---------- Cores das cláusulas e ligações ---------- */
+.k1 { --k: var(--k1); } .k2 { --k: var(--k2); } .k3 { --k: var(--k3); } .k4 { --k: var(--k4); } .k5 { --k: var(--k5); }
+.k6 { --k: var(--k6); } .k7 { --k: var(--k7); } .k8 { --k: var(--k8); } .k9 { --k: var(--k9); } .k10 { --k: var(--k10); }
+.clause[class*=" k"] { border-left: 3px solid var(--k); padding-left: .7rem; }
+.clause[class*=" k"]:hover, .clause[class*=" k"]:focus-within { border-left-color: var(--k); }
+.clause[class*=" k"] .clause-num { color: var(--k); }
+.clause.has-issue { border-left-color: var(--danger); }
+.k-dot { display: inline-block; width: .62em; height: .62em; border-radius: 50%; background: var(--k, var(--muted)); flex: none; vertical-align: baseline; }
+.link-tag {
+    display: inline-flex; align-items: center; gap: .3rem; font-family: var(--sans); font-size: .74rem; font-weight: 500;
+    color: var(--k); border: 1px solid var(--k); border-radius: 999px; padding: 0 .5rem; line-height: 1.5; background: transparent;
+    cursor: pointer;
+}
+.link-tag:hover, .link-tag:focus-visible { background: color-mix(in srgb, var(--k) 12%, transparent); }
+.clause.flash { animation: clauseFlash 1.2s ease-out; }
+@keyframes clauseFlash { from { background: color-mix(in srgb, var(--k, var(--accent)) 18%, transparent); } to { background: transparent; } }
+.link-map { margin: 1.2rem 0 0; font-family: var(--sans); font-size: .86rem; }
+.link-map summary { cursor: pointer; color: var(--accent); }
+.link-map ul { list-style: none; margin: .5rem 0 0; padding: 0; }
+.link-map li { margin: .2rem 0; display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
+.link-map li.sub { padding-left: 1.4rem; position: relative; }
+.link-map li.sub::before { content: '└'; position: absolute; left: .4rem; color: var(--muted); }
+.link-map .map-num { color: var(--k); font-weight: 600; }
+.link-map .map-kind { color: var(--muted); font-size: .78rem; }
+.code-legend { display: flex; flex-wrap: wrap; gap: .35rem .5rem; margin: .4rem 0 .6rem; font-family: var(--sans); font-size: .78rem; }
+.code-legend button { display: inline-flex; align-items: center; gap: .3rem; border: 1px solid var(--rule); border-left: 3px solid var(--k); background: transparent; color: var(--ink); padding: .1rem .5rem; cursor: pointer; font: inherit; }
+.code-legend button:hover, .code-legend button:focus-visible { border-color: var(--k); }
+.fn-card[class*=" k"] { border-left: 3px solid var(--k); padding-left: .7rem; }
+.fn-title { font-family: var(--serif); font-weight: 600; flex-basis: 100%; display: flex; align-items: baseline; gap: .4rem; }
+.fn-clause { white-space: nowrap; font-family: var(--sans); font-size: .72rem; color: var(--k, var(--muted)); font-weight: 500; }
+.scenario[class*=" k"] > summary { border-left: 3px solid var(--k); padding-left: .5rem; }
+.scenario-clause { white-space: nowrap; font-family: var(--sans); font-size: .72rem; color: var(--k); }

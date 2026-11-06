@@ -56,6 +56,11 @@
         originBlocks: 'gerada pelo contrato montado',
         finalClauseTitle: 'Pagamentos e saques',
         declarative: 'não executada pelo código',
+        linkedTo: 'ligada a: {name}',
+        linkedToTitle: 'Ir para a cláusula {name}',
+        linkMap: 'Mapa das ligações entre cláusulas',
+        linkMapHint: 'Cada cláusula tem uma cor, repetida no código, no Laboratório e nos testes. As cláusulas recuadas dependem da cláusula acima delas.',
+        alsoLinked: 'também ligada a',
         partiesData: 'Dados das partes (opcional)',
         partiesDataHelp: 'Endereço de carteira de cada parte, para o relatório e para a implantação numa rede de teste. Não inclua dados pessoais sensíveis: o arquivo do contrato fica com quem o salvar.',
         partyWallet: 'Endereço de carteira',
@@ -118,6 +123,11 @@
         originBlocks: 'generated from the composed contract',
         finalClauseTitle: 'Payments and withdrawals',
         declarative: 'not executed by the code',
+        linkedTo: 'linked to: {name}',
+        linkedToTitle: 'Go to clause {name}',
+        linkMap: 'Map of links between clauses',
+        linkMapHint: 'Each clause has a color, repeated in the code, the Lab and the tests. Indented clauses depend on the clause above them.',
+        alsoLinked: 'also linked to',
         partiesData: 'Party details (optional)',
         partiesDataHelp: 'Each party\'s wallet address, for the report and for testnet deployment. Do not include sensitive personal data: the contract file stays with whoever saves it.',
         partyWallet: 'Wallet address',
@@ -296,8 +306,14 @@
                 changed(true);
             } })
         ]);
-        const li = el('li', { class: 'clause' + (def.declarative ? ' clause-free' : ''), 'data-uid': block.uid }, [
-            el('div', { class: 'clause-head' }, [el('span', { class: 'clause-num', text: ordinal(index + 2) }), ' — ', ...titleNodes, def.declarative ? el('span', { class: 'clause-note', text: t('declarative') }) : null, tools]),
+        const linkTags = B().linksOf(block).map(l => {
+            const tb = state.model.blocks.find(x => x.uid === l.uid);
+            if (!tb) return null;
+            return el('button', { type: 'button', class: 'link-tag k' + B().colorOf(state.model, tb.uid), title: t('linkedToTitle', { name: tb.label }),
+                onclick: () => focusClause(tb.uid) }, [el('span', { class: 'k-dot' }), t('linkedTo', { name: tb.label })]);
+        }).filter(Boolean);
+        const li = el('li', { class: 'clause' + (def.declarative ? ' clause-free' : '') + ' k' + B().colorOf(state.model, block.uid), 'data-uid': block.uid }, [
+            el('div', { class: 'clause-head' }, [el('span', { class: 'clause-num', text: ordinal(index + 2) }), ' — ', ...titleNodes, def.declarative ? el('span', { class: 'clause-note', text: t('declarative') }) : null, ...linkTags, tools]),
             sentenceNode(block)
         ]);
         if (block.type === 'oraculoValor') li.appendChild(seriesNode(block));
@@ -624,6 +640,48 @@
     }
 
     // ---------- Renderização ----------
+    /** Rola até a cláusula indicada e a destaca brevemente. */
+    function focusClause(uid) {
+        const li = state.dom.doc.querySelector('.clause[data-uid="' + CSS.escape(uid) + '"]');
+        if (!li) return;
+        li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        li.classList.remove('flash'); void li.offsetWidth; li.classList.add('flash');
+    }
+
+    /** Mapa das ligações: cláusulas principais e, recuadas, as que dependem delas. */
+    function linkMapNode() {
+        const m = state.model;
+        if (!m.blocks.some(b => B().linksOf(b).length)) return null;
+        const lang = CSC.lang === 'en' ? 'en' : 'pt';
+        const num = b => ordinal(m.blocks.indexOf(b) + 2);
+        const item = (b, sub, extra) => el('li', { class: (sub ? 'sub ' : '') + 'k' + B().colorOf(m, b.uid) }, [
+            el('span', { class: 'k-dot' }),
+            el('button', { type: 'button', class: 'link-btn map-num', text: num(b), onclick: () => focusClause(b.uid) }),
+            el('span', { text: b.label }),
+            el('span', { class: 'map-kind', text: '(' + B().BLOCKS[b.type].name[lang].toLowerCase() + ')' }),
+            ...(extra || [])
+        ]);
+        const primary = l => (l.find(x => x.campo === 'alvo') || l[0]);
+        const list = el('ul');
+        for (const b of m.blocks) {
+            const links = B().linksOf(b).filter(l => m.blocks.some(x => x.uid === l.uid));
+            if (links.length) continue; // aparece sob a cláusula de que depende
+            list.appendChild(item(b, false));
+            for (const dep of m.blocks) {
+                const dl = B().linksOf(dep).filter(l => m.blocks.some(x => x.uid === l.uid));
+                if (!dl.length || primary(dl).uid !== b.uid) continue;
+                const others = dl.filter(l => l.uid !== b.uid).map(l => m.blocks.find(x => x.uid === l.uid));
+                const extra = others.length ? [el('span', { class: 'map-kind', text: t('alsoLinked') }), ...others.map(o => el('button', { type: 'button', class: 'link-tag k' + B().colorOf(m, o.uid), onclick: () => focusClause(o.uid) }, [el('span', { class: 'k-dot' }), o.label]))] : null;
+                list.appendChild(item(dep, true, extra));
+            }
+        }
+        return el('details', { class: 'link-map', open: state.mapOpen ? true : null, ontoggle: e => { state.mapOpen = e.target.open; } }, [
+            el('summary', { text: t('linkMap') }),
+            el('p', { class: 'muted small', text: t('linkMapHint') }),
+            list
+        ]);
+    }
+
     function render() {
         const d = state.dom;
         const m = state.model;
@@ -635,6 +693,8 @@
         m.blocks.forEach((b, i) => ol.appendChild(clauseNode(b, i)));
         ol.appendChild(finalClauseNode());
         d.doc.appendChild(ol);
+        const map = linkMapNode();
+        if (map) d.doc.appendChild(map);
         d.doc.appendChild(el('div', { class: 'add-clause' }, [
             el('button', { type: 'button', class: 'btn btn-quiet', text: t('addClause'), 'aria-expanded': state.paletteOpen ? 'true' : 'false', onclick: () => { state.paletteOpen = !state.paletteOpen; render(); } }),
             state.paletteOpen ? paletteNode() : null

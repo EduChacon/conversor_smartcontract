@@ -346,9 +346,46 @@
         onCodeChanged();
     }
 
+    /** Legenda colorida acima do código: um botão por cláusula, que rola até a seção correspondente. */
+    function renderCodeLegend() {
+        const box = $('codeLegend');
+        if (!box) return;
+        box.textContent = '';
+        const cur = state.history[state.index];
+        const tp = state.templatePlan;
+        if (!cur || cur.origin !== 'blocks' || !tp || tp.kind !== 'blocks') { box.hidden = true; return; }
+        let leg;
+        try { leg = CSC.blocks.legend(tp.model, tp.lang); } catch (_) { box.hidden = true; return; }
+        const mk = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+        box.appendChild(mk('span', 'muted', t('codeLegendLabel')));
+        for (const c of leg.clausulas) {
+            const b = mk('button', 'k' + c.cor);
+            b.type = 'button';
+            b.title = t('codeLegendTitle', { name: c.numero });
+            b.appendChild(mk('span', 'k-dot'));
+            b.appendChild(document.createTextNode(c.numero + ' · ' + c.rotulo));
+            b.addEventListener('click', () => scrollCodeTo('// ' + c.numero + ' — '));
+            box.appendChild(b);
+        }
+        box.hidden = false;
+    }
+
+    function scrollCodeTo(marker) {
+        const ta = el.code;
+        const i = ta.value.indexOf(marker);
+        if (i < 0) return;
+        const line = ta.value.slice(0, i).split('\n').length - 1;
+        const lh = parseFloat(getComputedStyle(ta).lineHeight) || 18;
+        ta.scrollTop = Math.max(0, (line - 2) * lh);
+        ta.focus({ preventScroll: true });
+        const end = ta.value.indexOf('\n', i);
+        ta.setSelectionRange(i, end < 0 ? i : end);
+    }
+
     function onCodeChanged() {
         saveDraft();
         updateCodeUI();
+        renderCodeLegend();
         runScan();
         renderCompile();
         if (state.compile && state.compile.code !== currentCode() && state.settings.autoCompile && CSC.compiler.isLoaded()) {
